@@ -21,6 +21,12 @@
 #include <memory>
 #include <atomic>
 
+#include <immintrin.h> // For AVX-512 intrinsics
+#include <chrono>
+#include <afxwin.h> // MFC headers
+#include <intrin.h> 
+
+
 #pragma comment(lib, "wbemuuid.lib")
 
 #ifdef _DEBUG
@@ -797,32 +803,249 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 }
 
 
-void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter)
+// Function to check CPU instruction set support
+bool CheckAVX512Support() {
+    int cpuInfo[4];
+    __cpuid(cpuInfo, 0x7); // CPUID leaf 7 for extended features
+    return (cpuInfo[1] & (1 << 16)) != 0; // Check AVX-512F bit
+}
+
+bool CheckAVX2Support() {
+    int cpuInfo[4];
+    __cpuid(cpuInfo, 0x7); // CPUID leaf 7 for extended features
+    return (cpuInfo[1] & (1 << 5)) != 0; // Check AVX2 bit
+}
+
+bool CheckSSESupport() {
+    int cpuInfo[4];
+    __cpuid(cpuInfo, 1); // CPUID leaf 1 for basic features
+    return (cpuInfo[3] & (1 << 25)) != 0; // Check SSE bit
+}
+
+
+
+void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter)
 {
-    ULONGLONG startTime = GetTickCount64();
-    volatile double result = 0.0; // Prevent compiler optimization
+    auto startTime = std::chrono::high_resolution_clock::now();
     long long localOps = 0;
     long long localFlops = 0;
+    const long long iterationsPerLoop = 100000; // large enough for timing
 
-    while ((GetTickCount64() - startTime) < (ULONGLONG)durationSeconds * 1000)
+    bool useAVX512 = CheckAVX512Support();
+    bool useAVX2 = !useAVX512 && CheckAVX2Support();
+    bool useSSE = !useAVX512 && !useAVX2 && CheckSSESupport();
+
+    if (useAVX512)
     {
-        for (int i = 1; i < 10000; i++)
+        // AVX-512 FP64: 8 doubles per vector, FMA = 16 FLOPs
+        __m512d a = _mm512_set1_pd(1.5);
+        __m512d b = _mm512_set1_pd(2.3);
+        __m512d c = _mm512_set1_pd(0.0);
+        long long flopsPerIteration = 16; // 8 elements * 2 FLOPs (FMA)
+        long long opsPerIteration = flopsPerIteration + 10;
+
+        while (true)
         {
-            double a = sqrt(i);         
-            double b = sin(i);          
-            double c = cos(i);         
-       
+            auto now = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
 
-            result *= a * b * c;
-
-            localFlops += 6;
-            localOps += 6;
+            for (long long i = 0; i < iterationsPerLoop; i++)
+            {
+                c = _mm512_fmadd_pd(a, b, c); // a*b + c
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
         }
+        double result[8];
+        _mm512_storeu_pd(result, c);
+        volatile double sink = result[0];
+    }
+    else if (useAVX2)
+    {
+        // AVX2 FP64: 4 doubles per vector, FMA = 8 FLOPs
+        __m256d a = _mm256_set1_pd(1.5);
+        __m256d b = _mm256_set1_pd(2.3);
+        __m256d c = _mm256_set1_pd(0.0);
+        long long flopsPerIteration = 8; // 4 elements * 2 FLOPs
+        long long opsPerIteration = flopsPerIteration + 10;
+
+        while (true)
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++)
+            {
+                c = _mm256_fmadd_pd(a, b, c);
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        double result[4];
+        _mm256_storeu_pd(result, c);
+        volatile double sink = result[0];
+    }
+    else if (useSSE)
+    {
+        // SSE2 FP64: 2 doubles per vector, emulated FMA = 4 FLOPs
+        __m128d a = _mm_set1_pd(1.5);
+        __m128d b = _mm_set1_pd(2.3);
+        __m128d c = _mm_set1_pd(0.0);
+        long long flopsPerIteration = 4;
+        long long opsPerIteration = flopsPerIteration + 10;
+
+        while (true)
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++)
+            {
+                __m128d tmp = _mm_mul_pd(a, b);
+                c = _mm_add_pd(tmp, c);
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        double result[2];
+        _mm_storeu_pd(result, c);
+        volatile double sink = result[0];
+    }
+    else
+    {
+        // Scalar fallback FP64: 1 mul + 1 add = 2 FLOPs
+        double a = 1.5, b = 2.3, c = 0.0;
+        long long flopsPerIteration = 2;
+        long long opsPerIteration = 2 + 10;
+
+        while (true)
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++)
+            {
+                c = a * b + c;
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        volatile double sink = c;
     }
 
-    operationCounter->fetch_add(localOps);
-    flopCounter->fetch_add(localFlops);
+    operationCounter->fetch_add(localOps, std::memory_order_relaxed);
+    flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
 }
+
+void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter) {
+    auto startTime = std::chrono::high_resolution_clock::now();
+    long long localOps = 0;
+    long long localFlops = 0;
+    const long long iterationsPerLoop = 10000;
+
+    // Determine instruction set and set FLOP/operation counts
+    bool useAVX512 = CheckAVX512Support();
+    bool useAVX2 = !useAVX512 && CheckAVX2Support();
+    bool useSSE = !useAVX512 && !useAVX2 && CheckSSESupport();
+    long long flopsPerIteration = 0;
+    long long opsPerIteration = 0;
+
+    if (useAVX512) {
+        // AVX-512: 16 FP32 elements, FMA = 32 FLOPs
+        __m512 a = _mm512_set1_ps(1.5f);
+        __m512 b = _mm512_set1_ps(2.3f);
+        __m512 c = _mm512_set1_ps(0.0f);
+        flopsPerIteration = 32; // 16 elements * 2 FLOPs (FMA)
+        opsPerIteration = 32 + 10; // FLOPs + estimated integer/control ops
+
+        while (true) {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (elapsed >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++) {
+                c = _mm512_fmadd_ps(a, b, c); // AVX-512 FMA
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        float result[16];
+        _mm512_storeu_ps(result, c);
+        volatile float sink = result[0]; // Prevent optimization
+    }
+    else if (useAVX2) {
+        // AVX2: 8 FP32 elements, FMA = 16 FLOPs
+        __m256 a = _mm256_set1_ps(1.5f);
+        __m256 b = _mm256_set1_ps(2.3f);
+        __m256 c = _mm256_set1_ps(0.0f);
+        flopsPerIteration = 16; // 8 elements * 2 FLOPs (FMA)
+        opsPerIteration = 16 + 10;
+
+        while (true) {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (elapsed >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++) {
+                c = _mm256_fmadd_ps(a, b, c); // AVX2 FMA
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        float result[8];
+        _mm256_storeu_ps(result, c);
+        volatile float sink = result[0];
+    }
+    else if (useSSE) {
+        // SSE: 4 FP32 elements, FMA (emulated) = 8 FLOPs
+        __m128 a = _mm_set1_ps(1.5f);
+        __m128 b = _mm_set1_ps(2.3f);
+        __m128 c = _mm_set1_ps(0.0f);
+        flopsPerIteration = 8; // 4 elements * 2 FLOPs (mul + add)
+        opsPerIteration = 8 + 10;
+
+        while (true) {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (elapsed >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++) {
+                __m128 temp = _mm_mul_ps(a, b); // SSE multiply
+                c = _mm_add_ps(temp, c); // SSE add (emulate FMA)
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        float result[4];
+        _mm_storeu_ps(result, c);
+        volatile float sink = result[0];
+    }
+    else {
+        // Scalar fallback: 2 FLOPs per iteration (mul + add)
+        float a = 1.5f, b = 2.3f, c = 0.0f;
+        flopsPerIteration = 2; // 1 mul + 1 add
+        opsPerIteration = 2 + 10;
+
+        while (true) {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (elapsed >= durationSeconds * 1000) break;
+
+            for (long long i = 0; i < iterationsPerLoop; i++) {
+                c = a * b + c; // Scalar FMA-like operation
+                localFlops += flopsPerIteration;
+                localOps += opsPerIteration;
+            }
+        }
+        volatile float sink = c;
+    }
+
+    operationCounter->fetch_add(localOps, std::memory_order_relaxed);
+    flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
+}
+
+
+
 
 // CPU Load Test button handler
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
@@ -833,36 +1056,38 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
         AfxMessageBox(L"Cannot read battery percentage.");
         return;
     }
-
     m_initialBatteryCPUPercent = sps.BatteryLifePercent;
     m_cpuLoadTestRunning = true;
     SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
 
     std::thread([this]()
         {
-            int numCores = std::thread::hardware_concurrency();
-
+            // Use physical cores, estimated as half of hardware_concurrency if Hyper-Threading is enabled
+            int numCores = std::thread::hardware_concurrency() / 2;
+            if (numCores == 0) numCores = 1; // Fallback for single-core systems
             std::vector<std::thread> threads;
             std::atomic<long long> totalOperations(0);
             std::atomic<long long> totalFlops(0);
 
-            // Start timing for TOPS and GFLOPS calculation
-            ULONGLONG startTime = GetTickCount64();
+            // Start timing
+            auto startTime = std::chrono::high_resolution_clock::now();
 
+            // Launch one thread per core
             for (int i = 0; i < numCores; i++)
-                threads.emplace_back(RunCPULoad, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops);
+                threads.emplace_back(RunCPULoadFP64, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops);
 
+            // Join threads
             for (auto& t : threads) t.join();
 
             // Calculate total execution time
-            ULONGLONG endTime = GetTickCount64();
-            double actualDurationSeconds = (endTime - startTime) / 1000.0;
+            auto endTime = std::chrono::high_resolution_clock::now();
+            double actualDurationSeconds = std::chrono::duration<double>(endTime - startTime).count();
 
             // Get total operations and flops count
             long long ops = totalOperations.load();
             long long flops = totalFlops.load();
 
-            // Calculate TOPS (Tera Operations Per Second) and GFLOPS (Giga Floating Point Operations Per Second)
+            // Calculate TOPS and GFLOPS
             double tops = (ops / actualDurationSeconds) / 1e12;
             double gflops = (flops / actualDurationSeconds) / 1e9;
 
@@ -871,28 +1096,20 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
             {
                 int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
                 double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
-
                 CString msg;
                 msg.Format(L"Initial: %d%%\nCurrent: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
                     m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent, drop, rate, tops, gflops);
-
-                // Save result for CSV (including TOPS and GFLOPS)
                 m_cpuLoadTestCompleted = true;
                 m_cpuLoadResult = msg;
-
                 this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
             }
             else
             {
                 CString msg = L"Cannot read battery percentage.";
-
-                //Save failure too
                 m_cpuLoadTestCompleted = true;
                 m_cpuLoadResult = msg;
-
                 this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
             }
-
             m_cpuLoadTestRunning = false;
         }).detach();
 }
