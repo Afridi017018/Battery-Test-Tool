@@ -93,6 +93,10 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_MESSAGE(WM_APP + 1, &CBatteryHelthDlg::OnCPULoadFinished)
     ON_BN_CLICKED(IDC_BTN_UPLOADPDF, &CBatteryHelthDlg::OnBnClickedBtnUploadpdf)
     ON_BN_CLICKED(IDC_BTN_HISTORY, &CBatteryHelthDlg::OnBnClickedBtnHistory)
+    ON_STN_CLICKED(IDC_STATIC_HEADER, &CBatteryHelthDlg::OnStnClickedStaticHeader)
+
+    ON_WM_CTLCOLOR()
+
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -177,8 +181,43 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     m_dh.SetFont(&m_boldFont);
     m_header.SetFont(&m_boldFont);
 
+    // Set fixed dialog size
+    int width = 760;   // Set your desired width
+    int height = 750;  // Set your desired height
+
+    SetWindowPos(NULL, 0, 0, width, height,
+        SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+    // Center the dialog on screen
+    CenterWindow();
+
+    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
+
     return TRUE;  // return TRUE  unless you set the focus to a control
 }
+
+
+HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+    HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+    // Set background color for the dialog
+    if (nCtlColor == CTLCOLOR_DLG)
+    {
+        return m_brushWhite; // white background
+    }
+
+    // Optional: make static text transparent with white background
+    if (nCtlColor == CTLCOLOR_STATIC)
+    {
+        pDC->SetBkMode(TRANSPARENT);
+        return m_brushWhite;
+    }
+
+    return hbr;
+}
+
+
 
 void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
@@ -415,6 +454,8 @@ CString QueryBatteryCycleCount()
     pLoc->Release();
     return result;
 }
+
+
 
 void CBatteryHelthDlg::GetBatteryInfo()
 {
@@ -678,6 +719,41 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 cycleCount += L" cycles";
             }
             SetDlgItemText(IDC_BATT_CYCLE, cycleCount);
+
+            // --------- ?? NEW: System UUID (from Win32_ComputerSystemProduct) ---------
+            {
+                IEnumWbemClassObject* pEnumUUID = NULL;
+                HRESULT hresUUID = pSvc->ExecQuery(
+                    bstr_t("WQL"),
+                    bstr_t("SELECT UUID FROM Win32_ComputerSystemProduct"),
+                    WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                    NULL,
+                    &pEnumUUID);
+
+                if (SUCCEEDED(hresUUID) && pEnumUUID)
+                {
+                    IWbemClassObject* pObjUUID = NULL;
+                    ULONG uReturnUUID = 0;
+                    if (pEnumUUID->Next(WBEM_INFINITE, 1, &pObjUUID, &uReturnUUID) == S_OK)
+                    {
+                        VARIANT vtUUID;
+                        if (SUCCEEDED(pObjUUID->Get(L"UUID", 0, &vtUUID, 0, 0)))
+                        {
+                            CString uuid = (vtUUID.vt != VT_NULL && vtUUID.vt != VT_EMPTY) ? vtUUID.bstrVal : L"Not available";
+                            SetDlgItemText(IDC_BATT_DID, uuid); // make sure you add IDC_DEVICE_UUID in your dialog
+                            VariantClear(&vtUUID);
+                        }
+                        pObjUUID->Release();
+                    }
+                    pEnumUUID->Release();
+                }
+                else
+                {
+                    SetDlgItemText(IDC_BATT_DID, L"Not available");
+                }
+            }
+
+
 
             pClsObj->Release();
         }
@@ -1326,4 +1402,13 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
         table += L"No history recorded yet.";
 
     AfxMessageBox(table, MB_OK | MB_ICONINFORMATION);
+}
+void CBatteryHelthDlg::OnStnClickedStaticDid()
+{
+    // TODO: Add your control notification handler code here
+}
+
+void CBatteryHelthDlg::OnStnClickedStaticHeader()
+{
+    // TODO: Add your control notification handler code here
 }

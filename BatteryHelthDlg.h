@@ -89,4 +89,11 @@ public:
 	CFont m_boldFont;
 	CStatic m_header;
 
+	afx_msg void OnStnClickedStaticDid();
+	afx_msg void OnStnClickedStaticHeader();
+
+
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	CBrush m_brushWhite;
+
 };
