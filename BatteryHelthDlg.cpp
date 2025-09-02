@@ -77,6 +77,10 @@ void CBatteryHelthDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialogEx::DoDataExchange(pDX);
     DDX_Control(pDX, IDC_BATT_PROGRESS, m_BatteryProgress);
+    DDX_Control(pDX, IDC_STATIC_BBI, m_bb);
+    DDX_Control(pDX, IDC_STATIC_ABT, m_abt);
+    DDX_Control(pDX, IDC_STATIC_DH, m_dh);
+    DDX_Control(pDX, IDC_STATIC_HEADER, m_header);
 }
 
 BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
@@ -157,6 +161,21 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     SetIcon(m_hIcon, FALSE);		// Set small icon
 
     // TODO: Add extra initialization here
+
+    // Copy dialog font
+    CFont* pFont = GetFont();
+    LOGFONT lf{};
+    pFont->GetLogFont(&lf);
+
+    // Make it bold
+    lf.lfWeight = FW_BOLD;
+    m_boldFont.CreateFontIndirect(&lf);
+
+    // Apply to specific group boxes
+    m_bb.SetFont(&m_boldFont);
+    m_abt.SetFont(&m_boldFont);
+    m_dh.SetFont(&m_boldFont);
+    m_header.SetFont(&m_boldFont);
 
     return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -722,11 +741,18 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     // Check Battery Saver
     if (sps.SystemStatusFlag & 1) // 1 = Battery saver ON
     {
-        AfxMessageBox(L"Turn off your Power Saver.");
+        CString msg;
+        msg = L"Turn off your Baattery Saver.\n\n";
+
+        msg += L"=> WINDOWS:\n";
+        msg += L"  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+
+        msg += L"=> LINUX (GNOME/KDE):\n";
+        msg += L"   System Settings -> Power -> Battery -> Disable Power Saver\n";
+
+        AfxMessageBox(msg);
         return;
     }
-
-
 
     // Start discharge test
     m_initialBatteryPercent = sps.BatteryLifePercent; // Record starting %
@@ -734,7 +760,11 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     m_dischargeTestRunning = true;
 
     SetTimer(m_dischargeTimerID, 60000, NULL); // Timer every 1 minute
-    SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Running...");
+    CString imsg;
+    imsg.Format(L"Discharge Test Running...\nTime Elapsed: %d min\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
+        0,m_initialBatteryPercent, m_initialBatteryPercent, 0, 0);
+
+    SetDlgItemText(IDC_BATT_DISCHARGR, imsg);
 
     // Optional: check if test duration already completed (maybe move this to OnTimer)
     if (m_elapsedMinutes >= m_dischargeDurationMinutes)
@@ -798,6 +828,21 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
         }
     }
+
+
+    if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
+    {
+        m_cpuLoadElapsed++;
+
+        // calculate percentage
+        double percentLeft = 100.0 * (1.0 - (double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
+        if (percentLeft < 0) percentLeft = 0;
+
+        CString msg;
+        msg.Format(L"CPU Load Test Running... %.0f%% remaining", percentLeft);
+        SetDlgItemText(IDC_BATT_CPULOAD, msg);
+    }
+
 
     CDialogEx::OnTimer(nIDEvent);
 }
@@ -1060,6 +1105,10 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     m_cpuLoadTestRunning = true;
     SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
 
+    m_cpuLoadElapsed = 0;
+    SetTimer(m_cpuLoadTimerID, 1000, NULL); // tick every 1 sec
+
+
     std::thread([this]()
         {
             // Use physical cores, estimated as half of hardware_concurrency if Hyper-Threading is enabled
@@ -1116,6 +1165,12 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
 LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 {
+
+    if (m_cpuLoadTimerID != 0)
+    {
+        KillTimer(m_cpuLoadTimerID);
+    }
+
     CString* pMsg = (CString*)lParam;
     SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);
     delete pMsg; // free memory

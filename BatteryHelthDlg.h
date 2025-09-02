@@ -52,9 +52,12 @@ public:
 	int m_dischargeDurationMinutes = 10;     // Duration of discharge test (minutes)
 	int m_elapsedMinutes = 0;
 
+
 	bool m_cpuLoadTestRunning = false;
 	int m_cpuLoadDurationSeconds = 120; // 2 minutes default
 	int m_initialBatteryCPUPercent = 0;
+	UINT_PTR m_cpuLoadTimerID = 3;
+	int m_cpuLoadElapsed = 0;
 
 	afx_msg void OnBnClickedBtnDischarge();
 	afx_msg void OnBnClickedBtnCpuload();
@@ -80,4 +83,10 @@ public:
 
 
 	afx_msg void OnBnClickedBtnHistory();
+	CStatic m_bb;
+	CStatic m_abt;
+	CStatic m_dh;
+	CFont m_boldFont;
+	CStatic m_header;
+
 };
