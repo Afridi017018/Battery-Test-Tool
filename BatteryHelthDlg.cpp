@@ -26,6 +26,9 @@
 #include <afxwin.h> // MFC headers
 #include <intrin.h> 
 
+#include <pdh.h>
+#include <pdhmsg.h>
+#pragma comment(lib, "pdh.lib")
 
 #pragma comment(lib, "wbemuuid.lib")
 
@@ -182,7 +185,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     m_header.SetFont(&m_boldFont);
 
     // Set fixed dialog size
-    int width = 760;   // Set your desired width
+    int width = 670;   // Set your desired width
     int height = 750;  // Set your desired height
 
     SetWindowPos(NULL, 0, 0, width, height,
@@ -454,7 +457,6 @@ CString QueryBatteryCycleCount()
     pLoc->Release();
     return result;
 }
-
 
 
 void CBatteryHelthDlg::GetBatteryInfo()
@@ -781,6 +783,13 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
         return;
     }
 
+    if (m_cpuLoadTestRunning || m_dischargeTestRunning) {
+        GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+        GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+
+        return;
+    }
+
     if (sps.ACLineStatus == 1) // Charging
     {
         GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
@@ -834,6 +843,9 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     m_initialBatteryPercent = sps.BatteryLifePercent; // Record starting %
     m_elapsedMinutes = 0;
     m_dischargeTestRunning = true;
+
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
 
     SetTimer(m_dischargeTimerID, 60000, NULL); // Timer every 1 minute
     CString imsg;
@@ -896,6 +908,11 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 m_dischargeResult.Format(L"Initial: %d%%, Final: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                     m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
 
+                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+                GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+         
+                return;
+
                 AfxMessageBox(L"Discharge Test Completed!");
             }
         }
@@ -910,14 +927,15 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     {
         m_cpuLoadElapsed++;
 
-        // calculate percentage
-        double percentLeft = 100.0 * (1.0 - (double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
-        if (percentLeft < 0) percentLeft = 0;
+        //Count up instead of down
+        double percentDone = 100.0 * ((double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
+        if (percentDone > 100) percentDone = 100;
 
         CString msg;
-        msg.Format(L"CPU Load Test Running... %.0f%% remaining", percentLeft);
+        msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);
         SetDlgItemText(IDC_BATT_CPULOAD, msg);
     }
+
 
 
     CDialogEx::OnTimer(nIDEvent);
@@ -1168,9 +1186,44 @@ void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, s
 
 
 
+double CBatteryHelthDlg::GetCurrentCPUUsage()
+{
+    static PDH_HQUERY cpuQuery;
+    static PDH_HCOUNTER cpuTotal;
+    static bool initialized = false;
+
+    if (!initialized)
+    {
+        PdhOpenQuery(NULL, 0, &cpuQuery);
+        PdhAddCounter(cpuQuery, L"\\Processor(_Total)\\% Processor Time", 0, &cpuTotal);
+        PdhCollectQueryData(cpuQuery);
+        initialized = true;
+        Sleep(100); // short delay to get valid initial reading
+    }
+
+    // Collect CPU data
+    PdhCollectQueryData(cpuQuery);
+
+    PDH_FMT_COUNTERVALUE counterVal;
+    PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal);
+
+    return counterVal.doubleValue; 
+}
+
 // CPU Load Test button handler
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
+    // Check current CPU usage before starting the test
+    double usage = GetCurrentCPUUsage();
+    if (usage >= 10)
+    {
+        CString msg;
+        msg.Format(L"CPU usage is currently above 10%%. Please close background applications first and try again.\n(Current: %.0f%%)", usage);
+        AfxMessageBox(msg);
+        
+        return;
+    }
+    
     SYSTEM_POWER_STATUS sps;
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
     {
@@ -1180,6 +1233,12 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     m_initialBatteryCPUPercent = sps.BatteryLifePercent;
     m_cpuLoadTestRunning = true;
     SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+
+    // Disable the CPU Load button
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+
+    // Disable the Discharge Test button
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
 
     m_cpuLoadElapsed = 0;
     SetTimer(m_cpuLoadTimerID, 1000, NULL); // tick every 1 sec
@@ -1250,6 +1309,13 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     CString* pMsg = (CString*)lParam;
     SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);
     delete pMsg; // free memory
+
+    // Re-enable the CPU Load button after finishing
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+
+    // Re-enable the Discharge Test button after finishing
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+
     return 0;
 }
 
