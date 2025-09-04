@@ -154,6 +154,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
     m_CPU_Progress.ShowWindow(SW_HIDE); // Hide initially
 
+    m_stopCpuLoad.store(false);
+
     // Get battery info + start timer
     GetBatteryInfo();
     SetTimer(1, 1000, NULL);
@@ -272,8 +274,8 @@ void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
 }
 
 // If you add a minimize button to your dialog, you will need the code below
-//  to draw the icon.  For MFC applications using the document/view model,
-//  this is automatically done for you by the framework.
+// to draw the icon.  For MFC applications using the document/view model,
+// this is automatically done for you by the framework.
 
 void CBatteryHelthDlg::OnPaint()
 {
@@ -849,21 +851,6 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 }
 
 
-void ShowBoldMessage(CWnd* pParent, const CString& heading, const CString& content)
-{
-    TASKDIALOGCONFIG tdc = { 0 };
-    tdc.cbSize = sizeof(tdc);
-    tdc.hwndParent = pParent->GetSafeHwnd();
-    tdc.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_USE_HICON_MAIN;
-    tdc.pszWindowTitle = L"Battery Warning";   // Title of the dialog
-    tdc.pszMainInstruction = heading;          // Bold heading
-    tdc.pszContent = content;                  // Normal content
-    tdc.pszMainIcon = TD_INFORMATION_ICON;
-
-    int nButton;
-    TaskDialogIndirect(&tdc, &nButton, NULL, NULL);
-}
-
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
     SYSTEM_POWER_STATUS sps;
@@ -988,6 +975,19 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         SetDlgItemText(IDC_BATT_CPULOAD, msg);
 
         m_CPU_Progress.SetPos(percentDone);
+
+
+        // Stop if requested
+        if (m_stopCpuLoad.load())
+        {
+            m_cpuLoadTestRunning = false;
+            KillTimer(m_cpuLoadTimerID);
+            SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
+            SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
+            m_CPU_Progress.ShowWindow(SW_HIDE);
+        }
+
+
     }
 
 
@@ -1017,7 +1017,10 @@ bool CheckSSESupport() {
 
 
 
-void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter)
+void RunCPULoadFP64(int durationSeconds,
+    std::atomic<long long>* operationCounter,
+    std::atomic<long long>* flopCounter,
+    std::atomic<bool>* stopFlag)
 {
     auto startTime = std::chrono::high_resolution_clock::now();
     long long localOps = 0;
@@ -1034,17 +1037,21 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
         __m512d a = _mm512_set1_pd(1.5);
         __m512d b = _mm512_set1_pd(2.3);
         __m512d c = _mm512_set1_pd(0.0);
-        long long flopsPerIteration = 16; // 8 elements * 2 FLOPs (FMA)
+        long long flopsPerIteration = 16;
         long long opsPerIteration = flopsPerIteration + 10;
 
         while (true)
         {
+            if (stopFlag->load()) break; // <- stop requested
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                >= durationSeconds * 1000)
+                break;
 
             for (long long i = 0; i < iterationsPerLoop; i++)
             {
-                c = _mm512_fmadd_pd(a, b, c); // a*b + c
+                if (stopFlag->load()) break; // <- check inside loop too
+                c = _mm512_fmadd_pd(a, b, c);
                 localFlops += flopsPerIteration;
                 localOps += opsPerIteration;
             }
@@ -1055,20 +1062,23 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
     }
     else if (useAVX2)
     {
-        // AVX2 FP64: 4 doubles per vector, FMA = 8 FLOPs
         __m256d a = _mm256_set1_pd(1.5);
         __m256d b = _mm256_set1_pd(2.3);
         __m256d c = _mm256_set1_pd(0.0);
-        long long flopsPerIteration = 8; // 4 elements * 2 FLOPs
+        long long flopsPerIteration = 8;
         long long opsPerIteration = flopsPerIteration + 10;
 
         while (true)
         {
+            if (stopFlag->load()) break;
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                >= durationSeconds * 1000)
+                break;
 
             for (long long i = 0; i < iterationsPerLoop; i++)
             {
+                if (stopFlag->load()) break;
                 c = _mm256_fmadd_pd(a, b, c);
                 localFlops += flopsPerIteration;
                 localOps += opsPerIteration;
@@ -1080,7 +1090,6 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
     }
     else if (useSSE)
     {
-        // SSE2 FP64: 2 doubles per vector, emulated FMA = 4 FLOPs
         __m128d a = _mm_set1_pd(1.5);
         __m128d b = _mm_set1_pd(2.3);
         __m128d c = _mm_set1_pd(0.0);
@@ -1089,11 +1098,15 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
 
         while (true)
         {
+            if (stopFlag->load()) break;
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                >= durationSeconds * 1000)
+                break;
 
             for (long long i = 0; i < iterationsPerLoop; i++)
             {
+                if (stopFlag->load()) break;
                 __m128d tmp = _mm_mul_pd(a, b);
                 c = _mm_add_pd(tmp, c);
                 localFlops += flopsPerIteration;
@@ -1106,18 +1119,22 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
     }
     else
     {
-        // Scalar fallback FP64: 1 mul + 1 add = 2 FLOPs
+        // Scalar fallback
         double a = 1.5, b = 2.3, c = 0.0;
         long long flopsPerIteration = 2;
         long long opsPerIteration = 2 + 10;
 
         while (true)
         {
+            if (stopFlag->load()) break;
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count() >= durationSeconds * 1000) break;
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                >= durationSeconds * 1000)
+                break;
 
             for (long long i = 0; i < iterationsPerLoop; i++)
             {
+                if (stopFlag->load()) break;
                 c = a * b + c;
                 localFlops += flopsPerIteration;
                 localOps += opsPerIteration;
@@ -1129,6 +1146,7 @@ void RunCPULoadFP64(int durationSeconds, std::atomic<long long>* operationCounte
     operationCounter->fetch_add(localOps, std::memory_order_relaxed);
     flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
 }
+
 
 void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter) {
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -1267,6 +1285,21 @@ double CBatteryHelthDlg::GetCurrentCPUUsage()
 // CPU Load Test button handler
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
+
+
+    // Stop if running
+    if (m_cpuLoadTestRunning)
+    {
+        m_stopCpuLoad.store(true);
+        m_cpuLoadTestRunning = false;
+
+        SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
+        SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
+
+        return;
+    }
+
+
     // Check current CPU usage before starting the test
     double usage = GetCurrentCPUUsage();
     if (usage >= 10)
@@ -1287,10 +1320,13 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     }
     m_initialBatteryCPUPercent = sps.BatteryLifePercent;
     m_cpuLoadTestRunning = true;
+    m_stopCpuLoad.store(false);
+
     SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+    SetDlgItemText(IDC_BTN_CPULOAD, L"Stop CPU Load Test");
 
     // Disable the CPU Load button
-    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+    //GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
 
     // Disable the Discharge Test button
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
@@ -1313,7 +1349,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
             // Launch one thread per core
             for (int i = 0; i < numCores; i++)
-                threads.emplace_back(RunCPULoadFP64, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops);
+                threads.emplace_back(RunCPULoadFP64, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops, &m_stopCpuLoad);
 
             // Join threads
             for (auto& t : threads) t.join();

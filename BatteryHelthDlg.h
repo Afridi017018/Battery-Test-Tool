@@ -10,6 +10,7 @@
 #include <afxwin.h>      
 #include <afxcmn.h>      
 
+#include <atomic>
 
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
@@ -53,11 +54,13 @@ public:
 	int m_elapsedMinutes = 0;
 
 
+	std::atomic<bool> m_stopCpuLoad;
 	bool m_cpuLoadTestRunning = false;
 	int m_cpuLoadDurationSeconds = 120; // 2 minutes default
 	int m_initialBatteryCPUPercent = 0;
 	UINT_PTR m_cpuLoadTimerID = 3;
 	int m_cpuLoadElapsed = 0;
+
 
 	afx_msg void OnBnClickedBtnDischarge();
 	afx_msg void OnBnClickedBtnCpuload();
@@ -104,5 +107,6 @@ public:
 	CProgressCtrl m_CPU_Progress;
 
 	CFont m_Font16px;
+
 
 };
