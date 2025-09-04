@@ -98,4 +98,11 @@ public:
 
 	double GetCurrentCPUUsage();
 
+	afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct);
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+
+	CProgressCtrl m_CPU_Progress;
+
+	CFont m_Font16px;
+
 };

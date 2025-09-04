@@ -84,6 +84,7 @@ void CBatteryHelthDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_STATIC_ABT, m_abt);
     DDX_Control(pDX, IDC_STATIC_DH, m_dh);
     DDX_Control(pDX, IDC_STATIC_HEADER, m_header);
+    DDX_Control(pDX, IDC_PROGRESS4, m_CPU_Progress);
 }
 
 BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
@@ -99,6 +100,9 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_STN_CLICKED(IDC_STATIC_HEADER, &CBatteryHelthDlg::OnStnClickedStaticHeader)
 
     ON_WM_CTLCOLOR()
+
+    ON_WM_DRAWITEM()
+    ON_WM_SETCURSOR()
 
 END_MESSAGE_MAP()
 
@@ -135,69 +139,101 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         return FALSE;
     }
 
-
+    // Battery progress
     m_BatteryProgress.SetRange(0, 100);
     m_BatteryProgress.SetPos(0);
-    GetBatteryInfo();
 
+    // CPU progress
+    m_CPU_Progress.SetRange(0, 100);
+    m_CPU_Progress.SetPos(0);   // int, no double!
+    m_CPU_Progress.SetStep(1);
+
+    m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
+    ::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
+    m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
+    m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
+    m_CPU_Progress.ShowWindow(SW_HIDE); // Hide initially
+
+    // Get battery info + start timer
+    GetBatteryInfo();
     SetTimer(1, 1000, NULL);
 
-    // Add "About..." menu item to system menu.
-
-    // IDM_ABOUTBOX must be in the system command range.
+    // Add "About..." menu item
     ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
     ASSERT(IDM_ABOUTBOX < 0xF000);
 
     CMenu* pSysMenu = GetSystemMenu(FALSE);
     if (pSysMenu != nullptr)
     {
-        BOOL bNameValid;
         CString strAboutMenu;
-        bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
-        ASSERT(bNameValid);
-        if (!strAboutMenu.IsEmpty())
+        if (strAboutMenu.LoadString(IDS_ABOUTBOX) && !strAboutMenu.IsEmpty())
         {
             pSysMenu->AppendMenu(MF_SEPARATOR);
             pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
         }
     }
 
-    // Set the icon for this dialog.  The framework does this automatically
-    //  when the application's main window is not a dialog
-    SetIcon(m_hIcon, TRUE);			// Set big icon
-    SetIcon(m_hIcon, FALSE);		// Set small icon
+    SetIcon(m_hIcon, TRUE);   // big icon
+    SetIcon(m_hIcon, FALSE);  // small icon
 
-    // TODO: Add extra initialization here
+    // ----------------------------
+    // Fonts
+    // ----------------------------
+    LOGFONT lf = { 0 };
+    lf.lfHeight = -16;
+    lf.lfWeight = FW_NORMAL;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
 
-    // Copy dialog font
-    CFont* pFont = GetFont();
-    LOGFONT lf{};
-    pFont->GetLogFont(&lf);
+    m_Font16px.CreateFontIndirect(&lf);
 
-    // Make it bold
+    // Apply 16px font to all controls
+    CWnd* pWnd = GetWindow(GW_CHILD);
+    while (pWnd)
+    {
+        pWnd->SetFont(&m_Font16px);
+        pWnd = pWnd->GetNextWindow();
+    }
+
+    // Reuse lf for bold font
     lf.lfWeight = FW_BOLD;
     m_boldFont.CreateFontIndirect(&lf);
 
-    // Apply to specific group boxes
+    // Apply bold to specific controls
     m_bb.SetFont(&m_boldFont);
     m_abt.SetFont(&m_boldFont);
     m_dh.SetFont(&m_boldFont);
     m_header.SetFont(&m_boldFont);
 
-    // Set fixed dialog size
-    int width = 670;   // Set your desired width
-    int height = 750;  // Set your desired height
+    GetDlgItem(IDC_BTN_CPULOAD)->SetFont(&m_boldFont);
+    GetDlgItem(IDC_BTN_DISCHARGE)->SetFont(&m_boldFont);
+    GetDlgItem(IDC_BTN_UPLOADPDF)->SetFont(&m_boldFont);
+    GetDlgItem(IDC_BTN_HISTORY)->SetFont(&m_boldFont);
 
+    // ----------------------------
+    // Dialog size & style
+    // ----------------------------
+    int width = 670;
+    int height = 780;
     SetWindowPos(NULL, 0, 0, width, height,
         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-
-    // Center the dialog on screen
     CenterWindow();
 
     m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
 
-    return TRUE;  // return TRUE  unless you set the focus to a control
+    // Fix window style
+    LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
+    style &= ~WS_THICKFRAME;   // no resize
+    style &= ~WS_MAXIMIZEBOX;  // no maximize
+    style |= WS_MINIMIZEBOX;   // keep minimize
+    style |= WS_SYSMENU;       // system menu required for minimize
+
+    SetWindowLong(this->m_hWnd, GWL_STYLE, style);
+    SetWindowPos(NULL, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+    return TRUE;
 }
+
 
 
 HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
@@ -813,6 +849,21 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 }
 
 
+void ShowBoldMessage(CWnd* pParent, const CString& heading, const CString& content)
+{
+    TASKDIALOGCONFIG tdc = { 0 };
+    tdc.cbSize = sizeof(tdc);
+    tdc.hwndParent = pParent->GetSafeHwnd();
+    tdc.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_USE_HICON_MAIN;
+    tdc.pszWindowTitle = L"Battery Warning";   // Title of the dialog
+    tdc.pszMainInstruction = heading;          // Bold heading
+    tdc.pszContent = content;                  // Normal content
+    tdc.pszMainIcon = TD_INFORMATION_ICON;
+
+    int nButton;
+    TaskDialogIndirect(&tdc, &nButton, NULL, NULL);
+}
+
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
     SYSTEM_POWER_STATUS sps;
@@ -820,22 +871,19 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
     {
         AfxMessageBox(L"Cannot read battery percentage.");
+        
         return;
     }
 
     // Check Battery Saver
-    if (sps.SystemStatusFlag & 1) // 1 = Battery saver ON
+    if (sps.SystemStatusFlag & 1) // Battery saver ON
     {
         CString msg;
-        msg = L"Turn off your Baattery Saver.\n\n";
-
+        msg = L"Turn off your Battery Saver.\n\n";
         msg += L"=> WINDOWS:\n";
         msg += L"  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
 
-        msg += L"=> LINUX (GNOME/KDE):\n";
-        msg += L"   System Settings -> Power -> Battery -> Disable Power Saver\n";
-
-        AfxMessageBox(msg);
+        ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
         return;
     }
 
@@ -913,7 +961,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
          
                 return;
 
-                AfxMessageBox(L"Discharge Test Completed!");
+                AfxMessageBox(L"Discharge Test Completed!"); 
             }
         }
         else
@@ -925,6 +973,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
     if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
     {
+        m_CPU_Progress.ShowWindow(SW_SHOW);
+
         m_cpuLoadElapsed++;
 
         //Count up instead of down
@@ -932,8 +982,12 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         if (percentDone > 100) percentDone = 100;
 
         CString msg;
-        msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);
+        /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
+        msg.Format(L"CPU Load Test Running...");
+        
         SetDlgItemText(IDC_BATT_CPULOAD, msg);
+
+        m_CPU_Progress.SetPos(percentDone);
     }
 
 
@@ -1219,7 +1273,8 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     {
         CString msg;
         msg.Format(L"CPU usage is currently above 10%%. Please close background applications first and try again.\n(Current: %.0f%%)", usage);
-        AfxMessageBox(msg);
+        //AfxMessageBox(msg);
+        ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
         
         return;
     }
@@ -1315,6 +1370,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
     // Re-enable the Discharge Test button after finishing
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+
+    m_CPU_Progress.ShowWindow(SW_HIDE); 
+
 
     return 0;
 }
@@ -1478,3 +1536,67 @@ void CBatteryHelthDlg::OnStnClickedStaticHeader()
 {
     // TODO: Add your control notification handler code here
 }
+
+
+void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+    if (nIDCtl == IDC_BTN_CPULOAD || nIDCtl == IDC_BTN_DISCHARGE || nIDCtl == IDC_BTN_UPLOADPDF || nIDCtl == IDC_BTN_HISTORY) 
+    {
+        CDC dc;
+        dc.Attach(lpDrawItemStruct->hDC);
+
+        CRect rc = lpDrawItemStruct->rcItem;
+
+        // Draw subtle shadow by offsetting a darker rectangle behind
+        CRect shadowRect = rc;
+        shadowRect.OffsetRect(2, 2); // shadow offset
+        dc.FillSolidRect(shadowRect, RGB(200, 200, 200)); // shadow color
+
+        // Determine button state
+        if (lpDrawItemStruct->itemState & ODS_DISABLED)
+        {
+            dc.FillSolidRect(rc, RGB(245, 245, 245)); // Disabled background
+            dc.SetTextColor(RGB(160, 160, 160));      // Gray text
+        }
+        else if (lpDrawItemStruct->itemState & ODS_SELECTED)
+        {
+            dc.FillSolidRect(rc, RGB(200, 200, 200)); // Pressed
+            dc.SetTextColor(RGB(0, 0, 0));           // Black text
+        }
+        else
+        {
+            dc.FillSolidRect(rc, RGB(230, 230, 230)); // Normal
+            dc.SetTextColor(RGB(0, 0, 0));           // Black text
+        }
+
+        // Draw border (optional)
+        dc.DrawEdge(rc, EDGE_RAISED, BF_RECT);
+
+        // Draw button text
+        CString text;
+        GetDlgItem(nIDCtl)->GetWindowText(text);
+
+        dc.SetBkMode(TRANSPARENT);
+        dc.DrawText(text, rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+        dc.Detach();
+        return; // handled
+    }
+
+    CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
+}
+
+
+
+BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+    // Check if the cursor is over your button
+    if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF)
+    {
+        ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
+        return TRUE; // handled
+    }
+
+    return CDialogEx::OnSetCursor(pWnd, nHitTest, message);
+}
+
