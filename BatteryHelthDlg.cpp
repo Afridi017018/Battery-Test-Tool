@@ -36,6 +36,9 @@
 #define new DEBUG_NEW
 #endif
 
+
+
+
 // CAboutDlg dialog used for App About
 
 class CAboutDlg : public CDialogEx
@@ -103,6 +106,9 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_WM_DRAWITEM()
     ON_WM_SETCURSOR()
+
+    ON_WM_SIZE()
+
 
 END_MESSAGE_MAP()
 
@@ -179,37 +185,25 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     SetIcon(m_hIcon, FALSE);  // small icon
 
     // ----------------------------
-    // Fonts
+    // Fonts - Create base fonts
     // ----------------------------
-    LOGFONT lf = { 0 };
-    lf.lfHeight = -16;
-    lf.lfWeight = FW_NORMAL;
-    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    CreateFonts();
 
-    m_Font16px.CreateFontIndirect(&lf);
+    // Apply fonts initially
+    ApplyFonts(1.0); // normal scale
 
-    // Apply 16px font to all controls
-    CWnd* pWnd = GetWindow(GW_CHILD);
-    while (pWnd)
-    {
-        pWnd->SetFont(&m_Font16px);
-        pWnd = pWnd->GetNextWindow();
-    }
+    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
 
-    // Reuse lf for bold font
-    lf.lfWeight = FW_BOLD;
-    m_boldFont.CreateFontIndirect(&lf);
+    // Fix window style
+    LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
+    style &= ~WS_THICKFRAME;   // no resize
+    //style &= ~WS_MAXIMIZEBOX;  // no maximize
+    style |= WS_MINIMIZEBOX;   // keep minimize
+    style |= WS_SYSMENU;       // system menu required for minimize
 
-    // Apply bold to specific controls
-    m_bb.SetFont(&m_boldFont);
-    m_abt.SetFont(&m_boldFont);
-    m_dh.SetFont(&m_boldFont);
-    m_header.SetFont(&m_boldFont);
-
-    GetDlgItem(IDC_BTN_CPULOAD)->SetFont(&m_boldFont);
-    GetDlgItem(IDC_BTN_DISCHARGE)->SetFont(&m_boldFont);
-    GetDlgItem(IDC_BTN_UPLOADPDF)->SetFont(&m_boldFont);
-    GetDlgItem(IDC_BTN_HISTORY)->SetFont(&m_boldFont);
+    SetWindowLong(this->m_hWnd, GWL_STYLE, style);
+    SetWindowPos(NULL, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
     // ----------------------------
     // Dialog size & style
@@ -220,21 +214,192 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     CenterWindow();
 
-    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
+    // Save original positions and dialog size
+    CRect dialogRect;
+    GetClientRect(&dialogRect);
+    m_origDialogSize = CSize(dialogRect.Width(), dialogRect.Height());
 
-    // Fix window style
-    LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
-    style &= ~WS_THICKFRAME;   // no resize
-    style &= ~WS_MAXIMIZEBOX;  // no maximize
-    style |= WS_MINIMIZEBOX;   // keep minimize
-    style |= WS_SYSMENU;       // system menu required for minimize
+    UINT ids[] = { IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
+                   IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
+                   IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
+        IDD_BATTERYHELTH_DIALOG, IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER, IDC_BATT_DID,
+        IDC_STATIC_PERCENTAGE,IDC_BATT_PROGRESS,IDC_BATT_PERCENTAGE,IDC_STATIC_CAPACITY,
+        IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
+        IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
+        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP
+    };
 
-    SetWindowLong(this->m_hWnd, GWL_STYLE, style);
-    SetWindowPos(NULL, 0, 0, 0, 0,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    for (auto id : ids)
+    {
+        CWnd* pWnd = GetDlgItem(id);
+        if (pWnd && pWnd->GetSafeHwnd())
+        {
+            CRect rc;
+            pWnd->GetWindowRect(&rc);
+            ScreenToClient(&rc);
+            m_origPositions.push_back({ id, rc });
+        }
+    }
+    m_origPositionsSaved = true;
 
     return TRUE;
 }
+
+void CBatteryHelthDlg::CreateFonts()
+{
+    // Clean up existing fonts
+    if (m_Font16px.GetSafeHandle())
+        m_Font16px.DeleteObject();
+    if (m_boldFont.GetSafeHandle())
+        m_boldFont.DeleteObject();
+    if (m_scaledFont.GetSafeHandle())
+        m_scaledFont.DeleteObject();
+    if (m_scaledBoldFont.GetSafeHandle())
+        m_scaledBoldFont.DeleteObject();
+
+    // Create base fonts
+    LOGFONT lf = { 0 };
+    lf.lfHeight = -16;
+    lf.lfWeight = FW_NORMAL;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    m_Font16px.CreateFontIndirect(&lf);
+
+    lf.lfWeight = FW_BOLD;
+    m_boldFont.CreateFontIndirect(&lf);
+}
+
+void CBatteryHelthDlg::ApplyFonts(double scale)
+{
+    // Clean up scaled fonts
+    if (m_scaledFont.GetSafeHandle())
+        m_scaledFont.DeleteObject();
+    if (m_scaledBoldFont.GetSafeHandle())
+        m_scaledBoldFont.DeleteObject();
+
+    // Create scaled fonts
+    LOGFONT lf = { 0 };
+    lf.lfHeight = (int)(-16 * scale);
+    lf.lfWeight = FW_NORMAL;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    m_scaledFont.CreateFontIndirect(&lf);
+
+    lf.lfWeight = FW_BOLD;
+    m_scaledBoldFont.CreateFontIndirect(&lf);
+
+    // Apply scaled fonts to all controls
+    CWnd* pWnd = GetWindow(GW_CHILD);
+    while (pWnd)
+    {
+        pWnd->SetFont(&m_scaledFont);
+        pWnd = pWnd->GetNextWindow();
+    }
+
+    // Apply bold scaled font to specific controls
+    if (m_bb.GetSafeHwnd()) m_bb.SetFont(&m_scaledBoldFont);
+    if (m_abt.GetSafeHwnd()) m_abt.SetFont(&m_scaledBoldFont);
+    if (m_dh.GetSafeHwnd()) m_dh.SetFont(&m_scaledBoldFont);
+    if (m_header.GetSafeHwnd()) m_header.SetFont(&m_scaledBoldFont);
+
+    CWnd* pBtn;
+    if ((pBtn = GetDlgItem(IDC_BTN_CPULOAD)) != nullptr)
+        pBtn->SetFont(&m_scaledBoldFont);
+    if ((pBtn = GetDlgItem(IDC_BTN_DISCHARGE)) != nullptr)
+        pBtn->SetFont(&m_scaledBoldFont);
+    if ((pBtn = GetDlgItem(IDC_BTN_UPLOADPDF)) != nullptr)
+        pBtn->SetFont(&m_scaledBoldFont);
+    if ((pBtn = GetDlgItem(IDC_BTN_HISTORY)) != nullptr)
+        pBtn->SetFont(&m_scaledBoldFont);
+}
+
+void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (!m_origPositionsSaved || cx == 0 || cy == 0)
+        return;
+
+    // Calculate scaling factors
+    double scaleX = (double)cx / m_origDialogSize.cx;
+    double scaleY = (double)cy / m_origDialogSize.cy;
+
+    // Use average scaling for font size
+    double fontScale = (scaleX + scaleY) / 2.0;
+
+    // Limit font scaling to reasonable range
+    fontScale = max(0.5, min(fontScale, 1.3));
+
+    if (nType == SIZE_MAXIMIZED)
+    {
+        // Apply scaled fonts for maximized state
+        ApplyFonts(fontScale);
+
+        for (auto& ctl : m_origPositions)
+        {
+            CWnd* pWnd = GetDlgItem(ctl.id);
+            if (pWnd && pWnd->GetSafeHwnd())
+            {
+                CRect origRect = ctl.rect;
+
+                // Calculate new dimensions with scaling
+                int newWidth = (int)(origRect.Width() * scaleX);
+                int newHeight = (int)(origRect.Height() * scaleY);
+
+                // Calculate center point of original control
+                int origCenterX = origRect.left + origRect.Width() / 2;
+                int origCenterY = origRect.top + origRect.Height() / 2;
+
+                // Calculate new center point with scaling
+                int newCenterX = (int)(origCenterX * scaleX);
+                int newCenterY = (int)(origCenterY * scaleY);
+
+                // Position the resized control centered on its new center point
+                int newLeft = newCenterX - newWidth / 2;
+                int newTop = newCenterY - newHeight / 2;
+
+                // Ensure controls don't go outside dialog boundaries
+                newLeft = max(0, min(newLeft, cx - newWidth));
+                newTop = max(0, min(newTop, cy - newHeight));
+
+                pWnd->MoveWindow(newLeft, newTop, newWidth, newHeight);
+            }
+        }
+    }
+    else if (nType == SIZE_RESTORED)
+    {
+        // Restore original fonts for normal state
+        ApplyFonts(1.0);
+
+        // Restore original positions
+        for (auto& ctl : m_origPositions)
+        {
+            CWnd* pWnd = GetDlgItem(ctl.id);
+            if (pWnd && pWnd->GetSafeHwnd())
+            {
+                pWnd->MoveWindow(&ctl.rect);
+            }
+        }
+    }
+
+    // Force redraw to show font changes
+    Invalidate();
+    UpdateWindow();
+}
+
+// Destructor cleanup (add this to your destructor)
+void CBatteryHelthDlg::CleanupFonts()
+{
+    if (m_Font16px.GetSafeHandle())
+        m_Font16px.DeleteObject();
+    if (m_boldFont.GetSafeHandle())
+        m_boldFont.DeleteObject();
+    if (m_scaledFont.GetSafeHandle())
+        m_scaledFont.DeleteObject();
+    if (m_scaledBoldFont.GetSafeHandle())
+        m_scaledBoldFont.DeleteObject();
+}
+
+
+
 
 
 
@@ -821,12 +986,20 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
         return;
     }
 
-    if (m_cpuLoadTestRunning || m_dischargeTestRunning) {
+    if (m_cpuLoadTestRunning ) {
         GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
-        GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+        GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
 
         return;
     }
+
+    if (m_dischargeTestRunning ) {
+        GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+        //GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+
+        return;
+    }
+
 
     if (sps.ACLineStatus == 1) // Charging
     {
@@ -853,12 +1026,23 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
-    SYSTEM_POWER_STATUS sps;
+    // If already running 
+    if (m_dischargeTestRunning)
+    {
+        m_dischargeTestRunning = false;
+        KillTimer(m_dischargeTimerID);
 
+        SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
+        SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+
+        GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+        return;
+    }
+
+    SYSTEM_POWER_STATUS sps;
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
     {
         AfxMessageBox(L"Cannot read battery percentage.");
-        
         return;
     }
 
@@ -875,35 +1059,21 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     }
 
     // Start discharge test
-    m_initialBatteryPercent = sps.BatteryLifePercent; // Record starting %
+    m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedMinutes = 0;
     m_dischargeTestRunning = true;
 
-    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+    SetDlgItemText(IDC_BTN_DISCHARGE, L"Stop Discharge Test");
 
-    SetTimer(m_dischargeTimerID, 60000, NULL); // Timer every 1 minute
+    SetTimer(m_dischargeTimerID, 60000, NULL); // 1-minute interval
+
     CString imsg;
     imsg.Format(L"Discharge Test Running...\nTime Elapsed: %d min\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
-        0,m_initialBatteryPercent, m_initialBatteryPercent, 0, 0);
-
+        0, m_initialBatteryPercent, m_initialBatteryPercent, 0, 0.0);
     SetDlgItemText(IDC_BATT_DISCHARGR, imsg);
-
-    // Optional: check if test duration already completed (maybe move this to OnTimer)
-    if (m_elapsedMinutes >= m_dischargeDurationMinutes)
-    {
-        KillTimer(m_dischargeTimerID);
-        m_dischargeTestRunning = false;
-        m_dischargeTestCompleted = true;
-
-        CString finalMsg;
-        finalMsg.Format(L"Initial: %d%%\nFinal: %d%%\nDrop: %d%%",
-            m_initialBatteryPercent, sps.BatteryLifePercent, m_initialBatteryPercent - sps.BatteryLifePercent);
-
-        m_dischargeResult = finalMsg;
-        AfxMessageBox(finalMsg);
-    }
 }
+
 
 
 void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
@@ -970,7 +1140,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
         CString msg;
         /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
-        msg.Format(L"CPU Load Test Running...");
+        msg.Format(L"Please wait 2 minutes to complete.");
+
+
+
         
         SetDlgItemText(IDC_BATT_CPULOAD, msg);
 
@@ -1017,6 +1190,7 @@ bool CheckSSESupport() {
 
 
 
+
 void RunCPULoadFP64(int durationSeconds,
     std::atomic<long long>* operationCounter,
     std::atomic<long long>* flopCounter,
@@ -1025,7 +1199,10 @@ void RunCPULoadFP64(int durationSeconds,
     auto startTime = std::chrono::high_resolution_clock::now();
     long long localOps = 0;
     long long localFlops = 0;
-    const long long iterationsPerLoop = 100000; // large enough for timing
+    const long long iterationsPerBatch = 1000000;
+
+    int batchCounter = 0;
+    const int timeBatchSize = 100;
 
     bool useAVX512 = CheckAVX512Support();
     bool useAVX2 = !useAVX512 && CheckAVX2Support();
@@ -1033,231 +1210,541 @@ void RunCPULoadFP64(int durationSeconds,
 
     if (useAVX512)
     {
-        // AVX-512 FP64: 8 doubles per vector, FMA = 16 FLOPs
-        __m512d a = _mm512_set1_pd(1.5);
-        __m512d b = _mm512_set1_pd(2.3);
-        __m512d c = _mm512_set1_pd(0.0);
-        long long flopsPerIteration = 16;
-        long long opsPerIteration = flopsPerIteration + 10;
+        __m512d a1 = _mm512_set1_pd(1.5);
+        __m512d b1 = _mm512_set1_pd(2.3);
+        __m512d c1 = _mm512_set1_pd(0.0);
+        __m512d a2 = _mm512_set1_pd(1.7);
+        __m512d b2 = _mm512_set1_pd(2.1);
+        __m512d c2 = _mm512_set1_pd(0.0);
+        __m512d a3 = _mm512_set1_pd(1.9);
+        __m512d b3 = _mm512_set1_pd(2.5);
+        __m512d c3 = _mm512_set1_pd(0.0);
+        __m512d a4 = _mm512_set1_pd(1.3);
+        __m512d b4 = _mm512_set1_pd(2.7);
+        __m512d c4 = _mm512_set1_pd(0.0);
 
         while (true)
         {
-            if (stopFlag->load()) break; // <- stop requested
-            auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
-                >= durationSeconds * 1000)
-                break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++)
+            if ((batchCounter % timeBatchSize) == 0)
             {
-                if (stopFlag->load()) break; // <- check inside loop too
-                c = _mm512_fmadd_pd(a, b, c);
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
+                if (stopFlag->load()) break;
+                auto now = std::chrono::high_resolution_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                    >= durationSeconds * 1000)
+                    break;
             }
+
+            // Process in batches - each batch does iterationsPerBatch/4 actual loop iterations
+            // because original code incremented i += 4
+            for (long long i = 0; i < iterationsPerBatch; i += 4)
+            {
+                c1 = _mm512_fmadd_pd(a1, b1, c1);  // 8 doubles × 2 ops = 16 FLOPs
+                c2 = _mm512_fmadd_pd(a2, b2, c2);  // 8 doubles × 2 ops = 16 FLOPs
+                c3 = _mm512_fmadd_pd(a3, b3, c3);  // 8 doubles × 2 ops = 16 FLOPs
+                c4 = _mm512_fmadd_pd(a4, b4, c4);  // 8 doubles × 2 ops = 16 FLOPs
+                // Total per loop iteration: 64 FLOPs, 64 operations
+
+                localFlops += 64;   // 4 FMA × 16 FLOPs each
+                localOps += 64;     // Same as FLOPs for floating point operations
+            }
+            batchCounter++;
         }
+
         double result[8];
-        _mm512_storeu_pd(result, c);
+        _mm512_storeu_pd(result, _mm512_add_pd(_mm512_add_pd(c1, c2), _mm512_add_pd(c3, c4)));
         volatile double sink = result[0];
     }
     else if (useAVX2)
     {
-        __m256d a = _mm256_set1_pd(1.5);
-        __m256d b = _mm256_set1_pd(2.3);
-        __m256d c = _mm256_set1_pd(0.0);
-        long long flopsPerIteration = 8;
-        long long opsPerIteration = flopsPerIteration + 10;
+        __m256d a1 = _mm256_set1_pd(1.5);
+        __m256d b1 = _mm256_set1_pd(2.3);
+        __m256d c1 = _mm256_set1_pd(0.0);
+        __m256d a2 = _mm256_set1_pd(1.7);
+        __m256d b2 = _mm256_set1_pd(2.1);
+        __m256d c2 = _mm256_set1_pd(0.0);
+        __m256d a3 = _mm256_set1_pd(1.9);
+        __m256d b3 = _mm256_set1_pd(2.5);
+        __m256d c3 = _mm256_set1_pd(0.0);
+        __m256d a4 = _mm256_set1_pd(1.3);
+        __m256d b4 = _mm256_set1_pd(2.7);
+        __m256d c4 = _mm256_set1_pd(0.0);
 
         while (true)
         {
-            if (stopFlag->load()) break;
-            auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
-                >= durationSeconds * 1000)
-                break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++)
+            if ((batchCounter % timeBatchSize) == 0)
             {
                 if (stopFlag->load()) break;
-                c = _mm256_fmadd_pd(a, b, c);
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
+                auto now = std::chrono::high_resolution_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                    >= durationSeconds * 1000)
+                    break;
             }
+
+            for (long long i = 0; i < iterationsPerBatch; i += 4)
+            {
+                c1 = _mm256_fmadd_pd(a1, b1, c1);  // 4 doubles × 2 ops = 8 FLOPs
+                c2 = _mm256_fmadd_pd(a2, b2, c2);  // 4 doubles × 2 ops = 8 FLOPs
+                c3 = _mm256_fmadd_pd(a3, b3, c3);  // 4 doubles × 2 ops = 8 FLOPs
+                c4 = _mm256_fmadd_pd(a4, b4, c4);  // 4 doubles × 2 ops = 8 FLOPs
+                // Total per loop iteration: 32 FLOPs, 32 operations
+
+                localFlops += 32;   // 4 FMA × 8 FLOPs each
+                localOps += 32;     // Same as FLOPs
+            }
+            batchCounter++;
         }
+
         double result[4];
-        _mm256_storeu_pd(result, c);
+        _mm256_storeu_pd(result, _mm256_add_pd(_mm256_add_pd(c1, c2), _mm256_add_pd(c3, c4)));
         volatile double sink = result[0];
     }
     else if (useSSE)
     {
-        __m128d a = _mm_set1_pd(1.5);
-        __m128d b = _mm_set1_pd(2.3);
-        __m128d c = _mm_set1_pd(0.0);
-        long long flopsPerIteration = 4;
-        long long opsPerIteration = flopsPerIteration + 10;
+        __m128d a1 = _mm_set1_pd(1.5);
+        __m128d b1 = _mm_set1_pd(2.3);
+        __m128d c1 = _mm_set1_pd(0.0);
+        __m128d a2 = _mm_set1_pd(1.7);
+        __m128d b2 = _mm_set1_pd(2.1);
+        __m128d c2 = _mm_set1_pd(0.0);
+        __m128d a3 = _mm_set1_pd(1.9);
+        __m128d b3 = _mm_set1_pd(2.5);
+        __m128d c3 = _mm_set1_pd(0.0);
+        __m128d a4 = _mm_set1_pd(1.3);
+        __m128d b4 = _mm_set1_pd(2.7);
+        __m128d c4 = _mm_set1_pd(0.0);
 
         while (true)
         {
-            if (stopFlag->load()) break;
-            auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
-                >= durationSeconds * 1000)
-                break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++)
+            if ((batchCounter % timeBatchSize) == 0)
             {
                 if (stopFlag->load()) break;
-                __m128d tmp = _mm_mul_pd(a, b);
-                c = _mm_add_pd(tmp, c);
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
+                auto now = std::chrono::high_resolution_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                    >= durationSeconds * 1000)
+                    break;
             }
+
+            for (long long i = 0; i < iterationsPerBatch; i += 4)
+            {
+                __m128d tmp1 = _mm_mul_pd(a1, b1);  // 2 doubles × 1 op = 2 FLOPs
+                c1 = _mm_add_pd(tmp1, c1);          // 2 doubles × 1 op = 2 FLOPs
+                __m128d tmp2 = _mm_mul_pd(a2, b2);  // 2 FLOPs
+                c2 = _mm_add_pd(tmp2, c2);          // 2 FLOPs
+                __m128d tmp3 = _mm_mul_pd(a3, b3);  // 2 FLOPs
+                c3 = _mm_add_pd(tmp3, c3);          // 2 FLOPs
+                __m128d tmp4 = _mm_mul_pd(a4, b4);  // 2 FLOPs
+                c4 = _mm_add_pd(tmp4, c4);          // 2 FLOPs
+                // Total per loop iteration: 16 FLOPs, 16 operations
+
+                localFlops += 16;   // 8 instructions × 2 FLOPs each
+                localOps += 16;     // Same as FLOPs
+            }
+            batchCounter++;
         }
+
         double result[2];
-        _mm_storeu_pd(result, c);
+        _mm_storeu_pd(result, _mm_add_pd(_mm_add_pd(c1, c2), _mm_add_pd(c3, c4)));
         volatile double sink = result[0];
     }
     else
     {
         // Scalar fallback
-        double a = 1.5, b = 2.3, c = 0.0;
-        long long flopsPerIteration = 2;
-        long long opsPerIteration = 2 + 10;
+        double a1 = 1.5, b1 = 2.3, c1 = 0.0;
+        double a2 = 1.7, b2 = 2.1, c2 = 0.0;
+        double a3 = 1.9, b3 = 2.5, c3 = 0.0;
+        double a4 = 1.3, b4 = 2.7, c4 = 0.0;
 
         while (true)
         {
-            if (stopFlag->load()) break;
-            auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
-                >= durationSeconds * 1000)
-                break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++)
+            if ((batchCounter % timeBatchSize) == 0)
             {
                 if (stopFlag->load()) break;
-                c = a * b + c;
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
+                auto now = std::chrono::high_resolution_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+                    >= durationSeconds * 1000)
+                    break;
             }
+
+            for (long long i = 0; i < iterationsPerBatch; i += 4)
+            {
+                c1 = a1 * b1 + c1;  // 1 multiply + 1 add = 2 FLOPs
+                c2 = a2 * b2 + c2;  // 2 FLOPs
+                c3 = a3 * b3 + c3;  // 2 FLOPs
+                c4 = a4 * b4 + c4;  // 2 FLOPs
+                // Total per loop iteration: 8 FLOPs, 8 operations
+
+                localFlops += 8;    // 4 operations × 2 FLOPs each
+                localOps += 8;      // Same as FLOPs
+            }
+            batchCounter++;
         }
-        volatile double sink = c;
+
+        volatile double sink = c1 + c2 + c3 + c4;
     }
 
     operationCounter->fetch_add(localOps, std::memory_order_relaxed);
     flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
 }
 
+// CPU Load Test button handler
+void CBatteryHelthDlg::OnBnClickedBtnCpuload()
+{
+    // Stop if running
+    if (m_cpuLoadTestRunning)
+    {
+        m_stopCpuLoad.store(true);
+        m_cpuLoadTestRunning = false;
 
-void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter) {
-    auto startTime = std::chrono::high_resolution_clock::now();
-    long long localOps = 0;
-    long long localFlops = 0;
-    const long long iterationsPerLoop = 10000;
+        SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
+        SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
 
-    // Determine instruction set and set FLOP/operation counts
-    bool useAVX512 = CheckAVX512Support();
-    bool useAVX2 = !useAVX512 && CheckAVX2Support();
-    bool useSSE = !useAVX512 && !useAVX2 && CheckSSESupport();
-    long long flopsPerIteration = 0;
-    long long opsPerIteration = 0;
-
-    if (useAVX512) {
-        // AVX-512: 16 FP32 elements, FMA = 32 FLOPs
-        __m512 a = _mm512_set1_ps(1.5f);
-        __m512 b = _mm512_set1_ps(2.3f);
-        __m512 c = _mm512_set1_ps(0.0f);
-        flopsPerIteration = 32; // 16 elements * 2 FLOPs (FMA)
-        opsPerIteration = 32 + 10; // FLOPs + estimated integer/control ops
-
-        while (true) {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (elapsed >= durationSeconds * 1000) break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++) {
-                c = _mm512_fmadd_ps(a, b, c); // AVX-512 FMA
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
-            }
-        }
-        float result[16];
-        _mm512_storeu_ps(result, c);
-        volatile float sink = result[0]; // Prevent optimization
-    }
-    else if (useAVX2) {
-        // AVX2: 8 FP32 elements, FMA = 16 FLOPs
-        __m256 a = _mm256_set1_ps(1.5f);
-        __m256 b = _mm256_set1_ps(2.3f);
-        __m256 c = _mm256_set1_ps(0.0f);
-        flopsPerIteration = 16; // 8 elements * 2 FLOPs (FMA)
-        opsPerIteration = 16 + 10;
-
-        while (true) {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (elapsed >= durationSeconds * 1000) break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++) {
-                c = _mm256_fmadd_ps(a, b, c); // AVX2 FMA
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
-            }
-        }
-        float result[8];
-        _mm256_storeu_ps(result, c);
-        volatile float sink = result[0];
-    }
-    else if (useSSE) {
-        // SSE: 4 FP32 elements, FMA (emulated) = 8 FLOPs
-        __m128 a = _mm_set1_ps(1.5f);
-        __m128 b = _mm_set1_ps(2.3f);
-        __m128 c = _mm_set1_ps(0.0f);
-        flopsPerIteration = 8; // 4 elements * 2 FLOPs (mul + add)
-        opsPerIteration = 8 + 10;
-
-        while (true) {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (elapsed >= durationSeconds * 1000) break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++) {
-                __m128 temp = _mm_mul_ps(a, b); // SSE multiply
-                c = _mm_add_ps(temp, c); // SSE add (emulate FMA)
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
-            }
-        }
-        float result[4];
-        _mm_storeu_ps(result, c);
-        volatile float sink = result[0];
-    }
-    else {
-        // Scalar fallback: 2 FLOPs per iteration (mul + add)
-        float a = 1.5f, b = 2.3f, c = 0.0f;
-        flopsPerIteration = 2; // 1 mul + 1 add
-        opsPerIteration = 2 + 10;
-
-        while (true) {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (elapsed >= durationSeconds * 1000) break;
-
-            for (long long i = 0; i < iterationsPerLoop; i++) {
-                c = a * b + c; // Scalar FMA-like operation
-                localFlops += flopsPerIteration;
-                localOps += opsPerIteration;
-            }
-        }
-        volatile float sink = c;
+        return;
     }
 
-    operationCounter->fetch_add(localOps, std::memory_order_relaxed);
-    flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
+    // Check current CPU usage before starting the test
+    double usage = GetCurrentCPUUsage();
+    if (usage >= 10)
+    {
+        CString msg;
+        msg.Format(L"CPU usage is currently above 10%%. Please close background applications first and try again.\n(Current: %.0f%%)", usage);
+        ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+    SYSTEM_POWER_STATUS sps;
+    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+    {
+        AfxMessageBox(L"Cannot read battery percentage.");
+        return;
+    }
+
+    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
+    m_cpuLoadTestRunning = true;
+    m_stopCpuLoad.store(false);
+
+    SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+
+   /* SetDlgItemText(IDC_BTN_CPULOAD, L"Stop CPU Load Test");*/
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+
+    m_cpuLoadElapsed = 0;
+    SetTimer(m_cpuLoadTimerID, 1000, NULL);
+
+    std::thread([this]()
+        {
+            // Use ALL logical cores for maximum stress
+            int numCores = std::thread::hardware_concurrency();
+            if (numCores == 0) numCores = 1;
+
+            std::vector<std::thread> threads;
+            std::atomic<long long> totalOperations(0);
+            std::atomic<long long> totalFlops(0);
+
+            // Set high priority for maximum CPU usage
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+
+            auto startTime = std::chrono::high_resolution_clock::now();
+
+            // Launch one thread per logical core (including hyperthreading)
+            for (int i = 0; i < numCores; i++)
+            {
+                threads.emplace_back([this, &totalOperations, &totalFlops, i]()
+                    {
+                        // Set high priority for worker threads
+                        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+
+                        // Set thread affinity to specific core for better performance
+                        DWORD_PTR affinityMask = 1ULL << i;
+                        SetThreadAffinityMask(GetCurrentThread(), affinityMask);
+
+                        RunCPULoadFP64(m_cpuLoadDurationSeconds, &totalOperations, &totalFlops, &m_stopCpuLoad);
+                    });
+            }
+
+            // Join threads
+            for (auto& t : threads)
+                t.join();
+
+            auto endTime = std::chrono::high_resolution_clock::now();
+            double actualDurationSeconds = std::chrono::duration<double>(endTime - startTime).count();
+
+            long long ops = totalOperations.load();
+            long long flops = totalFlops.load();
+
+            double tops = (ops / actualDurationSeconds) / 1e12;
+            double gflops = (flops / actualDurationSeconds) / 1e9;
+
+            SYSTEM_POWER_STATUS spsEnd;
+            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
+            {
+                int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
+                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
+                CString msg;
+                msg.Format(L"Initial: %d%%\nCurrent: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f\nCores Used: %d",
+                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent, drop, rate, tops, gflops, numCores);
+                m_cpuLoadTestCompleted = true;
+                m_cpuLoadResult = msg;
+                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
+            }
+            else
+            {
+                CString msg = L"Cannot read battery percentage.";
+                m_cpuLoadTestCompleted = true;
+                m_cpuLoadResult = msg;
+                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
+            }
+            m_cpuLoadTestRunning = false;
+        }).detach();
 }
 
 
 
 
+
+
+//void RunCPULoadFP64(int durationSeconds,
+//    std::atomic<long long>* operationCounter,
+//    std::atomic<long long>* flopCounter,
+//    std::atomic<bool>* stopFlag)
+//{
+//    auto startTime = std::chrono::high_resolution_clock::now();
+//    long long localOps = 0;
+//    long long localFlops = 0;
+//    const long long iterationsPerLoop = 100000; // large enough for timing
+//
+//    bool useAVX512 = CheckAVX512Support();
+//    bool useAVX2 = !useAVX512 && CheckAVX2Support();
+//    bool useSSE = !useAVX512 && !useAVX2 && CheckSSESupport();
+//
+//    if (useAVX512)
+//    {
+//        // AVX-512 FP64: 8 doubles per vector, FMA = 16 FLOPs
+//        __m512d a = _mm512_set1_pd(1.5);
+//        __m512d b = _mm512_set1_pd(2.3);
+//        __m512d c = _mm512_set1_pd(0.0);
+//        long long flopsPerIteration = 16;
+//        long long opsPerIteration = flopsPerIteration + 10;
+//
+//        while (true)
+//        {
+//            if (stopFlag->load()) break; // <- stop requested
+//            auto now = std::chrono::high_resolution_clock::now();
+//            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+//                >= durationSeconds * 1000)
+//                break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++)
+//            {
+//                if (stopFlag->load()) break; // <- check inside loop too
+//                c = _mm512_fmadd_pd(a, b, c);
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        double result[8];
+//        _mm512_storeu_pd(result, c);
+//        volatile double sink = result[0];
+//    }
+//    else if (useAVX2)
+//    {
+//        __m256d a = _mm256_set1_pd(1.5);
+//        __m256d b = _mm256_set1_pd(2.3);
+//        __m256d c = _mm256_set1_pd(0.0);
+//        long long flopsPerIteration = 8;
+//        long long opsPerIteration = flopsPerIteration + 10;
+//
+//        while (true)
+//        {
+//            if (stopFlag->load()) break;
+//            auto now = std::chrono::high_resolution_clock::now();
+//            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+//                >= durationSeconds * 1000)
+//                break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++)
+//            {
+//                if (stopFlag->load()) break;
+//                c = _mm256_fmadd_pd(a, b, c);
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        double result[4];
+//        _mm256_storeu_pd(result, c);
+//        volatile double sink = result[0];
+//    }
+//    else if (useSSE)
+//    {
+//        __m128d a = _mm_set1_pd(1.5);
+//        __m128d b = _mm_set1_pd(2.3);
+//        __m128d c = _mm_set1_pd(0.0);
+//        long long flopsPerIteration = 4;
+//        long long opsPerIteration = flopsPerIteration + 10;
+//
+//        while (true)
+//        {
+//            if (stopFlag->load()) break;
+//            auto now = std::chrono::high_resolution_clock::now();
+//            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+//                >= durationSeconds * 1000)
+//                break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++)
+//            {
+//                if (stopFlag->load()) break;
+//                __m128d tmp = _mm_mul_pd(a, b);
+//                c = _mm_add_pd(tmp, c);
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        double result[2];
+//        _mm_storeu_pd(result, c);
+//        volatile double sink = result[0];
+//    }
+//    else
+//    {
+//        // Scalar fallback
+//        double a = 1.5, b = 2.3, c = 0.0;
+//        long long flopsPerIteration = 2;
+//        long long opsPerIteration = 2 + 10;
+//
+//        while (true)
+//        {
+//            if (stopFlag->load()) break;
+//            auto now = std::chrono::high_resolution_clock::now();
+//            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count()
+//                >= durationSeconds * 1000)
+//                break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++)
+//            {
+//                if (stopFlag->load()) break;
+//                c = a * b + c;
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        volatile double sink = c;
+//    }
+//
+//    operationCounter->fetch_add(localOps, std::memory_order_relaxed);
+//    flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
+//}
+//
+//
+//void RunCPULoad(int durationSeconds, std::atomic<long long>* operationCounter, std::atomic<long long>* flopCounter) {
+//    auto startTime = std::chrono::high_resolution_clock::now();
+//    long long localOps = 0;
+//    long long localFlops = 0;
+//    const long long iterationsPerLoop = 10000;
+//
+//    // Determine instruction set and set FLOP/operation counts
+//    bool useAVX512 = CheckAVX512Support();
+//    bool useAVX2 = !useAVX512 && CheckAVX2Support();
+//    bool useSSE = !useAVX512 && !useAVX2 && CheckSSESupport();
+//    long long flopsPerIteration = 0;
+//    long long opsPerIteration = 0;
+//
+//    if (useAVX512) {
+//        // AVX-512: 16 FP32 elements, FMA = 32 FLOPs
+//        __m512 a = _mm512_set1_ps(1.5f);
+//        __m512 b = _mm512_set1_ps(2.3f);
+//        __m512 c = _mm512_set1_ps(0.0f);
+//        flopsPerIteration = 32; // 16 elements * 2 FLOPs (FMA)
+//        opsPerIteration = 32 + 10; // FLOPs + estimated integer/control ops
+//
+//        while (true) {
+//            auto currentTime = std::chrono::high_resolution_clock::now();
+//            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+//            if (elapsed >= durationSeconds * 1000) break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++) {
+//                c = _mm512_fmadd_ps(a, b, c); // AVX-512 FMA
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        float result[16];
+//        _mm512_storeu_ps(result, c);
+//        volatile float sink = result[0]; // Prevent optimization
+//    }
+//    else if (useAVX2) {
+//        // AVX2: 8 FP32 elements, FMA = 16 FLOPs
+//        __m256 a = _mm256_set1_ps(1.5f);
+//        __m256 b = _mm256_set1_ps(2.3f);
+//        __m256 c = _mm256_set1_ps(0.0f);
+//        flopsPerIteration = 16; // 8 elements * 2 FLOPs (FMA)
+//        opsPerIteration = 16 + 10;
+//
+//        while (true) {
+//            auto currentTime = std::chrono::high_resolution_clock::now();
+//            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+//            if (elapsed >= durationSeconds * 1000) break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++) {
+//                c = _mm256_fmadd_ps(a, b, c); // AVX2 FMA
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        float result[8];
+//        _mm256_storeu_ps(result, c);
+//        volatile float sink = result[0];
+//    }
+//    else if (useSSE) {
+//        // SSE: 4 FP32 elements, FMA (emulated) = 8 FLOPs
+//        __m128 a = _mm_set1_ps(1.5f);
+//        __m128 b = _mm_set1_ps(2.3f);
+//        __m128 c = _mm_set1_ps(0.0f);
+//        flopsPerIteration = 8; // 4 elements * 2 FLOPs (mul + add)
+//        opsPerIteration = 8 + 10;
+//
+//        while (true) {
+//            auto currentTime = std::chrono::high_resolution_clock::now();
+//            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+//            if (elapsed >= durationSeconds * 1000) break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++) {
+//                __m128 temp = _mm_mul_ps(a, b); // SSE multiply
+//                c = _mm_add_ps(temp, c); // SSE add (emulate FMA)
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        float result[4];
+//        _mm_storeu_ps(result, c);
+//        volatile float sink = result[0];
+//    }
+//    else {
+//        // Scalar fallback: 2 FLOPs per iteration (mul + add)
+//        float a = 1.5f, b = 2.3f, c = 0.0f;
+//        flopsPerIteration = 2; // 1 mul + 1 add
+//        opsPerIteration = 2 + 10;
+//
+//        while (true) {
+//            auto currentTime = std::chrono::high_resolution_clock::now();
+//            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+//            if (elapsed >= durationSeconds * 1000) break;
+//
+//            for (long long i = 0; i < iterationsPerLoop; i++) {
+//                c = a * b + c; // Scalar FMA-like operation
+//                localFlops += flopsPerIteration;
+//                localOps += opsPerIteration;
+//            }
+//        }
+//        volatile float sink = c;
+//    }
+//
+//    operationCounter->fetch_add(localOps, std::memory_order_relaxed);
+//    flopCounter->fetch_add(localFlops, std::memory_order_relaxed);
+//}
+//
+//
+//
+//
 double CBatteryHelthDlg::GetCurrentCPUUsage()
 {
     static PDH_HQUERY cpuQuery;
@@ -1281,113 +1768,116 @@ double CBatteryHelthDlg::GetCurrentCPUUsage()
 
     return counterVal.doubleValue; 
 }
-
-// CPU Load Test button handler
-void CBatteryHelthDlg::OnBnClickedBtnCpuload()
-{
-
-
-    // Stop if running
-    if (m_cpuLoadTestRunning)
-    {
-        m_stopCpuLoad.store(true);
-        m_cpuLoadTestRunning = false;
-
-        SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
-        SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
-
-        return;
-    }
-
-
-    // Check current CPU usage before starting the test
-    double usage = GetCurrentCPUUsage();
-    if (usage >= 10)
-    {
-        CString msg;
-        msg.Format(L"CPU usage is currently above 10%%. Please close background applications first and try again.\n(Current: %.0f%%)", usage);
-        //AfxMessageBox(msg);
-        ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
-        
-        return;
-    }
-    
-    SYSTEM_POWER_STATUS sps;
-    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
-    {
-        AfxMessageBox(L"Cannot read battery percentage.");
-        return;
-    }
-    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
-    m_cpuLoadTestRunning = true;
-    m_stopCpuLoad.store(false);
-
-    SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
-    SetDlgItemText(IDC_BTN_CPULOAD, L"Stop CPU Load Test");
-
-    // Disable the CPU Load button
-    //GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
-
-    // Disable the Discharge Test button
-    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
-
-    m_cpuLoadElapsed = 0;
-    SetTimer(m_cpuLoadTimerID, 1000, NULL); // tick every 1 sec
-
-
-    std::thread([this]()
-        {
-            // Use physical cores, estimated as half of hardware_concurrency if Hyper-Threading is enabled
-            int numCores = std::thread::hardware_concurrency() / 2;
-            if (numCores == 0) numCores = 1; // Fallback for single-core systems
-            std::vector<std::thread> threads;
-            std::atomic<long long> totalOperations(0);
-            std::atomic<long long> totalFlops(0);
-
-            // Start timing
-            auto startTime = std::chrono::high_resolution_clock::now();
-
-            // Launch one thread per core
-            for (int i = 0; i < numCores; i++)
-                threads.emplace_back(RunCPULoadFP64, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops, &m_stopCpuLoad);
-
-            // Join threads
-            for (auto& t : threads) t.join();
-
-            // Calculate total execution time
-            auto endTime = std::chrono::high_resolution_clock::now();
-            double actualDurationSeconds = std::chrono::duration<double>(endTime - startTime).count();
-
-            // Get total operations and flops count
-            long long ops = totalOperations.load();
-            long long flops = totalFlops.load();
-
-            // Calculate TOPS and GFLOPS
-            double tops = (ops / actualDurationSeconds) / 1e12;
-            double gflops = (flops / actualDurationSeconds) / 1e9;
-
-            SYSTEM_POWER_STATUS spsEnd;
-            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
-            {
-                int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
-                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
-                CString msg;
-                msg.Format(L"Initial: %d%%\nCurrent: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
-                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent, drop, rate, tops, gflops);
-                m_cpuLoadTestCompleted = true;
-                m_cpuLoadResult = msg;
-                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
-            }
-            else
-            {
-                CString msg = L"Cannot read battery percentage.";
-                m_cpuLoadTestCompleted = true;
-                m_cpuLoadResult = msg;
-                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
-            }
-            m_cpuLoadTestRunning = false;
-        }).detach();
-}
+//
+//
+//
+//
+//// CPU Load Test button handler
+//void CBatteryHelthDlg::OnBnClickedBtnCpuload()
+//{
+//
+//
+//    // Stop if running
+//    if (m_cpuLoadTestRunning)
+//    {
+//        m_stopCpuLoad.store(true);
+//        m_cpuLoadTestRunning = false;
+//
+//        SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
+//        SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
+//
+//        return;
+//    }
+//
+//
+//    // Check current CPU usage before starting the test
+//    double usage = GetCurrentCPUUsage();
+//    if (usage >= 10)
+//    {
+//        CString msg;
+//        msg.Format(L"CPU usage is currently above 10%%. Please close background applications first and try again.\n(Current: %.0f%%)", usage);
+//        //AfxMessageBox(msg);
+//        ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
+//        
+//        return;
+//    }
+//    
+//    SYSTEM_POWER_STATUS sps;
+//    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+//    {
+//        AfxMessageBox(L"Cannot read battery percentage.");
+//        return;
+//    }
+//    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
+//    m_cpuLoadTestRunning = true;
+//    m_stopCpuLoad.store(false);
+//
+//    SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+//    SetDlgItemText(IDC_BTN_CPULOAD, L"Stop CPU Load Test");
+//
+//    // Disable the CPU Load button
+//    //GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+//
+//    // Disable the Discharge Test button
+//    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+//
+//    m_cpuLoadElapsed = 0;
+//    SetTimer(m_cpuLoadTimerID, 1000, NULL); // tick every 1 sec
+//
+//
+//    std::thread([this]()
+//        {
+//            // Use physical cores, estimated as half of hardware_concurrency if Hyper-Threading is enabled
+//            int numCores = std::thread::hardware_concurrency() / 2;
+//            if (numCores == 0) numCores = 1; // Fallback for single-core systems
+//            std::vector<std::thread> threads;
+//            std::atomic<long long> totalOperations(0);
+//            std::atomic<long long> totalFlops(0);
+//
+//            // Start timing
+//            auto startTime = std::chrono::high_resolution_clock::now();
+//
+//            // Launch one thread per core
+//            for (int i = 0; i < numCores; i++)
+//                threads.emplace_back(RunCPULoadFP64, m_cpuLoadDurationSeconds, &totalOperations, &totalFlops, &m_stopCpuLoad);
+//
+//            // Join threads
+//            for (auto& t : threads) t.join();
+//
+//            // Calculate total execution time
+//            auto endTime = std::chrono::high_resolution_clock::now();
+//            double actualDurationSeconds = std::chrono::duration<double>(endTime - startTime).count();
+//
+//            // Get total operations and flops count
+//            long long ops = totalOperations.load();
+//            long long flops = totalFlops.load();
+//
+//            // Calculate TOPS and GFLOPS
+//            double tops = (ops / actualDurationSeconds) / 1e12;
+//            double gflops = (flops / actualDurationSeconds) / 1e9;
+//
+//            SYSTEM_POWER_STATUS spsEnd;
+//            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
+//            {
+//                int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
+//                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
+//                CString msg;
+//                msg.Format(L"Initial: %d%%\nCurrent: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
+//                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent, drop, rate, tops, gflops);
+//                m_cpuLoadTestCompleted = true;
+//                m_cpuLoadResult = msg;
+//                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
+//            }
+//            else
+//            {
+//                CString msg = L"Cannot read battery percentage.";
+//                m_cpuLoadTestCompleted = true;
+//                m_cpuLoadResult = msg;
+//                this->PostMessage(WM_APP + 1, 0, (LPARAM)new CString(msg));
+//            }
+//            m_cpuLoadTestRunning = false;
+//        }).detach();
+//}
 
 LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 {

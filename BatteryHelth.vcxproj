@@ -207,7 +207,10 @@
     <None Include="res\BatteryHelth.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\..\Desktop\bicon.png" />
+    <Image Include="..\..\..\Desktop\pngtree-battery-icon-in-full-blue-color-png-image_15802127.png" />
     <Image Include="res\BatteryHelth.ico" />
+    <Image Include="res\icon1.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -108,5 +108,27 @@ public:
 
 	CFont m_Font16px;
 
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+
+	struct CtlOrigPos {
+		UINT id;
+		CRect rect;
+	};
+
+	std::vector<CtlOrigPos> m_origPositions;
+	bool m_origPositionsSaved = false;
+
+	CSize m_origDialogSize;
+
+
+
+	CFont m_scaledFont;        // Scaled regular font
+	CFont m_scaledBoldFont;    // Scaled bold font
+
+	// Methods
+	void CreateFonts();
+	void ApplyFonts(double scale);
+	void CleanupFonts();
+
 
 };
