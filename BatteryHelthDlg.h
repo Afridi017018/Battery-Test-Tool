@@ -50,13 +50,15 @@ public:
 	int m_initialBatteryPercent = -1;        // Battery % at start of test
 	bool m_dischargeTestRunning = false;     // Is the discharge test active?
 	UINT_PTR m_dischargeTimerID = 2;         // Timer ID for discharge test
-	int m_dischargeDurationMinutes = 10;     // Duration of discharge test (minutes)
+	int m_dischargeDurationMinutes = 1;     // Duration of discharge test (minutes)
 	int m_elapsedMinutes = 0;
-
+	bool m_dischargeClick = false;
+	int m_elapsedSeconds = 0;
 
 	std::atomic<bool> m_stopCpuLoad;
 	bool m_cpuLoadTestRunning = false;
-	int m_cpuLoadDurationSeconds = 120; // 2 minutes default
+	bool m_cpuLoadClick = false;
+	int m_cpuLoadDurationSeconds = 60; // 1 minute default
 	int m_initialBatteryCPUPercent = 0;
 	UINT_PTR m_cpuLoadTimerID = 3;
 	int m_cpuLoadElapsed = 0;
@@ -124,6 +126,7 @@ public:
 
 	CFont m_scaledFont;        // Scaled regular font
 	CFont m_scaledBoldFont;    // Scaled bold font
+	CFont m_normalFont;
 
 	// Methods
 	void CreateFonts();
@@ -131,4 +134,16 @@ public:
 	void CleanupFonts();
 
 
+	void MonitorCPUUsage(std::atomic<bool>* stopFlag, std::atomic<double>* targetUsage);
+
+	CString QueryBatteryCapacityHistory();
+
+	void SetBoldFontScaled(CWnd* pWnd, double fontScale);
+	void SetButtonFont(int controlId, bool useScaled);
+
+	void BringControlToFront(int controlId);
+
+	
+
+	CProgressCtrl m_discharge_progress;
 };
