@@ -39,6 +39,10 @@
 #endif
 
 
+#include <wingdi.h>
+#pragma comment(lib, "msimg32.lib")
+
+
 
 
 // CAboutDlg dialog used for App About
@@ -112,6 +116,8 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_WM_SETCURSOR()
 
     ON_WM_SIZE()
+
+    ON_WM_ERASEBKGND()
 
 
 END_MESSAGE_MAP()
@@ -200,6 +206,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     SetIcon(m_hIcon, TRUE);   // big icon
     SetIcon(m_hIcon, FALSE);  // small icon
 
+
+
     // ----------------------------
     // Fonts - Create base fonts
     // ----------------------------
@@ -263,15 +271,39 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     }
     m_origPositionsSaved = true;
 
+   /* m_bgBrush.CreateSolidBrush(RGB(255, 0, 0));*/
+
 
     return TRUE;
 }
 
+BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
+{
+    CRect rc; GetClientRect(&rc);
 
+    // Start: very bright near-white pink (#FFE6F2) ? End: pure white (#FFFFFF)
+    TRIVERTEX vert[2] = {};
+    vert[0].x = rc.left;
+    vert[0].y = rc.top;
+    vert[0].Red = 255 << 8;  // R = 255
+    vert[0].Green = 230 << 8;  // G = 230
+    vert[0].Blue = 242 << 8;  // B = 242
+    vert[0].Alpha = 0xFFFF;
 
+    vert[1].x = rc.right;
+    vert[1].y = rc.bottom;
+    vert[1].Red = 255 << 8;  // white
+    vert[1].Green = 255 << 8;
+    vert[1].Blue = 255 << 8;
+    vert[1].Alpha = 0xFFFF;
 
+    GRADIENT_RECT g = { 0, 1 };
 
+    // Vertical gradient (top ? bottom). Use GRADIENT_FILL_RECT_H for left ? right.
+    ::GradientFill(pDC->GetSafeHdc(), vert, 2, &g, 1, GRADIENT_FILL_RECT_V);
 
+    return TRUE; // we drew the background
+}
 
 
 void CBatteryHelthDlg::CreateFonts()
@@ -456,28 +488,25 @@ SetButtonFont(IDC_BATT_DISCHARGR, true);
 
 
 
-
-
 HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
-    HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
-
-    // Set background color for the dialog
-    if (nCtlColor == CTLCOLOR_DLG)
-    {
-        return m_brushWhite; // white background
-    }
-
-    // Optional: make static text transparent with white background
-    if (nCtlColor == CTLCOLOR_STATIC)
+    // Let STATIC texts (labels), group boxes, checkboxes, radios, etc. be transparent
+    if (nCtlColor == CTLCOLOR_STATIC || nCtlColor == CTLCOLOR_BTN)
     {
         pDC->SetBkMode(TRANSPARENT);
-        return m_brushWhite;
+        // Optional: tweak text color if needed
+        // pDC->SetTextColor(RGB(60, 60, 60));
+        return (HBRUSH)GetStockObject(NULL_BRUSH);
     }
 
-    return hbr;
-}
+    // Tell the dialog not to erase its background (your OnEraseBkgnd paints the gradient)
+    if (nCtlColor == CTLCOLOR_DLG)
+    {
+        return (HBRUSH)GetStockObject(NULL_BRUSH);
+    }
 
+    return CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+}
 
 
 void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -929,7 +958,24 @@ CString QueryBatteryTemperature()
 }
 
 
+// Repaints parent background behind a control, then updates its text (no trails)
+static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
+{
+    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
+    if (!pCtl) return;
 
+    CRect rc;
+    pCtl->GetWindowRect(&rc);
+    pDlg->ScreenToClient(&rc);
+
+    // Repaint parent (your gradient) behind the label area
+    pDlg->RedrawWindow(&rc, nullptr,
+        RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+
+    // Update the label text and repaint it
+    pCtl->SetWindowTextW(text);
+    pCtl->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
 
 
 
@@ -945,6 +991,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
     if (FAILED(hres)) { AfxMessageBox(L"Failed to create IWbemLocator."); CoUninitialize(); return; }
 
     IWbemServices* pSvc = NULL;
+
     hres = pLoc->ConnectServer(
         _bstr_t(L"ROOT\\CIMV2"),
         NULL, NULL, 0, NULL, 0, 0, &pSvc);
@@ -994,7 +1041,9 @@ void CBatteryHelthDlg::GetBatteryInfo()
             case 3: status = L"Fully Charged"; break;
             default: status = L"Unknown"; break;
             }
-            SetDlgItemText(IDC_BATT_STATUS, status);
+            /*SetDlgItemText(IDC_BATT_STATUS, status);*/
+            UpdateLabel(this, IDC_BATT_STATUS, status);
+
             VariantClear(&vtProp);
 
             // Battery percentage using win32api
@@ -1013,6 +1062,8 @@ void CBatteryHelthDlg::GetBatteryInfo()
                     m_BatteryProgress.SetPos(0);
                 }
                 SetDlgItemText(IDC_BATT_PERCENTAGE, percentage);
+
+                
             }
             else
             {
@@ -1486,6 +1537,12 @@ void CBatteryHelthDlg::GetBatteryInfo()
 //}
 
 
+
+
+
+
+
+
 void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 {
     SYSTEM_POWER_STATUS sps = {};
@@ -1523,7 +1580,8 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
             KillTimer(m_dischargeTimerID);
             m_dischargeTestRunning = false;
 
-            SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+          /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped");*/
+            UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
         }
 
     }
@@ -1545,7 +1603,9 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         KillTimer(m_dischargeTimerID);
 
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
-        SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+      /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
+
+        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
 
         GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
@@ -1635,7 +1695,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)",progressPercent);
 
 
-                SetDlgItemText(IDC_BATT_DISCHARGR, msg);
+                /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
+                UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
 
                 m_discharge_progress.SetPos(progressPercent);
 
@@ -1660,7 +1721,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 msg.Format(L"Time elapsed: %d sec\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
                 m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
 
-                SetDlgItemText(IDC_BATT_DISCHARGR, msg);
+                /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
+                UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
 
                 GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
                 SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
@@ -1670,7 +1732,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         }
         else
         {
-            SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
+            /*SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");*/
+            UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
         }
     }
 
@@ -1693,7 +1756,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
 
         
-        SetDlgItemText(IDC_BATT_CPULOAD, msg);
+        /*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
+        UpdateLabel(this, IDC_BATT_CPULOAD, msg);
 
         m_CPU_Progress.SetPos(percentDone);
 
@@ -1704,7 +1768,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             m_cpuLoadTestRunning = false;
             KillTimer(m_cpuLoadTimerID);
             SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
-            SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
+            /*SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");*/
+            UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
             m_CPU_Progress.ShowWindow(SW_HIDE);
         }
 
@@ -1879,7 +1944,9 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     m_cpuLoadTestRunning = true;
     m_stopCpuLoad.store(false);
 
-    SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+   /* SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");*/
+    UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
 
@@ -1966,6 +2033,65 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 // Enhanced CPU usage monitoring function
 
 // Enhanced CPU usage monitoring function
+
+
+
+CString CBatteryHelthDlg::QueryBatteryCapacityHistory()
+{
+    HRESULT hres;
+    IWbemLocator* pLoc = NULL;
+    IWbemServices* pSvc = NULL;
+    CString result = L"Not available";
+
+    hres = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator, (LPVOID*)&pLoc);
+    if (FAILED(hres)) return result;
+
+    hres = pLoc->ConnectServer(_bstr_t(L"ROOT\\WMI"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
+    if (FAILED(hres)) { pLoc->Release(); return result; }
+
+    hres = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE);
+    if (FAILED(hres)) { pSvc->Release(); pLoc->Release(); return result; }
+
+    // Try BatteryRuntime class for more detailed info
+    IEnumWbemClassObject* pEnumerator = NULL;
+    hres = pSvc->ExecQuery(bstr_t("WQL"),
+        bstr_t("SELECT * FROM BatteryRuntime"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, NULL, &pEnumerator);
+
+    if (SUCCEEDED(hres) && pEnumerator)
+    {
+        IWbemClassObject* pClsObj = NULL;
+        ULONG uReturn = 0;
+
+        if (pEnumerator->Next(WBEM_INFINITE, 1, &pClsObj, &uReturn) == S_OK && uReturn > 0)
+        {
+            VARIANT vtProp;
+
+            // Try to get EstimatedRunTime or other capacity-related properties
+            if (SUCCEEDED(pClsObj->Get(L"EstimatedRunTime", 0, &vtProp, 0, 0)))
+            {
+                if (vtProp.vt != VT_NULL && vtProp.vt != VT_EMPTY)
+                {
+                    result.Format(L"%d", vtProp.intVal);
+                }
+                VariantClear(&vtProp);
+            }
+            pClsObj->Release();
+        }
+        pEnumerator->Release();
+    }
+
+    pSvc->Release();
+    pLoc->Release();
+    return result;
+}
+
+
+
+
+
 
 
 

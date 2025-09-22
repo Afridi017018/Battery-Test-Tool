@@ -146,4 +146,10 @@ public:
 	
 
 	CProgressCtrl m_discharge_progress;
+
+	CBrush m_bgBrush;
+
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
+
 };
