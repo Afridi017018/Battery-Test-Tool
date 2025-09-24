@@ -74,5 +74,17 @@
     <Image Include="..\..\..\Desktop\pix.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\..\Desktop\cpuload1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\Desktop\discharge1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\cpuload1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\discharge1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

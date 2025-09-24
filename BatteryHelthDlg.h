@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include "pch.h" 
+
 #include <Wbemidl.h>
 #include <comdef.h>
 
@@ -11,6 +13,10 @@
 #include <afxcmn.h>      
 
 #include <atomic>
+
+#include <unordered_map>
+
+
 
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
@@ -58,7 +64,7 @@ public:
 	std::atomic<bool> m_stopCpuLoad;
 	bool m_cpuLoadTestRunning = false;
 	bool m_cpuLoadClick = false;
-	int m_cpuLoadDurationSeconds = 60; // 1 minute default
+	int m_cpuLoadDurationSeconds = 15; // 1 minute default
 	int m_initialBatteryCPUPercent = 0;
 	UINT_PTR m_cpuLoadTimerID = 3;
 	int m_cpuLoadElapsed = 0;
@@ -150,6 +156,28 @@ public:
 	CBrush m_bgBrush;
 
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
+	afx_msg void OnDestroy();
+
+
+	CButton Button1;
+
+
+	public:
+		// All the button control IDs you want to owner-draw
+		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE };
+
+		// Per-button hover state, keyed by control ID
+		std::unordered_map<UINT, BOOL> m_hover;
+
+		// (Optional) Per-button PNG resource ID (if each button uses a different PNG)
+		std::unordered_map<UINT, UINT> m_pngById{
+			{ IDC_BTN_CPULOAD, IDB_PNG1 },
+			{ IDC_BTN_DISCHARGE, IDB_PNG2 }
+		};
+
+		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
+		CStatic textEdit;
 
 
 };

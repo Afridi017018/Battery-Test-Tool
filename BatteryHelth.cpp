@@ -11,6 +11,13 @@
 #define new DEBUG_NEW
 #endif
 
+#include <gdiplus.h>
+using namespace Gdiplus;
+#pragma comment(lib, "gdiplus.lib")
+
+ULONG_PTR m_gdiplusToken;
+
+
 
 // CBatteryHelthApp
 
@@ -71,6 +78,13 @@ BOOL CBatteryHelthApp::InitInstance()
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 
+
+	// ?? Initialize GDI+
+	GdiplusStartupInput gdiplusStartupInput;
+	GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, nullptr);
+
+
+
 	CBatteryHelthDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
@@ -103,5 +117,13 @@ BOOL CBatteryHelthApp::InitInstance()
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.
 	return FALSE;
+}
+
+
+int CBatteryHelthApp::ExitInstance()
+{
+	// Shutdown GDI+
+	GdiplusShutdown(m_gdiplusToken);
+	return CWinApp::ExitInstance();
 }
 

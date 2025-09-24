@@ -7,8 +7,9 @@
 #define IDS_ABOUTBOX                    101
 #define IDD_BATTERYHELTH_DIALOG         102
 #define IDR_MAINFRAME                   128
-#define IDB_PNG1                        136
-#define IDB_PNG                         136
+#define IDB_PNG1                        137
+#define IDB_PNG2                        138
+#define IDB_PNG3                        140
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -51,7 +52,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        137
+#define _APS_NEXT_RESOURCE_VALUE        141
 #define _APS_NEXT_COMMAND_VALUE         32771
 #define _APS_NEXT_CONTROL_VALUE         1053
 #define _APS_NEXT_SYMED_VALUE           101

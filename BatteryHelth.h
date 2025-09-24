@@ -26,7 +26,11 @@ public:
 
 // Implementation
 
+
 	DECLARE_MESSAGE_MAP()
+
+public:
+	int ExitInstance();
 };
 
 extern CBatteryHelthApp theApp;
