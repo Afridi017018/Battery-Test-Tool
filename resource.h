@@ -9,7 +9,8 @@
 #define IDR_MAINFRAME                   128
 #define IDB_PNG1                        137
 #define IDB_PNG2                        138
-#define IDB_PNG3                        140
+#define IDB_PNG3                        141
+#define IDB_PNG4                        143
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -47,14 +48,15 @@
 #define IDC_BATT_DID                    1045
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
+#define IDC_LIST1                       1053
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        141
+#define _APS_NEXT_RESOURCE_VALUE        144
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1053
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -86,5 +86,11 @@
     <Image Include="..\..\..\OneDrive\Desktop\discharge1.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\BatterHistory.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\ExportCsv.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

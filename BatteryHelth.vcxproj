@@ -213,8 +213,10 @@
     <Image Include="..\..\..\Desktop\discharge1.png" />
     <Image Include="..\..\..\Desktop\pix.png" />
     <Image Include="..\..\..\Desktop\pngtree-battery-icon-in-full-blue-color-png-image_15802127.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\BatterHistory.png" />
     <Image Include="..\..\..\OneDrive\Desktop\cpuload1.png" />
     <Image Include="..\..\..\OneDrive\Desktop\discharge1.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\ExportCsv.png" />
     <Image Include="res\BatteryHelth.ico" />
     <Image Include="res\icon1.ico" />
   </ItemGroup>

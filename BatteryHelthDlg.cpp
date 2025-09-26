@@ -194,7 +194,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
     // Get battery info + start timer
     GetBatteryInfo();
-    SetTimer(1, 1000, NULL);
+    SetTimer(2, 1000, NULL);
 
     // Add "About..." menu item
     ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
@@ -263,7 +263,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_STATIC_PERCENTAGE,IDC_BATT_PROGRESS,IDC_BATT_PERCENTAGE,IDC_STATIC_CAPACITY,
         IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
         IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
-        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP
+        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP,
+        IDC_PROGRESS5
     };
 
     for (auto id : ids)
@@ -302,10 +303,63 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     // Smooth hover timer
     SetTimer(1, 100, NULL); // tune as you like
 
+
+    InitToolTips();
+
     return TRUE;
 }
 
 
+void CBatteryHelthDlg::InitToolTips()
+{
+    if (!m_toolTip.GetSafeHwnd())
+    {
+        m_toolTip.Create(this, TTS_ALWAYSTIP | TTS_NOPREFIX /*| TTS_BALLOON*/);
+        m_toolTip.SetMaxTipWidth(400);
+        m_toolTip.Activate(TRUE);
+        m_toolTip.SetDelayTime(TTDT_INITIAL, 200);
+        m_toolTip.SetDelayTime(TTDT_RESHOW, 100);
+        m_toolTip.SetDelayTime(TTDT_AUTOPOP, 8000);
+    }
+
+    struct Tip { UINT id; const wchar_t* text; };
+    const Tip tips[] = {
+        { IDC_BTN_CPULOAD,     L"Start CPU Load Test" },
+        { IDC_BTN_DISCHARGE,   L"Start Discharge Test" },
+        { IDC_BTN_HISTORY,     L"Charge History" },
+        { IDC_BTN_UPLOADPDF,   L"Export Report To CSV" },
+        { IDC_BATT_PERCENTAGE, L"Current battery percentage reported by Windows." },
+        { IDC_BATT_CAPACITY,   L"Full charge vs. design capacity (health estimate)." },
+    };
+
+    for (size_t i = 0; i < _countof(tips); ++i)
+    {
+        if (CWnd* p = GetDlgItem(tips[i].id))
+            m_toolTip.AddTool(p, tips[i].text);
+    }
+
+    // Conditional tooltip: only add if test is NOT running
+    if (!m_dischargeTestRunning)
+    {
+        if (CWnd* p = GetDlgItem(IDC_BTN_DISCHARGE))
+            m_toolTip.AddTool(p, L"Start Discharge Test");
+    }
+    else {
+        if (CWnd* p = GetDlgItem(IDC_BTN_DISCHARGE))
+            m_toolTip.AddTool(p, L"Stop Discharge Test");
+    }
+
+ 
+}
+
+
+
+BOOL CBatteryHelthDlg::PreTranslateMessage(MSG* pMsg)
+{
+    if (m_toolTip.GetSafeHwnd())
+        m_toolTip.RelayEvent(pMsg);
+    return CDialogEx::PreTranslateMessage(pMsg);
+}
 
 
 static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
@@ -319,22 +373,43 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     // Update text
     pCtl->SetWindowTextW(text);
 
-    // Create a bold font and apply it
-    CFont* pOldFont = pCtl->GetFont();
-    LOGFONT lf = {};
-    if (pOldFont)
-    {
-        pOldFont->GetLogFont(&lf);
+
+
+
+
+
+    if (ctrlId == IDC_BATT_CPULOAD) {
+        CFont* pOldFont = pCtl->GetFont();
+        LOGFONT lf = {};
+        if (pOldFont)
+        {
+            pOldFont->GetLogFont(&lf);
+        }
+        else
+        {
+            ::GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(LOGFONT), &lf);
+        }
+
+        // Slightly smaller than -16
+        lf.lfHeight = -16;
+
+        // Semi-bold weight
+        lf.lfWeight = 700;   // FW_SEMIBOLD (~600)
+
+        // Create persistent font
+        static CFont semiBoldFont;
+        semiBoldFont.DeleteObject();
+        semiBoldFont.CreateFontIndirect(&lf);
+
+        // Apply
+        pCtl->SetFont(&semiBoldFont);
     }
-    else
-    {
-        ::GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(LOGFONT), &lf);
-    }
-    lf.lfWeight = FW_BOLD; // Bold
-    static CFont boldFont; // Keep static so it doesn’t go out of scope
-    boldFont.DeleteObject();
-    boldFont.CreateFontIndirect(&lf);
-    pCtl->SetFont(&boldFont);
+    
+
+
+
+
+
 
     // Get control rectangle and invalidate a larger area
     CRect rc;
@@ -417,50 +492,47 @@ void CBatteryHelthDlg::CreateFonts()
 
 void CBatteryHelthDlg::ApplyFonts(double scale)
 {
-
-    // Clean up scaled fonts
+    // Clean up scaled fonts if they already exist
     if (m_scaledFont.GetSafeHandle())
         m_scaledFont.DeleteObject();
     if (m_scaledBoldFont.GetSafeHandle())
         m_scaledBoldFont.DeleteObject();
 
-    // Create scaled fonts
-    LOGFONT lf = { 0 };
-    lf.lfHeight = (int)(-16 * scale);
-    lf.lfWeight = FW_NORMAL;
+    // --- Create scaled normal font ---
+    LOGFONT lf = {};
+    lf.lfHeight = static_cast<int>(-16 * scale);  // base size -16, scaled
+    lf.lfWeight = FW_NORMAL;                      // normal (400)
     _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
     m_scaledFont.CreateFontIndirect(&lf);
 
-    lf.lfWeight = FW_BOLD;
+    // --- Create scaled semi-bold font ---
+    lf.lfWeight = 600;                            // semi-bold (between normal 400 and bold 700)
     m_scaledBoldFont.CreateFontIndirect(&lf);
 
-    // Apply scaled fonts to all controls
+    // --- Apply normal font to ALL child controls by default ---
     CWnd* pWnd = GetWindow(GW_CHILD);
     while (pWnd)
     {
-        pWnd->SetFont(&m_scaledFont);
+        pWnd->SetFont(&m_scaledFont, FALSE);
         pWnd = pWnd->GetNextWindow();
-
     }
 
-    // Apply bold scaled font to specific controls
-    if (m_bb.GetSafeHwnd()) m_bb.SetFont(&m_scaledBoldFont);
-    if (m_abt.GetSafeHwnd()) m_abt.SetFont(&m_scaledBoldFont);
-    if (m_dh.GetSafeHwnd()) m_dh.SetFont(&m_scaledBoldFont);
-    if (m_header.GetSafeHwnd()) m_header.SetFont(&m_scaledBoldFont);
+    // --- Apply bold/semi-bold font to specific controls ---
 
+    // Static members (you said you had m_bb, m_abt, m_dh, m_header as CStatic)
+    if (m_bb.GetSafeHwnd())     m_bb.SetFont(&m_scaledBoldFont, FALSE);
+    if (m_abt.GetSafeHwnd())    m_abt.SetFont(&m_scaledBoldFont, FALSE);
+    if (m_dh.GetSafeHwnd())     m_dh.SetFont(&m_scaledBoldFont, FALSE);
+    if (m_header.GetSafeHwnd()) m_header.SetFont(&m_scaledBoldFont, FALSE);
+
+    // Buttons
     CWnd* pBtn;
-    if ((pBtn = GetDlgItem(IDC_BTN_CPULOAD)) != nullptr)
-        pBtn->SetFont(&m_scaledBoldFont);
-    if ((pBtn = GetDlgItem(IDC_BTN_DISCHARGE)) != nullptr)
-        pBtn->SetFont(&m_scaledBoldFont);
-    if ((pBtn = GetDlgItem(IDC_BTN_UPLOADPDF)) != nullptr)
-        pBtn->SetFont(&m_scaledBoldFont);
-    if ((pBtn = GetDlgItem(IDC_BTN_HISTORY)) != nullptr)
-        pBtn->SetFont(&m_scaledBoldFont);
-
-
+    if ((pBtn = GetDlgItem(IDC_BTN_CPULOAD)) != nullptr) pBtn->SetFont(&m_scaledBoldFont, FALSE);
+    if ((pBtn = GetDlgItem(IDC_BTN_DISCHARGE)) != nullptr) pBtn->SetFont(&m_scaledBoldFont, FALSE);
+    if ((pBtn = GetDlgItem(IDC_BTN_UPLOADPDF)) != nullptr) pBtn->SetFont(&m_scaledBoldFont, FALSE);
+    if ((pBtn = GetDlgItem(IDC_BTN_HISTORY)) != nullptr) pBtn->SetFont(&m_scaledBoldFont, FALSE);
 }
+
 
 void CBatteryHelthDlg::SetButtonFont(int controlId, bool useScaled)
 {
@@ -1138,7 +1210,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
             else
             {
-                SetDlgItemText(IDC_BATT_PERCENTAGE, L"Not available");
+                UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Not available");
             }
 
             // Estimated Time Remaining using Win32 API
@@ -1154,19 +1226,20 @@ void CBatteryHelthDlg::GetBatteryInfo()
             {
                 remainingTime = L"Unknown";
             }
-            SetDlgItemText(IDC_BATT_TIME, remainingTime);
+            /*SetDlgItemText(IDC_BATT_TIME, remainingTime);*/
+            UpdateLabel(this, IDC_BATT_TIME, remainingTime);
 
             // Full Charge Capacity
             CString fullCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
             if (fullCap != L"Not available")
                 fullCap += L" mWh";
-            SetDlgItemText(IDC_BATT_CAPACITY, fullCap);
+            UpdateLabel(this, IDC_BATT_CAPACITY, fullCap);
 
             // Design Capacity
             CString designCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
             if (designCap != L"Not available")
                 designCap += L" mWh";
-            SetDlgItemText(IDC_BATT_DCAPACITY, designCap);
+            UpdateLabel(this, IDC_BATT_DCAPACITY, designCap);
 
             // Battery Health Calculation
             CString fullCapStr = fullCap;
@@ -1181,16 +1254,16 @@ void CBatteryHelthDlg::GetBatteryInfo()
                     double health = (static_cast<double>(fullCap) / designCap) * 100.0;
                     CString healthStr;
                     healthStr.Format(L"%.2f %%", health);
-                    SetDlgItemText(IDC_BATT_HEALTH, healthStr);
+                    UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
                 }
                 else
                 {
-                    SetDlgItemText(IDC_BATT_HEALTH, L"Not available");
+                    UpdateLabel(this, IDC_BATT_HEALTH, L"Not available");
                 }
             }
             else
             {
-                SetDlgItemText(IDC_BATT_HEALTH, L"Not available");
+                UpdateLabel(this, IDC_BATT_HEALTH, L"Not available");
             }
 
             // Voltage
@@ -1200,11 +1273,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 double volts = _wtoi(voltage) / 1000.0; // convert mV to V
                 CString voltStr;
                 voltStr.Format(L"%.2f V", volts);
-                SetDlgItemText(IDC_BATT_VOLTAGE, voltStr);
+                UpdateLabel(this, IDC_BATT_VOLTAGE, voltStr);
             }
             else
             {
-                SetDlgItemText(IDC_BATT_VOLTAGE, L"Not available");
+                UpdateLabel(this, IDC_BATT_VOLTAGE, L"Not available");
             }
 
             // Get Battery DeviceID
@@ -1219,7 +1292,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
             {
                 deviceID = L"Not available";
             }
-            SetDlgItemText(IDC_BATT_MANUFAC, deviceID);
+            UpdateLabel(this, IDC_BATT_MANUFAC, deviceID);
             VariantClear(&vtDeviceID);
 
             // Battery Name
@@ -1233,7 +1306,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
             {
                 batteryName = L"Not available";
             }
-            SetDlgItemText(IDC_BATT_NAME, batteryName);
+            UpdateLabel(this, IDC_BATT_NAME, batteryName);
             VariantClear(&vtProp);
 
             // Battery Cycle Count
@@ -1242,11 +1315,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
             {
                 cycleCount += L" cycles";
             }
-            SetDlgItemText(IDC_BATT_CYCLE, cycleCount);
+            UpdateLabel(this, IDC_BATT_CYCLE, cycleCount);
 
             // Battery Temperature - NEW ADDITION
             CString temperature = QueryBatteryTemperature();
-            SetDlgItemText(IDC_BATT_TEMP, temperature);
+            UpdateLabel(this, IDC_BATT_TEMP, temperature);
 
             // System UUID
             {
@@ -1268,7 +1341,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
                         if (SUCCEEDED(pObjUUID->Get(L"UUID", 0, &vtUUID, 0, 0)))
                         {
                             CString uuid = (vtUUID.vt != VT_NULL && vtUUID.vt != VT_EMPTY) ? vtUUID.bstrVal : L"Not available";
-                            SetDlgItemText(IDC_BATT_DID, uuid);
+                            UpdateLabel(this, IDC_BATT_DID, uuid);
                             VariantClear(&vtUUID);
                         }
                         pObjUUID->Release();
@@ -1277,7 +1350,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 }
                 else
                 {
-                    SetDlgItemText(IDC_BATT_DID, L"Not available");
+                    UpdateLabel(this, IDC_BATT_DID, L"Not available");
                 }
             }
 
@@ -1365,6 +1438,9 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
         /* m_dischargeClick = false;*/
+
+		InitToolTips();
+
         return;
     }
 
@@ -1374,7 +1450,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         SetButtonFont(IDC_BATT_DISCHARGR, true);
     }
 
-
+    GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
     m_discharge_progress.ShowWindow(SW_SHOW);
 
     SYSTEM_POWER_STATUS sps;
@@ -1403,6 +1479,8 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     m_elapsedSeconds = 0;
 
     m_dischargeTestRunning = true;
+    InitToolTips();
+
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
     SetDlgItemText(IDC_BTN_DISCHARGE, L"Stop Discharge Test");
@@ -1419,9 +1497,11 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
 void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 {
-    if (nIDEvent == 1)
+    if (nIDEvent == 1 || nIDEvent == 2)
     {
-        GetBatteryInfo();
+       if (nIDEvent == 2) {
+            GetBatteryInfo();
+	   }
 
 
         if (nIDEvent == 1) {
@@ -1544,6 +1624,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             m_cpuLoadTestRunning = false;
             KillTimer(m_cpuLoadTimerID);
             SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
+
             /*SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");*/
             UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
             m_CPU_Progress.ShowWindow(SW_HIDE);
@@ -1693,7 +1774,8 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
         m_cpuLoadTestRunning = false;
 
         SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
-        SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
+
+        UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
         return;
     }
 
@@ -2135,6 +2217,9 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
         DrawPngOwnerButtonCommon(lpDrawItemStruct, hover, pngId);
         return;
     }
+
+
+
 
     CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
 }
