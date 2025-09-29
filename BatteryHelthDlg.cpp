@@ -128,15 +128,412 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_WM_DESTROY()      // For cleanup
 
+    ON_MESSAGE(WM_DPICHANGED, &CBatteryHelthDlg::OnDpiChanged)
+
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
+
+
+
+
+
+void CBatteryHelthDlg::CalculateDPIScale()
+{
+    // Get the DPI of the primary monitor
+    HDC hdc = ::GetDC(NULL);
+    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+    ::ReleaseDC(NULL, hdc);
+
+    // Calculate scale factor (96 DPI is the baseline/100%)
+    m_dpiScaleFactor = dpiX / 96.0;
+
+    // Alternative: Get screen work area for percentage scaling
+    CRect workArea;
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+
+    // Base design dimensions (your original dialog size)
+    m_baseWidth = 750;
+    m_baseHeight = 790;
+
+    // Optional: Limit scaling based on screen size
+    int screenHeight = workArea.Height();
+    if (screenHeight < 800) {
+        // For small screens, use smaller scale
+        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
+    }
+}
+
+
+//void CBatteryHelthDlg::CalculateDPIScale()
+//{
+//    // Get monitor DPI
+//    HDC hdc = ::GetDC(NULL);
+//    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+//    ::ReleaseDC(NULL, hdc);
+//
+//    m_dpiScaleFactor = dpiX / 96.0;  // baseline
+//
+//    // Get screen work area
+//    CRect workArea;
+//    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+//
+//    int screenW = workArea.Width();
+//    int screenH = workArea.Height();
+//
+//    // Dynamically choose base dialog size
+//    if (screenW <= 1280 || screenH <= 720) {
+//        // Small screen / laptop
+//        m_baseWidth = 650;
+//        m_baseHeight = 680;
+//    }
+//    else if (screenW <= 1920) {
+//        // Standard HD / FHD
+//        m_baseWidth = 750;
+//        m_baseHeight = 790;
+//    }
+//    else {
+//        // Large screen (WQHD, 4K, etc.)
+//        m_baseWidth = 900;
+//        m_baseHeight = 950;
+//    }
+//
+//    // Optional: further clamp scaling
+//    if (screenH < 800) {
+//        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
+//    }
+//}
+
+int CBatteryHelthDlg::ScaleDPI(int value)
+{
+    return static_cast<int>(value * m_dpiScaleFactor);
+}
+
+// Create fonts with scaled sizes
+void CBatteryHelthDlg::CreateScaledFonts()
+{
+    // Delete old fonts if they exist
+    if (m_fontNormal.m_hObject) m_fontNormal.DeleteObject();
+    if (m_fontBold.m_hObject) m_fontBold.DeleteObject();
+    if (m_fontHeader.m_hObject) m_fontHeader.DeleteObject();
+    if (m_fontSmall.m_hObject) m_fontSmall.DeleteObject();
+
+    // Define your base font sizes (from your original design at 100% scale)
+    m_baseFontSize = 18;        // Main text
+    m_baseHeaderFontSize = 20;  // Headers
+    m_baseSmallFontSize = 12;   // Small text
+
+    // Calculate scaled font sizes
+    int scaledNormalSize = ScaleDPI(m_baseFontSize);
+    int scaledHeaderSize = ScaleDPI(m_baseHeaderFontSize);
+    int scaledSmallSize = ScaleDPI(m_baseSmallFontSize);
+
+    // Create Normal Font
+    m_fontNormal.CreateFont(
+        scaledNormalSize,           // Height (scaled)
+        0,                          // Width
+        0,                          // Escapement
+        0,                          // Orientation
+        FW_NORMAL,                  // Weight
+        FALSE,                      // Italic
+        FALSE,                      // Underline
+        0,                          // StrikeOut
+        DEFAULT_CHARSET,            // CharSet
+        OUT_DEFAULT_PRECIS,         // OutPrecision
+        CLIP_DEFAULT_PRECIS,        // ClipPrecision
+        CLEARTYPE_QUALITY,          // Quality
+        DEFAULT_PITCH | FF_SWISS,   // PitchAndFamily
+        _T("Segoe UI")              // Facename
+    );
+
+    // Create Bold Font
+    m_fontBold.CreateFont(
+        scaledNormalSize,
+        0, 0, 0,
+        FW_BOLD,                    // Bold weight
+        FALSE, FALSE, 0,
+        DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY,
+        DEFAULT_PITCH | FF_SWISS,
+        _T("Segoe UI")
+    );
+
+    // Create Header Font (larger and bold)
+    m_fontHeader.CreateFont(
+        scaledHeaderSize,
+        0, 0, 0,
+        FW_BOLD,
+        FALSE, FALSE, 0,
+        DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY,
+        DEFAULT_PITCH | FF_SWISS,
+        _T("Segoe UI")
+    );
+
+    // Create Small Font
+    m_fontSmall.CreateFont(
+        scaledSmallSize,
+        0, 0, 0,
+        FW_NORMAL,
+        FALSE, FALSE, 0,
+        DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY,
+        DEFAULT_PITCH | FF_SWISS,
+        _T("Segoe UI")
+    );
+}
+
+// Apply scaled fonts to controls
+void CBatteryHelthDlg::ApplyScaledFonts()
+{
+    // Apply header font to header controls
+    if (CWnd* pWnd = GetDlgItem(IDC_STATIC_HEADER))
+        pWnd->SetFont(&m_fontHeader);
+
+    // Apply bold font to labels
+    UINT boldIds[] = {
+        IDC_BATT_STATUS, IDC_BATT_TIME, IDC_BATT_PERCENTAGE,
+            IDC_BATT_CAPACITY, IDC_BATT_NAME, IDC_BATT_DCAPACITY,
+            IDC_BATT_MANUFAC, IDC_BATT_CYCLE, IDC_BATT_HEALTH,
+            IDC_BATT_VOLTAGE, IDC_BATT_TEMP, IDC_BATT_CURRCAPACITY,
+            IDC_STATIC_DH, IDC_STATIC_ABT, IDC_STATIC_BBI
+    };
+
+    for (UINT id : boldIds)
+    {
+        if (CWnd* pWnd = GetDlgItem(id))
+            pWnd->SetFont(& m_fontBold);
+    }
+
+    // Apply normal font to value displays
+    UINT normalIds[] = {
+        IDC_STATIC_STATUS, IDC_STATIC_TIME, IDC_STATIC_PERCENTAGE,
+        IDC_STATIC_CAPACITY, IDC_STATIC_NAME, IDC_STATIC_DCAPACITY,
+        IDC_STATIC_MANUFAC, IDC_STATIC_CYCLE, IDC_STATIC_HEALTH,
+        IDC_STATIC_VOLTAGE, IDC_STATIC_TEMP, IDC_STATIC_CURRCAPACITY,
+        IDC_BATT_DID
+    };
+
+    for (UINT id : normalIds)
+    {
+        if (CWnd* pWnd = GetDlgItem(id))
+            pWnd->SetFont(&m_fontNormal);
+    }
+
+    // Apply normal font to buttons
+    UINT buttonIds[] = {
+        IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE,
+        IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF
+    };
+
+    for (UINT id : buttonIds)
+    {
+        if (CWnd* pWnd = GetDlgItem(id))
+            pWnd->SetFont(&m_fontNormal);
+    }
+
+    // Apply small font to any small text controls (if you have any)
+    // if (CWnd* pWnd = GetDlgItem(IDC_SOME_SMALL_TEXT))
+    //     pWnd->SetFont(&m_fontSmall);
+}
+
+void CBatteryHelthDlg::ScaleDialog()
+{
+    // Calculate new dimensions
+    int newWidth = ScaleDPI(m_baseWidth);
+    int newHeight = ScaleDPI(m_baseHeight);
+
+    // Resize the dialog
+    SetWindowPos(NULL, 0, 0, newWidth, newHeight,
+        SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+    // Center the dialog
+    CenterWindow();
+
+    // Scale all child controls
+    UINT ids[] = {
+        IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
+        IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
+        IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
+        IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER, IDC_BATT_DID,
+        IDC_STATIC_PERCENTAGE, IDC_BATT_PROGRESS, IDC_BATT_PERCENTAGE,
+        IDC_STATIC_CAPACITY, IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME,
+        IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY, IDC_STATIC_MANUFAC,
+        IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
+        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
+        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
+    };
+
+    for (auto id : ids)
+    {
+        CWnd* pWnd = GetDlgItem(id);
+        if (pWnd && pWnd->GetSafeHwnd())
+        {
+            // Find original position
+            for (const auto& pos : m_origPositions)
+            {
+                if (pos.id == id)
+                {
+                    CRect newRect;
+                    newRect.left = ScaleDPI(pos.rect.left);
+                    newRect.top = ScaleDPI(pos.rect.top);
+                    newRect.right = ScaleDPI(pos.rect.right);
+                    newRect.bottom = ScaleDPI(pos.rect.bottom);
+
+                    pWnd->MoveWindow(&newRect);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+// To this:
+LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
+{
+    // Get new DPI
+    int newDPI = HIWORD(wParam);
+    m_dpiScaleFactor = newDPI / 96.0;
+
+    // Scale dialog to new DPI
+    ScaleDialog();
+
+    // Recreate and apply scaled fonts
+    CreateScaledFonts();
+    ApplyScaledFonts();
+
+    Invalidate();
+    return 0;
+}
+
+
+// Scales IDC_BATT_DISCHARGR / IDC_BATT_CPULOAD fonts by dialog size (screen ratio),
+// uses semi-bold weight (~600), and updates the text.
+static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
+{
+    if (!pDlg) return;
+
+    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
+    if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
+
+    // -------------------------------
+    // 1) Determine base (design) size
+    // -------------------------------
+    // Try to use the dialog's stored base size if it exists (m_origDialogSize).
+    // If not accessible, fall back to capturing the first-seen client size.
+    static SIZE s_base = { 0, 0 };   // captured base client size (fallback)
+    CSize base(0, 0);
+
+    // Attempt to read m_origDialogSize via window property (optional) or fallback.
+    // Fallback: capture once from first call.
+    if (s_base.cx == 0 || s_base.cy == 0)
+    {
+        CRect rc0; pDlg->GetClientRect(&rc0);
+        s_base.cx = rc0.Width();
+        s_base.cy = rc0.Height();
+        if (s_base.cx <= 0) s_base.cx = 1;
+        if (s_base.cy <= 0) s_base.cy = 1;
+    }
+    base.cx = s_base.cx;
+    base.cy = s_base.cy;
+
+    // -------------------------------
+    // 2) Compute uniform scale factor
+    // -------------------------------
+    CRect rcNow; pDlg->GetClientRect(&rcNow);
+    double scaleX = static_cast<double>(rcNow.Width()) / static_cast<double>(base.cx);
+    double scaleY = static_cast<double>(rcNow.Height()) / static_cast<double>(base.cy);
+
+    // Use a uniform factor for consistency (you can switch to min/avg if you prefer)
+    double scale = (scaleX < scaleY) ? scaleX : scaleY;
+
+    // Clamp to sane range so fonts don't get absurd
+    if (scale < 0.75) scale = 0.75;
+    if (scale > 1.50) scale = 1.50;
+
+    // -------------------------------
+    // 3) Build/apply scaled font (for your two IDs)
+    // -------------------------------
+    const bool needsScaledSemiBold =
+        (ctrlId == IDC_BATT_DISCHARGR) || (ctrlId == IDC_BATT_CPULOAD);
+
+    if (needsScaledSemiBold)
+    {
+        // Base logical height (your code used -16). Scale it and round.
+        const int baseHeight = -14;
+        int targetHeight = static_cast<int>(::lround(baseHeight * scale)); // stays negative
+        // bound a bit
+        if (targetHeight > -12) targetHeight = -12;  // not too small magnitude
+        if (targetHeight < -28) targetHeight = -28;  // not too big magnitude
+
+        // Cache separate fonts for each of the two labels, keyed by last height used
+        static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
+        static CFont s_fontDischarge;       static int s_hDischarge = 0;
+
+        CFont* pFontObj = nullptr;
+        int* pLastH = nullptr;
+
+        if (ctrlId == IDC_BATT_CPULOAD) {
+            pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
+        }
+        else { // IDC_BATT_DISCHARGR
+            pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
+        }
+
+        // Recreate only if height changed (avoids flicker & GDI churn)
+        if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
+        {
+            // Derive LOGFONT from current control font (or default GUI)
+            LOGFONT lf; ::ZeroMemory(&lf, sizeof(lf));
+            if (CFont* pOld = pCtl->GetFont()) pOld->GetLogFont(&lf);
+            else ::GetObject(::GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
+
+            lf.lfHeight = targetHeight;
+            lf.lfWeight = 600; // Semi-bold (~600), lighter than FW_BOLD(700)
+
+            // Optional: ensure same face if you rely on Segoe UI
+            // _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+
+            pFontObj->DeleteObject();
+            pFontObj->CreateFontIndirect(&lf);
+            *pLastH = targetHeight;
+        }
+
+        // Apply the scaled semi-bold font
+        pCtl->SetFont(pFontObj, FALSE);
+    }
+
+    // -------------------------------
+    // 4) Update text + repaint cleanly
+    // -------------------------------
+    // (You can keep hide/show if you still see artifacts over your gradient)
+    pCtl->ShowWindow(SW_HIDE);
+    pCtl->SetWindowTextW(text);
+
+    CRect rcCtl; pCtl->GetWindowRect(&rcCtl);
+    pDlg->ScreenToClient(&rcCtl);
+    rcCtl.InflateRect(5, 5);
+
+    pDlg->InvalidateRect(&rcCtl, TRUE);
+    pDlg->UpdateWindow();
+
+    pCtl->ShowWindow(SW_SHOW);
+    pCtl->Invalidate(FALSE);
+    pCtl->UpdateWindow();
+}
+
 
 BOOL CBatteryHelthDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
-    // Initialize COM once
+    // Initialize COM
     HRESULT hres = CoInitializeEx(0, COINIT_MULTITHREADED);
     if (FAILED(hres))
     {
@@ -145,15 +542,10 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     }
 
     hres = CoInitializeSecurity(
-        NULL,
-        -1,
-        NULL,
-        NULL,
+        NULL, -1, NULL, NULL,
         RPC_C_AUTHN_LEVEL_DEFAULT,
         RPC_C_IMP_LEVEL_IMPERSONATE,
-        NULL,
-        EOAC_NONE,
-        NULL
+        NULL, EOAC_NONE, NULL
     );
 
     if (FAILED(hres))
@@ -169,28 +561,33 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
     // CPU progress
     m_CPU_Progress.SetRange(0, 100);
-    m_CPU_Progress.SetPos(0);   // int, no double!
+    m_CPU_Progress.SetPos(0);
     m_CPU_Progress.SetStep(1);
-
     m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
     ::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
     m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
     m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
-    m_CPU_Progress.ShowWindow(SW_HIDE); // Hide initially
+    m_CPU_Progress.ShowWindow(SW_HIDE);
 
-
-    ////Discharge progress
+    // Discharge progress
     m_discharge_progress.SetRange(0, 100);
-    m_discharge_progress.SetPos(0);   // int, no double!
+    m_discharge_progress.SetPos(0);
     m_discharge_progress.SetStep(1);
-
     m_discharge_progress.ModifyStyle(0, PBS_SMOOTH);
     ::SetWindowTheme(m_discharge_progress.GetSafeHwnd(), L"", L"");
     m_discharge_progress.SetBarColor(RGB(0, 122, 204));
     m_discharge_progress.SetBkColor(RGB(220, 220, 220));
-    m_discharge_progress.ShowWindow(SW_HIDE); // Hide initially
+    m_discharge_progress.ShowWindow(SW_HIDE);
 
     m_stopCpuLoad.store(false);
+
+
+
+
+    UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
+    UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");
+
+
 
     // Get battery info + start timer
     GetBatteryInfo();
@@ -211,60 +608,32 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         }
     }
 
-    SetIcon(m_hIcon, TRUE);   // big icon
-    SetIcon(m_hIcon, FALSE);  // small icon
+    SetIcon(m_hIcon, TRUE);
+    SetIcon(m_hIcon, FALSE);
 
-
-
-    // ----------------------------
-    // Fonts - Create base fonts
-    // ----------------------------
-    CreateFonts();
-
-
-    // Apply fonts initially
-    ApplyFonts(1.0); // normal scale
-
-    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
-
-    // Fix window style
+    // Fix window style BEFORE scaling
     LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
-    //style &= ~WS_THICKFRAME;   // no resize
-    //style &= ~WS_MAXIMIZEBOX;  // no maximize
-    style |= WS_MINIMIZEBOX;   // keep minimize
-    style |= WS_SYSMENU;       // system menu required for minimize
-
+    style &= ~WS_THICKFRAME;
+    style |= WS_MINIMIZEBOX;
+    style |= WS_SYSMENU;
     SetWindowLong(this->m_hWnd, GWL_STYLE, style);
-    SetWindowPos(NULL, 0, 0, 0, 0,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
-
-
-    //// ----------------------------
-    //// Dialog size & style
-    //// ----------------------------
-    //int width = 670;
-    //int height = 780;
-    //SetWindowPos(NULL, 0, 0, width, height,
-    //    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    //CenterWindow();
-
-
-
-    // Save original positions and dialog size
+    // Save original positions BEFORE scaling
     CRect dialogRect;
     GetClientRect(&dialogRect);
     m_origDialogSize = CSize(dialogRect.Width(), dialogRect.Height());
 
-    UINT ids[] = { IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
-                   IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
-                   IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
-        IDD_BATTERYHELTH_DIALOG, IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER, IDC_BATT_DID,
-        IDC_STATIC_PERCENTAGE,IDC_BATT_PROGRESS,IDC_BATT_PERCENTAGE,IDC_STATIC_CAPACITY,
-        IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
-        IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
-        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP,
-		IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
+    UINT ids[] = {
+        IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
+        IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
+        IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
+        IDD_BATTERYHELTH_DIALOG, IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER,
+        IDC_BATT_DID, IDC_STATIC_PERCENTAGE, IDC_BATT_PROGRESS, IDC_BATT_PERCENTAGE,
+        IDC_STATIC_CAPACITY, IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME,
+        IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY, IDC_STATIC_MANUFAC,
+        IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
+        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
+        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
     };
 
     for (auto id : ids)
@@ -280,35 +649,224 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     }
     m_origPositionsSaved = true;
 
-    /* m_bgBrush.CreateSolidBrush(RGB(255, 0, 0));*/
+    // *** CALCULATE DPI AND SCALE EVERYTHING ***
+    CalculateDPIScale();
+    ScaleDialog();
 
+    // Create and apply SCALED fonts AFTER scaling
+    CreateScaledFonts();  // <-- Use new function
+    ApplyScaledFonts();   // <-- Use new function
 
-     // Change title bar color (Windows 10 build 22000+)
-    COLORREF titleBarColor = RGB(70, 80, 185); // Your desired color
+    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
+
+    // Apply frame changes
+    SetWindowPos(NULL, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+    // Change title bar color
+    COLORREF titleBarColor = RGB(70, 80, 185);
     DwmSetWindowAttribute(m_hWnd, DWMWA_CAPTION_COLOR, &titleBarColor, sizeof(titleBarColor));
 
-
-
-
-
-
-    // Mark every listed button as owner-draw
+    // Mark buttons as owner-draw
     for (UINT id : m_buttonIds) {
         if (CWnd* p = GetDlgItem(id)) {
             p->ModifyStyle(0, BS_OWNERDRAW);
-            m_hover[id] = FALSE; // init hover state
+            m_hover[id] = FALSE;
         }
     }
 
-    // Smooth hover timer
-    SetTimer(1, 100, NULL); // tune as you like
-
-
+    SetTimer(1, 100, NULL);
     InitToolTips();
-
 
     return TRUE;
 }
+
+
+
+
+
+
+
+
+
+
+//BOOL CBatteryHelthDlg::OnInitDialog()
+//{
+//    CDialogEx::OnInitDialog();
+//
+//    // Initialize COM once
+//    HRESULT hres = CoInitializeEx(0, COINIT_MULTITHREADED);
+//    if (FAILED(hres))
+//    {
+//        AfxMessageBox(L"Failed to initialize COM.");
+//        return FALSE;
+//    }
+//
+//    hres = CoInitializeSecurity(
+//        NULL,
+//        -1,
+//        NULL,
+//        NULL,
+//        RPC_C_AUTHN_LEVEL_DEFAULT,
+//        RPC_C_IMP_LEVEL_IMPERSONATE,
+//        NULL,
+//        EOAC_NONE,
+//        NULL
+//    );
+//
+//    if (FAILED(hres))
+//    {
+//        AfxMessageBox(L"Failed to initialize COM security.");
+//        CoUninitialize();
+//        return FALSE;
+//    }
+//
+//    // Battery progress
+//    m_BatteryProgress.SetRange(0, 100);
+//    m_BatteryProgress.SetPos(0);
+//
+//    // CPU progress
+//    m_CPU_Progress.SetRange(0, 100);
+//    m_CPU_Progress.SetPos(0);   // int, no double!
+//    m_CPU_Progress.SetStep(1);
+//
+//    m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
+//    ::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
+//    m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
+//    m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
+//    m_CPU_Progress.ShowWindow(SW_HIDE); // Hide initially
+//
+//
+//    ////Discharge progress
+//    m_discharge_progress.SetRange(0, 100);
+//    m_discharge_progress.SetPos(0);   // int, no double!
+//    m_discharge_progress.SetStep(1);
+//
+//    m_discharge_progress.ModifyStyle(0, PBS_SMOOTH);
+//    ::SetWindowTheme(m_discharge_progress.GetSafeHwnd(), L"", L"");
+//    m_discharge_progress.SetBarColor(RGB(0, 122, 204));
+//    m_discharge_progress.SetBkColor(RGB(220, 220, 220));
+//    m_discharge_progress.ShowWindow(SW_HIDE); // Hide initially
+//
+//    m_stopCpuLoad.store(false);
+//
+//    // Get battery info + start timer
+//    GetBatteryInfo();
+//    SetTimer(2, 1000, NULL);
+//
+//    // Add "About..." menu item
+//    ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
+//    ASSERT(IDM_ABOUTBOX < 0xF000);
+//
+//    CMenu* pSysMenu = GetSystemMenu(FALSE);
+//    if (pSysMenu != nullptr)
+//    {
+//        CString strAboutMenu;
+//        if (strAboutMenu.LoadString(IDS_ABOUTBOX) && !strAboutMenu.IsEmpty())
+//        {
+//            pSysMenu->AppendMenu(MF_SEPARATOR);
+//            pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
+//        }
+//    }
+//
+//    SetIcon(m_hIcon, TRUE);   // big icon
+//    SetIcon(m_hIcon, FALSE);  // small icon
+//
+//
+//
+//    // ----------------------------
+//    // Fonts - Create base fonts
+//    // ----------------------------
+//    CreateFonts();
+//
+//
+//    // Apply fonts initially
+//    ApplyFonts(1.0); // normal scale
+//
+//    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
+//
+//    // Fix window style
+//    LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
+//    //style &= ~WS_THICKFRAME;   // no resize
+//    //style &= ~WS_MAXIMIZEBOX;  // no maximize
+//    style |= WS_MINIMIZEBOX;   // keep minimize
+//    style |= WS_SYSMENU;       // system menu required for minimize
+//
+//    SetWindowLong(this->m_hWnd, GWL_STYLE, style);
+//    SetWindowPos(NULL, 0, 0, 0, 0,
+//        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+//
+//
+//
+//    //// ----------------------------
+//    //// Dialog size & style
+//    //// ----------------------------
+//    //int width = 670;
+//    //int height = 780;
+//    //SetWindowPos(NULL, 0, 0, width, height,
+//    //    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+//    //CenterWindow();
+//
+//
+//
+//    // Save original positions and dialog size
+//    CRect dialogRect;
+//    GetClientRect(&dialogRect);
+//    m_origDialogSize = CSize(dialogRect.Width(), dialogRect.Height());
+//
+//    UINT ids[] = { IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
+//                   IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
+//                   IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
+//        IDD_BATTERYHELTH_DIALOG, IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER, IDC_BATT_DID,
+//        IDC_STATIC_PERCENTAGE,IDC_BATT_PROGRESS,IDC_BATT_PERCENTAGE,IDC_STATIC_CAPACITY,
+//        IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
+//        IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
+//        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP,
+//		IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
+//    };
+//
+//    for (auto id : ids)
+//    {
+//        CWnd* pWnd = GetDlgItem(id);
+//        if (pWnd && pWnd->GetSafeHwnd())
+//        {
+//            CRect rc;
+//            pWnd->GetWindowRect(&rc);
+//            ScreenToClient(&rc);
+//            m_origPositions.push_back({ id, rc });
+//        }
+//    }
+//    m_origPositionsSaved = true;
+//
+//    /* m_bgBrush.CreateSolidBrush(RGB(255, 0, 0));*/
+//
+//
+//     // Change title bar color (Windows 10 build 22000+)
+//    COLORREF titleBarColor = RGB(70, 80, 185); // Your desired color
+//    DwmSetWindowAttribute(m_hWnd, DWMWA_CAPTION_COLOR, &titleBarColor, sizeof(titleBarColor));
+//
+//
+//
+//
+//
+//
+//    // Mark every listed button as owner-draw
+//    for (UINT id : m_buttonIds) {
+//        if (CWnd* p = GetDlgItem(id)) {
+//            p->ModifyStyle(0, BS_OWNERDRAW);
+//            m_hover[id] = FALSE; // init hover state
+//        }
+//    }
+//
+//    // Smooth hover timer
+//    SetTimer(1, 100, NULL); // tune as you like
+//
+//
+//    InitToolTips();
+//
+//
+//    return TRUE;
+//}
 
 
 void CBatteryHelthDlg::InitToolTips()
@@ -362,67 +920,7 @@ BOOL CBatteryHelthDlg::PreTranslateMessage(MSG* pMsg)
 }
 
 
-static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
-{
-    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
-    if (!pCtl) return;
 
-    // Hide the control temporarily
-    pCtl->ShowWindow(SW_HIDE);
-
-    // Update text
-    pCtl->SetWindowTextW(text);
-
-
-
-    if (ctrlId == IDC_BATT_CPULOAD) {
-        CFont* pOldFont = pCtl->GetFont();
-        LOGFONT lf = {};
-        if (pOldFont)
-        {
-            pOldFont->GetLogFont(&lf);
-        }
-        else
-        {
-            ::GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(LOGFONT), &lf);
-        }
-
-        // Slightly smaller than -16
-        lf.lfHeight = -16;
-
-        // Semi-bold weight
-        lf.lfWeight = 700;   // FW_SEMIBOLD (~600)
-
-        // Create persistent font
-        static CFont semiBoldFont;
-        semiBoldFont.DeleteObject();
-        semiBoldFont.CreateFontIndirect(&lf);
-
-        // Apply
-        pCtl->SetFont(&semiBoldFont);
-    }
-    
-
-
-
-
-
-
-    // Get control rectangle and invalidate a larger area
-    CRect rc;
-    pCtl->GetWindowRect(&rc);
-    pDlg->ScreenToClient(&rc);
-    rc.InflateRect(5, 5); // Add some padding
-
-    // Force complete redraw of the area
-    pDlg->InvalidateRect(&rc, TRUE);
-    pDlg->UpdateWindow();
-
-    // Show the control again
-    pCtl->ShowWindow(SW_SHOW);
-    pCtl->InvalidateRect(NULL, TRUE);
-    pCtl->UpdateWindow();
-}
 
 
 
@@ -542,7 +1040,7 @@ void CBatteryHelthDlg::SetButtonFont(int controlId, bool useScaled)
             pBtn->SetFont(&m_boldFont);        // normal bold
     }
 }
-
+// Handle window resize (maximize/restore)
 void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
 {
     CDialogEx::OnSize(nType, cx, cy);
@@ -555,27 +1053,47 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
     double scaleY = (double)cy / m_origDialogSize.cy;
 
     // Use average scaling for font size
-    double fontScale = (scaleX + scaleY) / 2.0;
+    double windowScale = (scaleX + scaleY) / 2.0;
 
-    // Limit font scaling to reasonable range
-    fontScale = max(0.5, min(fontScale, 1.3));
+    // Limit window scaling to reasonable range
+    windowScale = max(0.5, min(windowScale, 1.5));
 
     if (nType == SIZE_MAXIMIZED)
     {
-        // Apply scaled fonts for maximized state
-        ApplyFonts(fontScale);
+        // Combined scale: DPI scale + window maximize scale
+        double combinedScale = m_dpiScaleFactor * windowScale;
 
-        // Make IDC_BATT_CPULOAD bold + scaled
-        if (m_cpuLoadClick) {
-            SetButtonFont(IDC_BATT_CPULOAD, true); // scaled bold
-        }
+        // Recreate fonts with combined scaling
+        int scaledNormalSize = static_cast<int>(m_baseFontSize * combinedScale);
+        int scaledHeaderSize = static_cast<int>(m_baseHeaderFontSize * combinedScale);
+        int scaledSmallSize = static_cast<int>(m_baseSmallFontSize * combinedScale);
 
-        if (m_dischargeClick) {
-            SetButtonFont(IDC_BATT_DISCHARGR, true);
-        }
+        // Delete and recreate fonts
+        if (m_fontNormal.m_hObject) m_fontNormal.DeleteObject();
+        if (m_fontBold.m_hObject) m_fontBold.DeleteObject();
+        if (m_fontHeader.m_hObject) m_fontHeader.DeleteObject();
+        if (m_fontSmall.m_hObject) m_fontSmall.DeleteObject();
 
+        m_fontNormal.CreateFont(scaledNormalSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Segoe UI"));
 
+        m_fontBold.CreateFont(scaledNormalSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, 0,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Segoe UI"));
 
+        m_fontHeader.CreateFont(scaledHeaderSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, 0,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Segoe UI"));
+
+        m_fontSmall.CreateFont(scaledSmallSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Segoe UI"));
+
+        // Apply the scaled fonts
+        ApplyScaledFonts();
+
+        // Scale control positions and sizes
         for (auto& ctl : m_origPositions)
         {
             CWnd* pWnd = GetDlgItem(ctl.id);
@@ -609,35 +1127,32 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
     }
     else if (nType == SIZE_RESTORED)
     {
-        // Restore original fonts for normal state
-        ApplyFonts(1.0);
+        // Restore to DPI-scaled fonts (not 1.0, but m_dpiScaleFactor)
+        CreateScaledFonts();
+        ApplyScaledFonts();
 
-        // Restore original positions
+        // Restore original positions (but keep DPI scaling)
         for (auto& ctl : m_origPositions)
         {
             CWnd* pWnd = GetDlgItem(ctl.id);
             if (pWnd && pWnd->GetSafeHwnd())
             {
-                pWnd->MoveWindow(&ctl.rect);
+                // Scale original positions by DPI factor
+                CRect scaledRect;
+                scaledRect.left = ScaleDPI(ctl.rect.left);
+                scaledRect.top = ScaleDPI(ctl.rect.top);
+                scaledRect.right = ScaleDPI(ctl.rect.right);
+                scaledRect.bottom = ScaleDPI(ctl.rect.bottom);
+
+                pWnd->MoveWindow(&scaledRect);
             }
-        }
-
-        // Make IDC_BATT_CPULOAD bold but unscaled
-        if (m_cpuLoadClick) {
-            SetButtonFont(IDC_BATT_CPULOAD, false); // normal bold
-        }
-
-        if (m_dischargeClick) {
-            SetButtonFont(IDC_BATT_DISCHARGR, false); // normal bold
         }
     }
 
-
-    // Force redraw to show font changes
+    // Force redraw to show changes
     Invalidate();
     UpdateWindow();
 }
-
 
 
 
@@ -1994,10 +2509,11 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     //SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);
 
     UpdateLabel(this, IDC_BATT_CPULOAD, *pMsg);
+	//AfxMessageBox(*pMsg);
 
-    if (m_cpuLoadClick) {
-        SetButtonFont(IDC_BATT_CPULOAD, true);
-    }
+    //if (m_cpuLoadClick) {
+    //    SetButtonFont(IDC_BATT_CPULOAD, true);
+    //}
 
 
     delete pMsg; // free memory
@@ -2072,11 +2588,12 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         };
 
     // Write CSV header with Cycle Count
-    csvFile << "Battery Percentage,Status,Voltage (V),Full Capacity (mWh),Design Capacity (mWh),Health,Device ID,Battery Name,Estimated Time,Cycle Count,CPU Load Test,Discharge Test\n";
+    csvFile << "Unique Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Device ID,Battery Name,Estimated Time,Cycle Count,CPU Load Test,Discharge Test\n";
 
     // Get current values from controls
-    CString battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount;
+    CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
 
+    GetDlgItemText(IDC_BATT_DID, did);
     GetDlgItemText(IDC_BATT_PERCENTAGE, battPercent);
     GetDlgItemText(IDC_BATT_STATUS, battStatus);
     GetDlgItemText(IDC_BATT_VOLTAGE, voltage);
@@ -2087,12 +2604,17 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
     GetDlgItemText(IDC_BATT_NAME, battName);
     GetDlgItemText(IDC_BATT_TIME, estTime);
     GetDlgItemText(IDC_BATT_CYCLE, cycleCount);
+    GetDlgItemText(IDC_BATT_TEMP, temperature);
+    GetDlgItemText(IDC_BATT_CURRCAPACITY, currentCap);
 
-    csvFile << toCsvField(battPercent) << ","
+    csvFile << toCsvField(did) << ","
+        << toCsvField(battPercent) << ","
         << toCsvField(battStatus) << ","
         << toCsvField(voltage) << ","
+        << toCsvField(temperature) << ","
         << toCsvField(fullCap) << ","
         << toCsvField(designCap) << ","
+        << toCsvField(currentCap) << ","
         << toCsvField(health) << ","
         << toCsvField(deviceID) << ","
         << toCsvField(battName) << ","

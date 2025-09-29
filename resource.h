@@ -40,7 +40,6 @@
 #define IDC_BTN_CPULOAD                 1035
 #define IDC_BATT_DISCHARGE              1036
 #define IDC_BATT_CPULOAD                1036
-#define IDC_BATT_CAPACITY2              1037
 #define IDC_BATT_CURRCAPACITY           1037
 #define IDC_BTN_UPLOADPDF               1038
 #define IDC_BTN_HISTORY                 1039
@@ -48,6 +47,7 @@
 #define IDC_STATIC_ABT                  1041
 #define IDC_STATIC_DH                   1042
 #define IDC_STATIC_HEADER               1043
+#define IDC_BATT_CYCLE2                 1044
 #define IDC_BATT_DID                    1045
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051

@@ -56,7 +56,7 @@ public:
 	int m_initialBatteryPercent = -1;        // Battery % at start of test
 	bool m_dischargeTestRunning = false;     // Is the discharge test active?
 	UINT_PTR m_dischargeTimerID = 3;         // Timer ID for discharge test
-	int m_dischargeDurationMinutes = 1;     // Duration of discharge test (minutes)
+	int m_dischargeDurationMinutes = 5;     // Duration of discharge test (minutes)
 	int m_elapsedMinutes = 0;
 	bool m_dischargeClick = false;
 	int m_elapsedSeconds = 0;
@@ -186,5 +186,37 @@ public:
 
 		virtual BOOL PreTranslateMessage(MSG* pMsg); // to relay mouse events
 		void InitToolTips();
+
+
+
+		public:
+				double m_dpiScaleFactor;
+				int m_baseWidth;
+				int m_baseHeight;
+
+				// Base font sizes (your original design sizes)
+				int m_baseFontSize;        // e.g., 16 for main text
+				int m_baseHeaderFontSize;  // e.g., 24 for headers
+				int m_baseSmallFontSize;   // e.g., 12 for small text
+
+				// Methods
+				void CalculateDPIScale();
+				void ScaleDialog();
+				int ScaleDPI(int value);
+				void CreateScaledFonts();
+				void ApplyScaledFonts();
+
+				CFont m_fontNormal;
+				CFont m_fontBold;
+				CFont m_fontHeader;
+				CFont m_fontSmall;
+
+				// Add this line:
+				afx_msg LRESULT OnDpiChanged(WPARAM wParam, LPARAM lParam);
+
+
+
+			
+
 
 };
