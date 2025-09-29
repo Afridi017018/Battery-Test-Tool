@@ -229,7 +229,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
     // Fix window style
     LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
-    style &= ~WS_THICKFRAME;   // no resize
+    //style &= ~WS_THICKFRAME;   // no resize
     //style &= ~WS_MAXIMIZEBOX;  // no maximize
     style |= WS_MINIMIZEBOX;   // keep minimize
     style |= WS_SYSMENU;       // system menu required for minimize
@@ -264,7 +264,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
         IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP,
-        IDC_PROGRESS5
+		IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
     };
 
     for (auto id : ids)
@@ -305,6 +305,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
 
     InitToolTips();
+
 
     return TRUE;
 }
@@ -353,7 +354,6 @@ void CBatteryHelthDlg::InitToolTips()
 }
 
 
-
 BOOL CBatteryHelthDlg::PreTranslateMessage(MSG* pMsg)
 {
     if (m_toolTip.GetSafeHwnd())
@@ -372,9 +372,6 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 
     // Update text
     pCtl->SetWindowTextW(text);
-
-
-
 
 
 
@@ -1198,7 +1195,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 }
                 else
                 {
-                    percentage = L"Not available";
+                    percentage = L"Unknown";
                     m_BatteryProgress.SetPos(0);
                 }
              /*   SetDlgItemText(IDC_BATT_PERCENTAGE, percentage);*/
@@ -1210,7 +1207,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
             else
             {
-                UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Not available");
+                UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
             }
 
             // Estimated Time Remaining using Win32 API
@@ -1232,24 +1229,48 @@ void CBatteryHelthDlg::GetBatteryInfo()
             // Full Charge Capacity
             CString fullCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
             if (fullCap != L"Not available")
+            {
                 fullCap += L" mWh";
+            }
+            else {
+                fullCap = L"Unknown";
+            }
+
             UpdateLabel(this, IDC_BATT_CAPACITY, fullCap);
 
             // Design Capacity
             CString designCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
             if (designCap != L"Not available")
+            {
                 designCap += L" mWh";
+            }
+            else {
+				designCap = L"Unknown";
+            }
             UpdateLabel(this, IDC_BATT_DCAPACITY, designCap);
+
+
+            // Current Capacity (Remaining Capacity)
+            CString currCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+            if (currCap != L"Not available")
+            {
+                currCap += L" mWh";
+            }
+            else {
+                currCap = L"Unknown";
+            }
+            UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCap);
+
 
             // Battery Health Calculation
             CString fullCapStr = fullCap;
             CString designCapStr = designCap;
 
-            if (fullCapStr != L"Not available" && designCapStr != L"Not available")
+            if (fullCapStr != L"Unknown" && designCapStr != L"Unknown")
             {
                 int fullCap = _wtoi(fullCapStr);
                 int designCap = _wtoi(designCapStr);
-                if (designCap > 0)
+                if (designCap > 0 && fullCap != designCap)
                 {
                     double health = (static_cast<double>(fullCap) / designCap) * 100.0;
                     CString healthStr;
@@ -1258,12 +1279,12 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 }
                 else
                 {
-                    UpdateLabel(this, IDC_BATT_HEALTH, L"Not available");
+                    UpdateLabel(this, IDC_BATT_HEALTH, L"Unknown");
                 }
             }
             else
             {
-                UpdateLabel(this, IDC_BATT_HEALTH, L"Not available");
+                UpdateLabel(this, IDC_BATT_HEALTH, L"Unkown");
             }
 
             // Voltage
@@ -1277,7 +1298,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
             else
             {
-                UpdateLabel(this, IDC_BATT_VOLTAGE, L"Not available");
+                UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
             }
 
             // Get Battery DeviceID
@@ -1290,8 +1311,9 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
             else
             {
-                deviceID = L"Not available";
+                deviceID = L"Unknown";
             }
+
             UpdateLabel(this, IDC_BATT_MANUFAC, deviceID);
             VariantClear(&vtDeviceID);
 
@@ -1304,21 +1326,30 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
             else
             {
-                batteryName = L"Not available";
+                batteryName = L"Unknown";
             }
             UpdateLabel(this, IDC_BATT_NAME, batteryName);
             VariantClear(&vtProp);
 
             // Battery Cycle Count
             CString cycleCount = QueryBatteryCycleCount();
-            if (cycleCount != L"Not available")
+            if (cycleCount != L"Not available" && cycleCount != L"0")
             {
                 cycleCount += L" cycles";
+            }
+            else {
+				cycleCount = L"Unknown";
             }
             UpdateLabel(this, IDC_BATT_CYCLE, cycleCount);
 
             // Battery Temperature - NEW ADDITION
             CString temperature = QueryBatteryTemperature();
+
+            if(temperature == L"Not available")
+            {
+                temperature = L"Unknown";
+			}
+
             UpdateLabel(this, IDC_BATT_TEMP, temperature);
 
             // System UUID

@@ -36,9 +36,12 @@
 #define IDC_BATT_HEALTH                 1031
 #define IDC_BTN_DISCHARGE               1032
 #define IDC_BATT_DISCHARGR              1033
+#define IDC_STATIC_CURRCAPACITY         1034
 #define IDC_BTN_CPULOAD                 1035
 #define IDC_BATT_DISCHARGE              1036
 #define IDC_BATT_CPULOAD                1036
+#define IDC_BATT_CAPACITY2              1037
+#define IDC_BATT_CURRCAPACITY           1037
 #define IDC_BTN_UPLOADPDF               1038
 #define IDC_BTN_HISTORY                 1039
 #define IDC_STATIC_BBI                  1040
@@ -48,7 +51,6 @@
 #define IDC_BATT_DID                    1045
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
-#define IDC_LIST1                       1053
 
 // Next default values for new objects
 // 
