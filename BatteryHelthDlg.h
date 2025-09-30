@@ -18,6 +18,7 @@
 
 
 
+
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
 {
@@ -220,3 +221,7 @@ public:
 
 
 };
+
+
+
+

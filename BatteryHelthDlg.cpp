@@ -29,6 +29,8 @@
 #include <pdh.h>
 #include <pdhmsg.h>
 
+#include <set>
+
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
@@ -138,71 +140,71 @@ END_MESSAGE_MAP()
 
 
 
-void CBatteryHelthDlg::CalculateDPIScale()
-{
-    // Get the DPI of the primary monitor
-    HDC hdc = ::GetDC(NULL);
-    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-    ::ReleaseDC(NULL, hdc);
-
-    // Calculate scale factor (96 DPI is the baseline/100%)
-    m_dpiScaleFactor = dpiX / 96.0;
-
-    // Alternative: Get screen work area for percentage scaling
-    CRect workArea;
-    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
-
-    // Base design dimensions (your original dialog size)
-    m_baseWidth = 750;
-    m_baseHeight = 790;
-
-    // Optional: Limit scaling based on screen size
-    int screenHeight = workArea.Height();
-    if (screenHeight < 800) {
-        // For small screens, use smaller scale
-        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
-    }
-}
-
-
 //void CBatteryHelthDlg::CalculateDPIScale()
 //{
-//    // Get monitor DPI
+//    // Get the DPI of the primary monitor
 //    HDC hdc = ::GetDC(NULL);
 //    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
 //    ::ReleaseDC(NULL, hdc);
 //
-//    m_dpiScaleFactor = dpiX / 96.0;  // baseline
+//    // Calculate scale factor (96 DPI is the baseline/100%)
+//    m_dpiScaleFactor = dpiX / 96.0;
 //
-//    // Get screen work area
+//    // Alternative: Get screen work area for percentage scaling
 //    CRect workArea;
 //    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
 //
-//    int screenW = workArea.Width();
-//    int screenH = workArea.Height();
+//    // Base design dimensions (your original dialog size)
+//    m_baseWidth = 750;
+//    m_baseHeight = 790;
 //
-//    // Dynamically choose base dialog size
-//    if (screenW <= 1280 || screenH <= 720) {
-//        // Small screen / laptop
-//        m_baseWidth = 650;
-//        m_baseHeight = 680;
-//    }
-//    else if (screenW <= 1920) {
-//        // Standard HD / FHD
-//        m_baseWidth = 750;
-//        m_baseHeight = 790;
-//    }
-//    else {
-//        // Large screen (WQHD, 4K, etc.)
-//        m_baseWidth = 900;
-//        m_baseHeight = 950;
-//    }
-//
-//    // Optional: further clamp scaling
-//    if (screenH < 800) {
+//    // Optional: Limit scaling based on screen size
+//    int screenHeight = workArea.Height();
+//    if (screenHeight < 800) {
+//        // For small screens, use smaller scale
 //        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
 //    }
 //}
+
+
+void CBatteryHelthDlg::CalculateDPIScale()
+{
+    // Get monitor DPI
+    HDC hdc = ::GetDC(NULL);
+    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+    ::ReleaseDC(NULL, hdc);
+
+    m_dpiScaleFactor = dpiX / 96.0;  // baseline
+
+    // Get screen work area
+    CRect workArea;
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+
+    int screenW = workArea.Width();
+    int screenH = workArea.Height();
+
+    // Dynamically choose base dialog size
+    if (screenW <= 1600 || screenH <= 700) {
+        // Small screen / laptop
+        m_baseWidth = 650;
+        m_baseHeight = 720;
+    }
+    else if (screenW <= 1920) {
+        // Standard HD / FHD
+        m_baseWidth = 750;
+        m_baseHeight = 790;
+    }
+    else {
+        // Large screen (WQHD, 4K, etc.)
+        m_baseWidth = 900;
+        m_baseHeight = 950;
+    }
+
+    // Optional: further clamp scaling
+    if (screenH < 800) {
+        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
+    }
+}
 
 int CBatteryHelthDlg::ScaleDPI(int value)
 {
@@ -413,8 +415,129 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 }
 
 
-// Scales IDC_BATT_DISCHARGR / IDC_BATT_CPULOAD fonts by dialog size (screen ratio),
-// uses semi-bold weight (~600), and updates the text.
+ //Scales IDC_BATT_DISCHARGR / IDC_BATT_CPULOAD fonts by dialog size (screen ratio),
+ //uses semi-bold weight (~600), and updates the text.
+//static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
+//{
+//    if (!pDlg) return;
+//
+//    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
+//    if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
+//
+//    // -------------------------------
+//    // 1) Determine base (design) size
+//    // -------------------------------
+//    // Try to use the dialog's stored base size if it exists (m_origDialogSize).
+//    // If not accessible, fall back to capturing the first-seen client size.
+//    static SIZE s_base = { 0, 0 };   // captured base client size (fallback)
+//    CSize base(0, 0);
+//
+//    // Attempt to read m_origDialogSize via window property (optional) or fallback.
+//    // Fallback: capture once from first call.
+//    if (s_base.cx == 0 || s_base.cy == 0)
+//    {
+//        CRect rc0; pDlg->GetClientRect(&rc0);
+//        s_base.cx = rc0.Width();
+//        s_base.cy = rc0.Height();
+//        if (s_base.cx <= 0) s_base.cx = 1;
+//        if (s_base.cy <= 0) s_base.cy = 1;
+//    }
+//    base.cx = s_base.cx;
+//    base.cy = s_base.cy;
+//
+//    // -------------------------------
+//    // 2) Compute uniform scale factor
+//    // -------------------------------
+//    CRect rcNow; pDlg->GetClientRect(&rcNow);
+//    double scaleX = static_cast<double>(rcNow.Width()) / static_cast<double>(base.cx);
+//    double scaleY = static_cast<double>(rcNow.Height()) / static_cast<double>(base.cy);
+//
+//    // Use a uniform factor for consistency (you can switch to min/avg if you prefer)
+//    double scale = (scaleX < scaleY) ? scaleX : scaleY;
+//
+//    // Clamp to sane range so fonts don't get absurd
+//    if (scale < 0.75) scale = 0.75;
+//    if (scale > 1.50) scale = 1.50;
+//
+//    // -------------------------------
+//    // 3) Build/apply scaled font (for your two IDs)
+//    // -------------------------------
+//    const bool needsScaledSemiBold =
+//        (ctrlId == IDC_BATT_DISCHARGR) || (ctrlId == IDC_BATT_CPULOAD);
+//
+//    if (needsScaledSemiBold)
+//    {
+//        // Base logical height (your code used -16). Scale it and round.
+//        const int baseHeight = -14;
+//        int targetHeight = static_cast<int>(::lround(baseHeight * scale)); // stays negative
+//        // bound a bit
+//        if (targetHeight > -12) targetHeight = -12;  // not too small magnitude
+//        if (targetHeight < -28) targetHeight = -28;  // not too big magnitude
+//
+//        // Cache separate fonts for each of the two labels, keyed by last height used
+//        static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
+//        static CFont s_fontDischarge;       static int s_hDischarge = 0;
+//
+//        CFont* pFontObj = nullptr;
+//        int* pLastH = nullptr;
+//
+//        if (ctrlId == IDC_BATT_CPULOAD) {
+//            pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
+//        }
+//        else { // IDC_BATT_DISCHARGR
+//            pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
+//        }
+//
+//        // Recreate only if height changed (avoids flicker & GDI churn)
+//        if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
+//        {
+//            // Derive LOGFONT from current control font (or default GUI)
+//            LOGFONT lf; ::ZeroMemory(&lf, sizeof(lf));
+//            if (CFont* pOld = pCtl->GetFont()) pOld->GetLogFont(&lf);
+//            else ::GetObject(::GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
+//
+//            lf.lfHeight = targetHeight;
+//            lf.lfWeight = 600; // Semi-bold (~600), lighter than FW_BOLD(700)
+//
+//            // Optional: ensure same face if you rely on Segoe UI
+//            // _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+//
+//            pFontObj->DeleteObject();
+//            pFontObj->CreateFontIndirect(&lf);
+//            *pLastH = targetHeight;
+//        }
+//
+//        // Apply the scaled semi-bold font
+//        pCtl->SetFont(pFontObj, FALSE);
+//    }
+//
+//    // -------------------------------
+//    // 4) Update text + repaint cleanly
+//    // -------------------------------
+//   /*  (You can keep hide/show if you still see artifacts over your gradient)*/
+//    //pCtl->ShowWindow(SW_HIDE);
+//
+//    //CString cur; pCtl->GetWindowText(cur);
+//    //if (cur == text) return;
+//
+//    pCtl->SetWindowTextW(text);
+//
+//    CRect rcCtl; pCtl->GetWindowRect(&rcCtl);
+//    pDlg->ScreenToClient(&rcCtl);
+//    rcCtl.InflateRect(5, 5);
+//
+//    pDlg->InvalidateRect(&rcCtl, TRUE);
+//    pDlg->UpdateWindow();
+//
+//    pCtl->ShowWindow(SW_SHOW);
+//    pCtl->Invalidate(FALSE);
+//    pCtl->UpdateWindow();
+//}
+
+
+
+
+
 static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 {
     if (!pDlg) return;
@@ -425,13 +548,9 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     // -------------------------------
     // 1) Determine base (design) size
     // -------------------------------
-    // Try to use the dialog's stored base size if it exists (m_origDialogSize).
-    // If not accessible, fall back to capturing the first-seen client size.
-    static SIZE s_base = { 0, 0 };   // captured base client size (fallback)
+    static SIZE s_base = { 0, 0 };
     CSize base(0, 0);
 
-    // Attempt to read m_origDialogSize via window property (optional) or fallback.
-    // Fallback: capture once from first call.
     if (s_base.cx == 0 || s_base.cy == 0)
     {
         CRect rc0; pDlg->GetClientRect(&rc0);
@@ -450,29 +569,24 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     double scaleX = static_cast<double>(rcNow.Width()) / static_cast<double>(base.cx);
     double scaleY = static_cast<double>(rcNow.Height()) / static_cast<double>(base.cy);
 
-    // Use a uniform factor for consistency (you can switch to min/avg if you prefer)
     double scale = (scaleX < scaleY) ? scaleX : scaleY;
 
-    // Clamp to sane range so fonts don't get absurd
     if (scale < 0.75) scale = 0.75;
     if (scale > 1.50) scale = 1.50;
 
     // -------------------------------
-    // 3) Build/apply scaled font (for your two IDs)
+    // 3) Build/apply scaled font
     // -------------------------------
     const bool needsScaledSemiBold =
         (ctrlId == IDC_BATT_DISCHARGR) || (ctrlId == IDC_BATT_CPULOAD);
 
     if (needsScaledSemiBold)
     {
-        // Base logical height (your code used -16). Scale it and round.
         const int baseHeight = -14;
-        int targetHeight = static_cast<int>(::lround(baseHeight * scale)); // stays negative
-        // bound a bit
-        if (targetHeight > -12) targetHeight = -12;  // not too small magnitude
-        if (targetHeight < -28) targetHeight = -28;  // not too big magnitude
+        int targetHeight = static_cast<int>(::lround(baseHeight * scale));
+        if (targetHeight > -12) targetHeight = -12;
+        if (targetHeight < -28) targetHeight = -28;
 
-        // Cache separate fonts for each of the two labels, keyed by last height used
         static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
         static CFont s_fontDischarge;       static int s_hDischarge = 0;
 
@@ -482,49 +596,77 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
         if (ctrlId == IDC_BATT_CPULOAD) {
             pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
         }
-        else { // IDC_BATT_DISCHARGR
+        else {
             pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
         }
 
-        // Recreate only if height changed (avoids flicker & GDI churn)
         if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
         {
-            // Derive LOGFONT from current control font (or default GUI)
             LOGFONT lf; ::ZeroMemory(&lf, sizeof(lf));
             if (CFont* pOld = pCtl->GetFont()) pOld->GetLogFont(&lf);
             else ::GetObject(::GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
 
             lf.lfHeight = targetHeight;
-            lf.lfWeight = 600; // Semi-bold (~600), lighter than FW_BOLD(700)
-
-            // Optional: ensure same face if you rely on Segoe UI
-            // _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+            lf.lfWeight = 600;
 
             pFontObj->DeleteObject();
             pFontObj->CreateFontIndirect(&lf);
             *pLastH = targetHeight;
         }
 
-        // Apply the scaled semi-bold font
         pCtl->SetFont(pFontObj, FALSE);
     }
 
     // -------------------------------
-    // 4) Update text + repaint cleanly
+    // 4) Ensure WS_EX_TRANSPARENT style (one-time setup)
     // -------------------------------
-    // (You can keep hide/show if you still see artifacts over your gradient)
-    pCtl->ShowWindow(SW_HIDE);
-    pCtl->SetWindowTextW(text);
+    static BOOL s_cpuLoadTransparent = FALSE;
+    static BOOL s_dischargeTransparent = FALSE;
 
-    CRect rcCtl; pCtl->GetWindowRect(&rcCtl);
+    BOOL* pTransFlag = nullptr;
+    if (ctrlId == IDC_BATT_CPULOAD)
+        pTransFlag = &s_cpuLoadTransparent;
+    else if (ctrlId == IDC_BATT_DISCHARGR)
+        pTransFlag = &s_dischargeTransparent;
+
+    if (pTransFlag && !(*pTransFlag))
+    {
+        pCtl->ModifyStyleEx(0, WS_EX_TRANSPARENT);
+        *pTransFlag = TRUE;
+    }
+
+    // -------------------------------
+    // 5) Check if text actually changed
+    // -------------------------------
+    CString cur;
+    pCtl->GetWindowText(cur);
+    if (cur == text) return;
+
+    // -------------------------------
+    // 6) Update text with aggressive background clearing
+    // -------------------------------
+    // Get control rectangle BEFORE hiding
+    CRect rcCtl;
+    pCtl->GetWindowRect(&rcCtl);
     pDlg->ScreenToClient(&rcCtl);
-    rcCtl.InflateRect(5, 5);
 
-    pDlg->InvalidateRect(&rcCtl, TRUE);
-    pDlg->UpdateWindow();
+    // Expand the invalidation area to cover any antialiasing
+    CRect rcInvalidate = rcCtl;
+    rcInvalidate.InflateRect(5, 5);
 
+    // Hide control temporarily
+    pCtl->ShowWindow(SW_HIDE);
+
+    // Force parent dialog to redraw the area (this redraws your gradient)
+    pDlg->InvalidateRect(&rcInvalidate, TRUE);
+    pDlg->UpdateWindow(); // Force immediate redraw
+
+    // Update the text while hidden
+    pCtl->SetWindowText(text);
+
+    // Show and invalidate the control
     pCtl->ShowWindow(SW_SHOW);
-    pCtl->Invalidate(FALSE);
+    pCtl->Invalidate(TRUE); // TRUE = erase background
     pCtl->UpdateWindow();
 }
 
@@ -922,10 +1064,6 @@ BOOL CBatteryHelthDlg::PreTranslateMessage(MSG* pMsg)
 
 
 
-
-
-
-
 BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
 {
     CRect rc;
@@ -1160,13 +1298,12 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
 
 HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
-    // Let STATIC texts (labels), group boxes, checkboxes, radios, etc. be transparent
-    if (nCtlColor == CTLCOLOR_STATIC || nCtlColor == CTLCOLOR_BTN)
+ 
+    if (nCtlColor == CTLCOLOR_STATIC )
     {
         pDC->SetBkMode(TRANSPARENT);
-        // Optional: tweak text color if needed
-        // pDC->SetTextColor(RGB(60, 60, 60));
-        return (HBRUSH)GetStockObject(NULL_BRUSH);
+        pDC->SetBkColor(GetSysColor(COLOR_3DFACE)); 
+        return (HBRUSH)GetStockObject(HOLLOW_BRUSH);
     }
 
     // Tell the dialog not to erase its background (your OnEraseBkgnd paints the gradient)
