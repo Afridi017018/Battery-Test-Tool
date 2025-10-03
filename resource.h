@@ -47,7 +47,6 @@
 #define IDC_STATIC_ABT                  1041
 #define IDC_STATIC_DH                   1042
 #define IDC_STATIC_HEADER               1043
-#define IDC_BATT_CYCLE2                 1044
 #define IDC_BATT_DID                    1045
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
@@ -56,9 +55,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_RESOURCE_VALUE        150
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1054
+#define _APS_NEXT_CONTROL_VALUE         1056
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

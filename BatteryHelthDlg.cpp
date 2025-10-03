@@ -140,33 +140,6 @@ END_MESSAGE_MAP()
 
 
 
-//void CBatteryHelthDlg::CalculateDPIScale()
-//{
-//    // Get the DPI of the primary monitor
-//    HDC hdc = ::GetDC(NULL);
-//    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-//    ::ReleaseDC(NULL, hdc);
-//
-//    // Calculate scale factor (96 DPI is the baseline/100%)
-//    m_dpiScaleFactor = dpiX / 96.0;
-//
-//    // Alternative: Get screen work area for percentage scaling
-//    CRect workArea;
-//    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
-//
-//    // Base design dimensions (your original dialog size)
-//    m_baseWidth = 750;
-//    m_baseHeight = 790;
-//
-//    // Optional: Limit scaling based on screen size
-//    int screenHeight = workArea.Height();
-//    if (screenHeight < 800) {
-//        // For small screens, use smaller scale
-//        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
-//    }
-//}
-
-
 void CBatteryHelthDlg::CalculateDPIScale()
 {
     // Get monitor DPI
@@ -187,17 +160,17 @@ void CBatteryHelthDlg::CalculateDPIScale()
     if (screenW <= 1600 || screenH <= 700) {
         // Small screen / laptop
         m_baseWidth = 650;
-        m_baseHeight = 720;
+        m_baseHeight = 685;
     }
     else if (screenW <= 1920) {
         // Standard HD / FHD
         m_baseWidth = 750;
-        m_baseHeight = 790;
+        m_baseHeight = 760;
     }
     else {
         // Large screen (WQHD, 4K, etc.)
         m_baseWidth = 900;
-        m_baseHeight = 950;
+        m_baseHeight = 920;
     }
 
     // Optional: further clamp scaling
@@ -415,127 +388,7 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 }
 
 
- //Scales IDC_BATT_DISCHARGR / IDC_BATT_CPULOAD fonts by dialog size (screen ratio),
- //uses semi-bold weight (~600), and updates the text.
-//static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
-//{
-//    if (!pDlg) return;
-//
-//    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
-//    if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
-//
-//    // -------------------------------
-//    // 1) Determine base (design) size
-//    // -------------------------------
-//    // Try to use the dialog's stored base size if it exists (m_origDialogSize).
-//    // If not accessible, fall back to capturing the first-seen client size.
-//    static SIZE s_base = { 0, 0 };   // captured base client size (fallback)
-//    CSize base(0, 0);
-//
-//    // Attempt to read m_origDialogSize via window property (optional) or fallback.
-//    // Fallback: capture once from first call.
-//    if (s_base.cx == 0 || s_base.cy == 0)
-//    {
-//        CRect rc0; pDlg->GetClientRect(&rc0);
-//        s_base.cx = rc0.Width();
-//        s_base.cy = rc0.Height();
-//        if (s_base.cx <= 0) s_base.cx = 1;
-//        if (s_base.cy <= 0) s_base.cy = 1;
-//    }
-//    base.cx = s_base.cx;
-//    base.cy = s_base.cy;
-//
-//    // -------------------------------
-//    // 2) Compute uniform scale factor
-//    // -------------------------------
-//    CRect rcNow; pDlg->GetClientRect(&rcNow);
-//    double scaleX = static_cast<double>(rcNow.Width()) / static_cast<double>(base.cx);
-//    double scaleY = static_cast<double>(rcNow.Height()) / static_cast<double>(base.cy);
-//
-//    // Use a uniform factor for consistency (you can switch to min/avg if you prefer)
-//    double scale = (scaleX < scaleY) ? scaleX : scaleY;
-//
-//    // Clamp to sane range so fonts don't get absurd
-//    if (scale < 0.75) scale = 0.75;
-//    if (scale > 1.50) scale = 1.50;
-//
-//    // -------------------------------
-//    // 3) Build/apply scaled font (for your two IDs)
-//    // -------------------------------
-//    const bool needsScaledSemiBold =
-//        (ctrlId == IDC_BATT_DISCHARGR) || (ctrlId == IDC_BATT_CPULOAD);
-//
-//    if (needsScaledSemiBold)
-//    {
-//        // Base logical height (your code used -16). Scale it and round.
-//        const int baseHeight = -14;
-//        int targetHeight = static_cast<int>(::lround(baseHeight * scale)); // stays negative
-//        // bound a bit
-//        if (targetHeight > -12) targetHeight = -12;  // not too small magnitude
-//        if (targetHeight < -28) targetHeight = -28;  // not too big magnitude
-//
-//        // Cache separate fonts for each of the two labels, keyed by last height used
-//        static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
-//        static CFont s_fontDischarge;       static int s_hDischarge = 0;
-//
-//        CFont* pFontObj = nullptr;
-//        int* pLastH = nullptr;
-//
-//        if (ctrlId == IDC_BATT_CPULOAD) {
-//            pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
-//        }
-//        else { // IDC_BATT_DISCHARGR
-//            pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
-//        }
-//
-//        // Recreate only if height changed (avoids flicker & GDI churn)
-//        if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
-//        {
-//            // Derive LOGFONT from current control font (or default GUI)
-//            LOGFONT lf; ::ZeroMemory(&lf, sizeof(lf));
-//            if (CFont* pOld = pCtl->GetFont()) pOld->GetLogFont(&lf);
-//            else ::GetObject(::GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
-//
-//            lf.lfHeight = targetHeight;
-//            lf.lfWeight = 600; // Semi-bold (~600), lighter than FW_BOLD(700)
-//
-//            // Optional: ensure same face if you rely on Segoe UI
-//            // _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-//
-//            pFontObj->DeleteObject();
-//            pFontObj->CreateFontIndirect(&lf);
-//            *pLastH = targetHeight;
-//        }
-//
-//        // Apply the scaled semi-bold font
-//        pCtl->SetFont(pFontObj, FALSE);
-//    }
-//
-//    // -------------------------------
-//    // 4) Update text + repaint cleanly
-//    // -------------------------------
-//   /*  (You can keep hide/show if you still see artifacts over your gradient)*/
-//    //pCtl->ShowWindow(SW_HIDE);
-//
-//    //CString cur; pCtl->GetWindowText(cur);
-//    //if (cur == text) return;
-//
-//    pCtl->SetWindowTextW(text);
-//
-//    CRect rcCtl; pCtl->GetWindowRect(&rcCtl);
-//    pDlg->ScreenToClient(&rcCtl);
-//    rcCtl.InflateRect(5, 5);
-//
-//    pDlg->InvalidateRect(&rcCtl, TRUE);
-//    pDlg->UpdateWindow();
-//
-//    pCtl->ShowWindow(SW_SHOW);
-//    pCtl->Invalidate(FALSE);
-//    pCtl->UpdateWindow();
-//}
-
-
-
+ 
 
 
 static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
@@ -725,10 +578,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
 
 
-
     UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
     UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");
-
 
 
     // Get battery info + start timer
@@ -827,190 +678,6 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
 
 
-
-
-
-
-
-//BOOL CBatteryHelthDlg::OnInitDialog()
-//{
-//    CDialogEx::OnInitDialog();
-//
-//    // Initialize COM once
-//    HRESULT hres = CoInitializeEx(0, COINIT_MULTITHREADED);
-//    if (FAILED(hres))
-//    {
-//        AfxMessageBox(L"Failed to initialize COM.");
-//        return FALSE;
-//    }
-//
-//    hres = CoInitializeSecurity(
-//        NULL,
-//        -1,
-//        NULL,
-//        NULL,
-//        RPC_C_AUTHN_LEVEL_DEFAULT,
-//        RPC_C_IMP_LEVEL_IMPERSONATE,
-//        NULL,
-//        EOAC_NONE,
-//        NULL
-//    );
-//
-//    if (FAILED(hres))
-//    {
-//        AfxMessageBox(L"Failed to initialize COM security.");
-//        CoUninitialize();
-//        return FALSE;
-//    }
-//
-//    // Battery progress
-//    m_BatteryProgress.SetRange(0, 100);
-//    m_BatteryProgress.SetPos(0);
-//
-//    // CPU progress
-//    m_CPU_Progress.SetRange(0, 100);
-//    m_CPU_Progress.SetPos(0);   // int, no double!
-//    m_CPU_Progress.SetStep(1);
-//
-//    m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
-//    ::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
-//    m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
-//    m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
-//    m_CPU_Progress.ShowWindow(SW_HIDE); // Hide initially
-//
-//
-//    ////Discharge progress
-//    m_discharge_progress.SetRange(0, 100);
-//    m_discharge_progress.SetPos(0);   // int, no double!
-//    m_discharge_progress.SetStep(1);
-//
-//    m_discharge_progress.ModifyStyle(0, PBS_SMOOTH);
-//    ::SetWindowTheme(m_discharge_progress.GetSafeHwnd(), L"", L"");
-//    m_discharge_progress.SetBarColor(RGB(0, 122, 204));
-//    m_discharge_progress.SetBkColor(RGB(220, 220, 220));
-//    m_discharge_progress.ShowWindow(SW_HIDE); // Hide initially
-//
-//    m_stopCpuLoad.store(false);
-//
-//    // Get battery info + start timer
-//    GetBatteryInfo();
-//    SetTimer(2, 1000, NULL);
-//
-//    // Add "About..." menu item
-//    ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
-//    ASSERT(IDM_ABOUTBOX < 0xF000);
-//
-//    CMenu* pSysMenu = GetSystemMenu(FALSE);
-//    if (pSysMenu != nullptr)
-//    {
-//        CString strAboutMenu;
-//        if (strAboutMenu.LoadString(IDS_ABOUTBOX) && !strAboutMenu.IsEmpty())
-//        {
-//            pSysMenu->AppendMenu(MF_SEPARATOR);
-//            pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
-//        }
-//    }
-//
-//    SetIcon(m_hIcon, TRUE);   // big icon
-//    SetIcon(m_hIcon, FALSE);  // small icon
-//
-//
-//
-//    // ----------------------------
-//    // Fonts - Create base fonts
-//    // ----------------------------
-//    CreateFonts();
-//
-//
-//    // Apply fonts initially
-//    ApplyFonts(1.0); // normal scale
-//
-//    m_brushWhite.CreateSolidBrush(RGB(255, 255, 255));
-//
-//    // Fix window style
-//    LONG style = GetWindowLong(this->m_hWnd, GWL_STYLE);
-//    //style &= ~WS_THICKFRAME;   // no resize
-//    //style &= ~WS_MAXIMIZEBOX;  // no maximize
-//    style |= WS_MINIMIZEBOX;   // keep minimize
-//    style |= WS_SYSMENU;       // system menu required for minimize
-//
-//    SetWindowLong(this->m_hWnd, GWL_STYLE, style);
-//    SetWindowPos(NULL, 0, 0, 0, 0,
-//        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-//
-//
-//
-//    //// ----------------------------
-//    //// Dialog size & style
-//    //// ----------------------------
-//    //int width = 670;
-//    //int height = 780;
-//    //SetWindowPos(NULL, 0, 0, width, height,
-//    //    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-//    //CenterWindow();
-//
-//
-//
-//    // Save original positions and dialog size
-//    CRect dialogRect;
-//    GetClientRect(&dialogRect);
-//    m_origDialogSize = CSize(dialogRect.Width(), dialogRect.Height());
-//
-//    UINT ids[] = { IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
-//                   IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
-//                   IDC_BATT_DISCHARGR, IDC_STATIC_DH, IDC_BATT_CPULOAD, IDC_STATIC_ABT,
-//        IDD_BATTERYHELTH_DIALOG, IDC_PROGRESS4, IDC_STATIC_BBI, IDC_STATIC_HEADER, IDC_BATT_DID,
-//        IDC_STATIC_PERCENTAGE,IDC_BATT_PROGRESS,IDC_BATT_PERCENTAGE,IDC_STATIC_CAPACITY,
-//        IDC_BATT_CAPACITY, IDC_STATIC_NAME, IDC_BATT_NAME, IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY,
-//        IDC_STATIC_MANUFAC, IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
-//        IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP, IDC_BATT_TEMP,
-//		IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
-//    };
-//
-//    for (auto id : ids)
-//    {
-//        CWnd* pWnd = GetDlgItem(id);
-//        if (pWnd && pWnd->GetSafeHwnd())
-//        {
-//            CRect rc;
-//            pWnd->GetWindowRect(&rc);
-//            ScreenToClient(&rc);
-//            m_origPositions.push_back({ id, rc });
-//        }
-//    }
-//    m_origPositionsSaved = true;
-//
-//    /* m_bgBrush.CreateSolidBrush(RGB(255, 0, 0));*/
-//
-//
-//     // Change title bar color (Windows 10 build 22000+)
-//    COLORREF titleBarColor = RGB(70, 80, 185); // Your desired color
-//    DwmSetWindowAttribute(m_hWnd, DWMWA_CAPTION_COLOR, &titleBarColor, sizeof(titleBarColor));
-//
-//
-//
-//
-//
-//
-//    // Mark every listed button as owner-draw
-//    for (UINT id : m_buttonIds) {
-//        if (CWnd* p = GetDlgItem(id)) {
-//            p->ModifyStyle(0, BS_OWNERDRAW);
-//            m_hover[id] = FALSE; // init hover state
-//        }
-//    }
-//
-//    // Smooth hover timer
-//    SetTimer(1, 100, NULL); // tune as you like
-//
-//
-//    InitToolTips();
-//
-//
-//    return TRUE;
-//}
-
-
 void CBatteryHelthDlg::InitToolTips()
 {
     if (!m_toolTip.GetSafeHwnd())
@@ -1069,21 +736,22 @@ BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
     CRect rc;
     GetClientRect(&rc);
 
-    // Start color: Light Sky Blue (#87CEFA)
     TRIVERTEX vert[2] = {};
+
+    // Start color: Light Sky Blue (#87CEFA ? RGB(135,206,250))
     vert[0].x = rc.left;
     vert[0].y = rc.top;
-    vert[0].Red = 135 << 8;  // R = 135
-    vert[0].Green = 206 << 8;  // G = 206
-    vert[0].Blue = 250 << 8;  // B = 250
+    vert[0].Red = 135 << 8;
+    vert[0].Green = 206 << 8;
+    vert[0].Blue = 250 << 8;
     vert[0].Alpha = 0xFFFF;
 
-    // End color: White (#FFFFFF)
+    // End color: Soft Lavender (#BAA9F5 ? RGB(186,169,245))
     vert[1].x = rc.right;
     vert[1].y = rc.bottom;
-    vert[1].Red = 255 << 8;
-    vert[1].Green = 255 << 8;
-    vert[1].Blue = 255 << 8;
+    vert[1].Red = 186 << 8;
+    vert[1].Green = 169 << 8;
+    vert[1].Blue = 245 << 8;
     vert[1].Alpha = 0xFFFF;
 
     GRADIENT_RECT g = { 0, 1 };
@@ -1093,6 +761,8 @@ BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
 
     return TRUE; // we drew the background
 }
+
+
 
 
 
@@ -2061,6 +1731,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
     {
         // Could not read battery status
         GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+       
         /*     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
         return;
     }
@@ -2082,8 +1753,12 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
     if (sps.ACLineStatus == 1) // Charging
     {
-        GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+       /* GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);*/
         /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
+        m_discharge_progress.ShowWindow(SW_HIDE);
+
+        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+       
 
            // If discharge test is running, stop it immediately
         if (m_dischargeTestRunning)
@@ -2091,6 +1766,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
             KillTimer(m_dischargeTimerID);
             m_dischargeTestRunning = false;
 
+            m_discharge_progress.ShowWindow(SW_HIDE);
             /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped");*/
             UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
         }
@@ -2101,16 +1777,55 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
         GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
         /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow();*/
     }
+
+    
 }
 
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
 
+    SYSTEM_POWER_STATUS sps;
+    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+    {
+        AfxMessageBox(L"Cannot read battery percentage.");
+        return;
+    }
+
+    if (sps.ACLineStatus == 1) // Charging
+    {
+        AfxMessageBox(L"Please unplug the charger to start the discharge test.", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+
+    // Check Battery Saver
+    if (sps.SystemStatusFlag & 1) // Battery saver ON
+    {
+        m_discharge_progress.ShowWindow(SW_HIDE);
+
+        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+
+        KillTimer(m_dischargeTimerID);
+        m_dischargeTestRunning = false;
+
+        CString msg;
+        msg = L"Turn off your Battery Saver.\n\n";
+        msg += L"=> WINDOWS:\n";
+        msg += L"  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+
+        ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+
+
+
+        return;
+    }
+
     // If already running 
     if (m_dischargeTestRunning)
     {
         m_dischargeTestRunning = false;
+        m_discharge_progress.ShowWindow(SW_HIDE);
         KillTimer(m_dischargeTimerID);
 
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
@@ -2128,7 +1843,6 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     }
 
 
-
     if (m_dischargeClick) {
         SetButtonFont(IDC_BATT_DISCHARGR, true);
     }
@@ -2136,24 +1850,9 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
     m_discharge_progress.ShowWindow(SW_SHOW);
 
-    SYSTEM_POWER_STATUS sps;
-    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
-    {
-        AfxMessageBox(L"Cannot read battery percentage.");
-        return;
-    }
+   
 
-    // Check Battery Saver
-    if (sps.SystemStatusFlag & 1) // Battery saver ON
-    {
-        CString msg;
-        msg = L"Turn off your Battery Saver.\n\n";
-        msg += L"=> WINDOWS:\n";
-        msg += L"  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
 
-        ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
-        return;
-    }
 
     // Start discharge test
     m_initialBatteryPercent = sps.BatteryLifePercent;
@@ -2242,10 +1941,35 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
 
 
+            if (sps.ACLineStatus == 1) {
+                KillTimer(m_dischargeTimerID);
+                m_dischargeTestRunning = false;
+                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+				m_discharge_progress.ShowWindow(SW_HIDE);
+            }
+
+            else if (sps.SystemStatusFlag & 1) // Battery saver ON
+            {
+                m_discharge_progress.ShowWindow(SW_HIDE);
+
+                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+
+                KillTimer(m_dischargeTimerID);
+                m_dischargeTestRunning = false;
+
+                CString msg;
+                msg = L"Turn off your Battery Saver.\n\n";
+                msg += L"=> WINDOWS:\n";
+                msg += L"  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+
+                ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
 
 
+
+                return;
+            }
             // Stop the test after duration
-            if (m_elapsedSeconds >= totalSeconds)
+            else if (m_elapsedSeconds >= totalSeconds )
             {
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
@@ -2254,10 +1978,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
                 // Store final result
-                m_dischargeResult.Format(L"Initial: %d%%, Final: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
+                m_dischargeResult.Format(L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                     m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
 
-                msg.Format(L"Time elapsed: %d sec\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
+                msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
                     m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
 
                 /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
@@ -2273,6 +1997,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         {
             /*SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");*/
             UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
+
         }
     }
 
@@ -2543,7 +2268,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
                 int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
                 double rate = drop / (m_cpuLoadDurationSeconds / 60.0); // %/min
 
-                msg.Format(L"Initial: %d%%\nCurrent: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
+                msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
                     m_initialBatteryCPUPercent,
                     spsEnd.BatteryLifePercent,
                     drop,
@@ -2725,7 +2450,7 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         };
 
     // Write CSV header with Cycle Count
-    csvFile << "Unique Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Device ID,Battery Name,Estimated Time,Cycle Count,CPU Load Test,Discharge Test\n";
+    csvFile << "Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Battery ID,Battery Name,Estimated Time,Cycle Count,CPU Load Test,Discharge Test\n";
 
     // Get current values from controls
     CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
