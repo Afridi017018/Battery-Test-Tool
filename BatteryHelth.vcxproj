@@ -24,6 +24,7 @@
     <Keyword>MFCProj</Keyword>
     <RootNamespace>BatteryHelth</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>BatteryHealth</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -185,20 +186,30 @@
   <ItemGroup>
     <ClInclude Include="BatteryHelth.h" />
     <ClInclude Include="BatteryHelthDlg.h" />
+    <ClInclude Include="CDischargeDlg.h" />
+    <ClInclude Include="CPerfDlg.h" />
+    <ClInclude Include="CPredictionDlg.h" />
+    <ClInclude Include="CTrendDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="StandByDlg.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp" />
     <ClCompile Include="BatteryHelthDlg.cpp" />
+    <ClCompile Include="CDischargeDlg.cpp" />
+    <ClCompile Include="CPerfDlg.cpp" />
+    <ClCompile Include="CPredictionDlg.cpp" />
+    <ClCompile Include="CTrendDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="StandByDlg.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="BatteryHelth.rc" />
@@ -213,10 +224,18 @@
     <Image Include="..\..\..\Desktop\discharge1.png" />
     <Image Include="..\..\..\Desktop\pix.png" />
     <Image Include="..\..\..\Desktop\pngtree-battery-icon-in-full-blue-color-png-image_15802127.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\active.png" />
     <Image Include="..\..\..\OneDrive\Desktop\BatterHistory.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\bg_img.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\caphis.png" />
     <Image Include="..\..\..\OneDrive\Desktop\cpuload1.png" />
     <Image Include="..\..\..\OneDrive\Desktop\discharge1.png" />
     <Image Include="..\..\..\OneDrive\Desktop\ExportCsv.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\prediction.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\stand by.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\standby.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\standing-up-man-icon-png.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\usageHistory.png" />
     <Image Include="res\BatteryHelth.ico" />
     <Image Include="res\icon1.ico" />
   </ItemGroup>

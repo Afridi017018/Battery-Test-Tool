@@ -18,7 +18,6 @@
 
 
 
-
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
 {
@@ -129,8 +128,6 @@ public:
 
 	CSize m_origDialogSize;
 
-
-
 	CFont m_scaledFont;        // Scaled regular font
 	CFont m_scaledBoldFont;    // Scaled bold font
 	CFont m_normalFont;
@@ -166,7 +163,11 @@ public:
 
 	public:
 		// All the button control IDs you want to owner-draw
-		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF };
+		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, 
+			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
+			IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
+			IDC_BTN_USAGE
+		};
 
 		// Per-button hover state, keyed by control ID
 		std::unordered_map<UINT, BOOL> m_hover;
@@ -176,7 +177,12 @@ public:
 			{ IDC_BTN_CPULOAD, IDB_PNG1 },
 			{ IDC_BTN_DISCHARGE, IDB_PNG2 },
 			{ IDC_BTN_HISTORY, IDB_PNG3 },
-			{ IDC_BTN_UPLOADPDF, IDB_PNG4 }
+			{ IDC_BTN_UPLOADPDF, IDB_PNG4 },
+			{ IDC_BTN_CAPHIS, IDB_PNG5 },
+			{ IDC_BTN_PREDICTION, IDB_PNG6 },
+			{ IDC_BTN_ACTIVE, IDB_PNG7 },
+		    { IDC_BTN_STANDBY, IDB_PNG8 },
+			{ IDC_BTN_USAGE, IDB_PNG9 }
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
@@ -215,11 +221,43 @@ public:
 				// Add this line:
 				afx_msg LRESULT OnDpiChanged(WPARAM wParam, LPARAM lParam);
 
+			public:
+				struct BatteryCapacityRecord {
+					COleDateTime date;     // parsed; if parsing fails, .m_dt == 0
+					CString      dateText; // original text from the report
+					int          fullCharge_mWh = 0;
+					int          design_mWh = 0;
+					double       healthPct = 0.0; // 100 * full/design
+				};
 
 
-			
+				bool GetBatteryCapacityHistory(std::vector<BatteryCapacityRecord>& out);
+
+				void GetStaticBatteryInfo();
+
+				afx_msg void OnBnClickedBtnCaphis();
 
 
+				struct BatteryHealthPrediction {
+					int          targetPct = 0;     
+					bool         valid = false;
+					COleDateTime predictedDate;
+					CString      note;
+				};
+
+
+	
+				afx_msg void OnBnClickedBtnPrediction();
+				afx_msg void OnBnClickedBtnActive();
+				afx_msg void OnBnClickedBtnStandby();
+				afx_msg void OnBnClickedButton1();
+
+
+				public:
+					
+					afx_msg void OnBnClickedButton2();
+					afx_msg void OnBnClickedUsage();
+					afx_msg void OnBnClickedBtnUsage();
 };
 
 

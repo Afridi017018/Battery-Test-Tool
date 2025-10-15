@@ -21,9 +21,9 @@
 #include <memory>
 #include <atomic>
 
-#include <immintrin.h> // For AVX-512 intrinsics
+#include <immintrin.h> 
 #include <chrono>
-#include <afxwin.h> // MFC headers
+#include <afxwin.h> 
 #include <intrin.h> 
 
 #include <pdh.h>
@@ -38,6 +38,19 @@
 #pragma comment(lib, "pdh.lib")
 
 #pragma comment(lib, "wbemuuid.lib")
+
+#include <regex>
+
+#include "CTrendDlg.h"
+
+#include "StandByDlg.h"
+
+#include "CPerfDlg.h"
+
+#include "CDischargeDlg.h"
+
+#include "CPredictionDlg.h"
+
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -87,6 +100,8 @@ END_MESSAGE_MAP()
 
 // CBatteryHelthDlg dialog
 
+
+
 CBatteryHelthDlg::CBatteryHelthDlg(CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_BATTERYHELTH_DIALOG, pParent)
 {
@@ -132,52 +147,249 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_MESSAGE(WM_DPICHANGED, &CBatteryHelthDlg::OnDpiChanged)
 
+    ON_BN_CLICKED(IDC_BTN_CAPHIS, &CBatteryHelthDlg::OnBnClickedBtnCaphis)
+    ON_BN_CLICKED(IDC_BTN_PREDICTION, &CBatteryHelthDlg::OnBnClickedBtnPrediction)
+    ON_BN_CLICKED(IDC_BTN_ACTIVE, &CBatteryHelthDlg::OnBnClickedBtnActive)
+    ON_BN_CLICKED(IDC_BTN_STANDBY, &CBatteryHelthDlg::OnBnClickedBtnStandby)
+
+    ON_BN_CLICKED(IDC_BTN_USAGE, &CBatteryHelthDlg::OnBnClickedBtnUsage)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
 
 
 
-
-
-void CBatteryHelthDlg::CalculateDPIScale()
+static void BuildSeries(float initialPct, float currentPct, float ratePctPerMin,
+    std::vector<float>& timesMin,
+    std::vector<float>& percents)
 {
-    // Get monitor DPI
-    HDC hdc = ::GetDC(NULL);
-    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-    ::ReleaseDC(NULL, hdc);
-
-    m_dpiScaleFactor = dpiX / 96.0;  // baseline
-
-    // Get screen work area
-    CRect workArea;
-    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
-
-    int screenW = workArea.Width();
-    int screenH = workArea.Height();
-
-    // Dynamically choose base dialog size
-    if (screenW <= 1600 || screenH <= 700) {
-        // Small screen / laptop
-        m_baseWidth = 650;
-        m_baseHeight = 685;
-    }
-    else if (screenW <= 1920) {
-        // Standard HD / FHD
-        m_baseWidth = 750;
-        m_baseHeight = 760;
-    }
-    else {
-        // Large screen (WQHD, 4K, etc.)
-        m_baseWidth = 900;
-        m_baseHeight = 920;
+    timesMin.clear(); percents.clear();
+    if (ratePctPerMin <= 0.f) {
+        timesMin.push_back(0.f);
+        percents.push_back(initialPct);
+        return;
     }
 
-    // Optional: further clamp scaling
-    if (screenH < 800) {
-        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
+    const float totalDrop = initialPct;  // drop to 0
+    const float totalMin = totalDrop / ratePctPerMin;
+
+    int fullSteps = (int)floorf(totalMin);
+    for (int m = 0; m <= fullSteps; ++m) {
+        timesMin.push_back((float)m);
+        float v = initialPct - ratePctPerMin * m;
+        percents.push_back(max(0.f, v));
+    }
+
+    // ensure last = 0%
+    if (percents.back() > 0.f) {
+        timesMin.push_back(totalMin);
+        percents.push_back(0.f);
     }
 }
+
+
+
+
+//void CBatteryHelthDlg::CalculateDPIScale()
+//{
+//    // Get monitor DPI
+//    HDC hdc = ::GetDC(NULL);
+//    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+//    ::ReleaseDC(NULL, hdc);
+//
+//    m_dpiScaleFactor = dpiX / 96.0;  // baseline
+//
+//    // Get screen work area
+//    CRect workArea;
+//    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+//
+//    int screenW = workArea.Width();
+//    int screenH = workArea.Height();
+//
+//    // Dynamically choose base dialog size
+//    if (screenW <= 1600 || screenH <= 700) {
+//        // Small screen / laptop
+//        m_baseWidth = 650;
+//        m_baseHeight = 685;
+//    }
+//    else if (screenW <= 1920) {
+//        // Standard HD / FHD
+//        m_baseWidth = 615;
+//        m_baseHeight = 670;
+//    }
+//    else {
+//        // Large screen (WQHD, 4K, etc.)
+//        m_baseWidth = 900;
+//        m_baseHeight = 920;
+//    }
+//
+//    // Optional: further clamp scaling
+//    if (screenH < 800) {
+//        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
+//    }
+//}
+
+
+
+
+//void CBatteryHelthDlg::CalculateDPIScale()
+//{
+//    // 1) Get DPI for THIS window (per-monitor if supported)
+//    UINT dpi = 96;
+//    if (m_hWnd) {
+//        // GetDpiForWindow is Win10+; use it if present
+//        HMODULE hUser32 = ::GetModuleHandleW(L"user32.dll");
+//        if (hUser32) {
+//            using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
+//            auto pGetDpiForWindow = reinterpret_cast<GetDpiForWindow_t>(
+//                ::GetProcAddress(hUser32, "GetDpiForWindow"));
+//            if (pGetDpiForWindow) {
+//                dpi = pGetDpiForWindow(m_hWnd);
+//            }
+//            else {
+//                HDC hdc = ::GetDC(m_hWnd);
+//                if (hdc) {
+//                    dpi = static_cast<UINT>(::GetDeviceCaps(hdc, LOGPIXELSX));
+//                    ::ReleaseDC(m_hWnd, hdc);
+//                }
+//            }
+//        }
+//    }
+//    if (dpi == 0) dpi = 96;
+//    m_dpiScaleFactor = static_cast<double>(dpi) / 96.0;
+//
+//    // 2) Use the dialog's CURRENT client size as the base (design) size
+//    //    (Capture it once; don't overwrite later unless you intentionally re-base.)
+//    CRect rcClient;
+//    GetClientRect(&rcClient);
+//
+//    // Guard in case called too early
+//    int w = rcClient.Width();
+//    int h = rcClient.Height();
+//    if (w <= 0) w = 1;
+//    if (h <= 0) h = 1;
+//
+//    // Only set if not initialized yet; keeps your "design" size stable
+//    if (m_baseWidth <= 0 || m_baseHeight <= 0) {
+//        m_baseWidth = w;
+//        m_baseHeight = h;
+//    }
+//
+//    // 3) Optional: clamp overall UI scale if you want to limit extremes
+//    // (Leave commented unless you need it)
+//    // m_dpiScaleFactor = std::clamp(m_dpiScaleFactor, 0.85, 1.50);
+//}
+
+
+    void CBatteryHelthDlg::CalculateDPIScale()
+    {
+        // 1) Get DPI for THIS window
+        UINT dpi = 96;
+        if (m_hWnd) {
+            HMODULE hUser32 = ::GetModuleHandleW(L"user32.dll");
+            if (hUser32) {
+                using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
+                auto pGetDpiForWindow = reinterpret_cast<GetDpiForWindow_t>(
+                    ::GetProcAddress(hUser32, "GetDpiForWindow"));
+                if (pGetDpiForWindow) {
+                    dpi = pGetDpiForWindow(m_hWnd);
+                }
+                else {
+                    HDC hdc = ::GetDC(m_hWnd);
+                    if (hdc) {
+                        dpi = static_cast<UINT>(::GetDeviceCaps(hdc, LOGPIXELSX));
+                        ::ReleaseDC(m_hWnd, hdc);
+                    }
+                }
+            }
+        }
+        if (dpi == 0) dpi = 96;
+        m_dpiScaleFactor = static_cast<double>(dpi) / 96.0;
+
+        // 2) Get screen dimensions
+        RECT workArea;
+        SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+        int screenWidth = workArea.right - workArea.left;
+        int screenHeight = workArea.bottom - workArea.top;
+
+        // 3) Get dialog base size
+        CRect rcClient;
+        GetClientRect(&rcClient);
+        int w = rcClient.Width();
+        int h = rcClient.Height();
+        if (w <= 0) w = 1;
+        if (h <= 0) h = 1;
+
+        if (m_baseWidth <= 0 || m_baseHeight <= 0) {
+            m_baseWidth = w;
+            m_baseHeight = h;
+        }
+
+        // 4) Calculate scaled dimensions
+        int scaledWidth = static_cast<int>(m_baseWidth * m_dpiScaleFactor);
+        int scaledHeight = static_cast<int>(m_baseHeight * m_dpiScaleFactor);
+
+        // 5) Apply adaptive strategy based on screen size
+        const int SAFE_MARGIN = 80; // For window borders, taskbar, etc.
+        int availableWidth = screenWidth - SAFE_MARGIN;
+        int availableHeight = screenHeight - SAFE_MARGIN;
+
+        bool needsAdjustment = false;
+        double adjustedScale = m_dpiScaleFactor;
+
+        // Strategy 1: If dialog is much larger than screen, reduce DPI scaling
+        if (scaledHeight > availableHeight || scaledWidth > availableWidth)
+        {
+            double heightScale = (double)availableHeight / m_baseHeight;
+            double widthScale = (double)availableWidth / m_baseWidth;
+            double maxFitScale = min(heightScale, widthScale);
+
+            // Only reduce DPI scale, never increase it beyond original
+            if (maxFitScale < m_dpiScaleFactor)
+            {
+                adjustedScale = maxFitScale;
+                needsAdjustment = true;
+
+                CString msg;
+                msg.Format(_T("Screen too small. Adjusted DPI from %.2f to %.2f\n"),
+                    m_dpiScaleFactor, adjustedScale);
+                OutputDebugString(msg);
+            }
+        }
+
+        // Strategy 2: For very small screens (< 800x600), use minimum scale
+        if (screenHeight < 600 || screenWidth < 800)
+        {
+            adjustedScale = min(adjustedScale, 1);
+            needsAdjustment = false;
+
+            OutputDebugString(_T("Very small screen detected. Using minimum scale.\n"));
+        }
+
+        // Strategy 3: Clamp to reasonable bounds
+        adjustedScale = max(0.5, min(adjustedScale, 1.5));
+
+        // Apply adjusted scale
+        if (needsAdjustment)
+        {
+            m_dpiScaleFactor = adjustedScale;
+
+            // Show user-friendly message
+            if (screenHeight < 768) // Small screen detected
+            {
+                CString userMsg;
+                userMsg.Format(
+                    _T("Small screen detected (%dx%d).\n")
+                    _T("Application has been scaled to fit.\n")
+                    _T("Some controls may appear smaller than intended."),
+                    screenWidth, screenHeight);
+
+                // Optional: Show this message once per session
+                // MessageBox(userMsg, _T("Display Notice"), MB_OK | MB_ICONINFORMATION);
+                OutputDebugString(userMsg);
+            }
+        }
+    }
 
 int CBatteryHelthDlg::ScaleDPI(int value)
 {
@@ -194,9 +406,9 @@ void CBatteryHelthDlg::CreateScaledFonts()
     if (m_fontSmall.m_hObject) m_fontSmall.DeleteObject();
 
     // Define your base font sizes (from your original design at 100% scale)
-    m_baseFontSize = 18;        // Main text
-    m_baseHeaderFontSize = 20;  // Headers
-    m_baseSmallFontSize = 12;   // Small text
+    m_baseFontSize = 16;        // Main text
+    m_baseHeaderFontSize = 18;  // Headers
+    m_baseSmallFontSize = 10;   // Small text
 
     // Calculate scaled font sizes
     int scaledNormalSize = ScaleDPI(m_baseFontSize);
@@ -342,7 +554,8 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY, IDC_STATIC_MANUFAC,
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
-        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
+        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
+		IDC_BTN_CAPHIS, IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY
     };
 
     for (auto id : ids)
@@ -369,25 +582,20 @@ void CBatteryHelthDlg::ScaleDialog()
     }
 }
 
-// To this:
+
+
 LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 {
-    // Get new DPI
-    int newDPI = HIWORD(wParam);
-    m_dpiScaleFactor = newDPI / 96.0;
+    UINT newDpi = LOWORD(wParam);
+    m_dpiScaleFactor = static_cast<double>(newDpi) / 96.0;
 
-    // Scale dialog to new DPI
-    ScaleDialog();
-
-    // Recreate and apply scaled fonts
+    // Recreate fonts and rescale controls relative to the same base
     CreateScaledFonts();
     ApplyScaledFonts();
+    ScaleDialog();   // uses m_baseWidth/Height as design reference
 
-    Invalidate();
     return 0;
 }
-
-
  
 
 
@@ -435,7 +643,7 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 
     if (needsScaledSemiBold)
     {
-        const int baseHeight = -14;
+        const int baseHeight = -13;
         int targetHeight = static_cast<int>(::lround(baseHeight * scale));
         if (targetHeight > -12) targetHeight = -12;
         if (targetHeight < -28) targetHeight = -28;
@@ -578,9 +786,11 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
 
 
-    UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
-    UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");
+ /*   UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
+    UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");*/
 
+
+	GetStaticBatteryInfo(); // Initial fetch
 
     // Get battery info + start timer
     GetBatteryInfo();
@@ -626,7 +836,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_STATIC_DCAPACITY, IDC_BATT_DCAPACITY, IDC_STATIC_MANUFAC,
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
-        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY
+        IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
+		IDC_BTN_CAPHIS, IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE
     };
 
     for (auto id : ids)
@@ -698,6 +909,11 @@ void CBatteryHelthDlg::InitToolTips()
         { IDC_BTN_UPLOADPDF,   L"Export Report To CSV" },
         { IDC_BATT_PERCENTAGE, L"Current battery percentage reported by Windows." },
         { IDC_BATT_CAPACITY,   L"Full charge vs. design capacity (health estimate)." },
+        { IDC_BTN_CAPHIS,   L"Battery Charge Capacity History" },
+        { IDC_BTN_PREDICTION,   L"Health Prediction" },
+        { IDC_BTN_ACTIVE,   L"Active Battery Life Trend" },
+        { IDC_BTN_STANDBY,   L"Standby Battery Life Trend" },
+        { IDC_BTN_USAGE,   L"Usage History" }
     };
 
     for (size_t i = 0; i < _countof(tips); ++i)
@@ -761,8 +977,6 @@ BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
 
     return TRUE; // we drew the background
 }
-
-
 
 
 
@@ -848,6 +1062,8 @@ void CBatteryHelthDlg::SetButtonFont(int controlId, bool useScaled)
             pBtn->SetFont(&m_boldFont);        // normal bold
     }
 }
+
+
 // Handle window resize (maximize/restore)
 void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
 {
@@ -935,6 +1151,7 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
     }
     else if (nType == SIZE_RESTORED)
     {
+		
         // Restore to DPI-scaled fonts (not 1.0, but m_dpiScaleFactor)
         CreateScaledFonts();
         ApplyScaledFonts();
@@ -1034,6 +1251,174 @@ HCURSOR CBatteryHelthDlg::OnQueryDragIcon()
 {
     return static_cast<HCURSOR>(m_hIcon);
 }
+
+
+
+
+///////////////////////Capacity History Starts//////////////////////////////////////
+
+// ---------- Helpers ----------
+static CString GenBatteryReportPath()
+{
+    TCHAR tempPath[MAX_PATH] = {};
+    GetTempPath(MAX_PATH, tempPath);
+    CString path; path.Format(_T("%sbattery_report.html"), tempPath);
+    return path;
+}
+
+static bool RunPowerCfgBatteryReport(const CString& path)
+{
+    CString cmd; cmd.Format(_T("powercfg /batteryreport /output \"%s\""), path);
+    STARTUPINFO si{ sizeof(si) }; PROCESS_INFORMATION pi{};
+    CString cmdBuf = cmd;
+
+    if (!CreateProcess(nullptr, cmdBuf.GetBuffer(), nullptr, nullptr, FALSE,
+        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
+        return false;
+
+    WaitForSingleObject(pi.hProcess, 10000); // wait up to 10s
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+}
+
+// Robust text loader: UTF-16LE BOM, UTF-8 BOM, UTF-8 no BOM, fallback ANSI
+static CString ReadTextAutoEncoding(const CString& path)
+{
+    CFile f;
+    if (!f.Open(path, CFile::modeRead | CFile::shareDenyNone)) return {};
+    const ULONGLONG len = f.GetLength();
+    if (len == 0 || len > 16ULL * 1024 * 1024) { f.Close(); return {}; }
+
+    std::vector<BYTE> buf((size_t)len);
+    f.Read(buf.data(), (UINT)len); f.Close();
+
+    if (len >= 2 && buf[0] == 0xFF && buf[1] == 0xFE) { // UTF-16LE BOM
+        return CString((LPCWSTR)(buf.data() + 2), (int)((len - 2) / 2));
+    }
+    if (len >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) { // UTF-8 BOM
+        int n = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data() + 3, (int)len - 3, nullptr, 0);
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data() + 3, (int)len - 3, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    // Try UTF-8, then ANSI
+    int n = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data(), (int)len, nullptr, 0);
+    if (n > 0) {
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data(), (int)len, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    n = MultiByteToWideChar(CP_ACP, 0, (LPCSTR)buf.data(), (int)len, nullptr, 0);
+    if (n > 0) {
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_ACP, 0, (LPCSTR)buf.data(), (int)len, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    return {};
+}
+
+static CString StripHtml(const CString& in)
+{
+    std::wstring s(in);
+    static const std::wregex reTags(L"<[^>]*>");
+    static const std::wregex reNBSP(L"&nbsp;");
+    static const std::wregex reWS(L"[ \\t\\r\\n]+");
+
+    s = std::regex_replace(s, reTags, L" ");
+    s = std::regex_replace(s, reNBSP, L" ");
+    s = std::regex_replace(s, reWS, L" ");
+    CString o(s.c_str()); o.Trim(); return o;
+}
+
+static int ExtractFirstInt(const CString& s)
+{
+    std::wsmatch m; std::wstring w = s.GetString();
+    static const std::wregex reNum(L"([\\d,]+)");
+    if (std::regex_search(w, m, reNum)) {
+        CString t(m[1].str().c_str()); t.Remove(','); return _ttoi(t);
+    }
+    return 0;
+}
+
+
+
+bool CBatteryHelthDlg::GetBatteryCapacityHistory(std::vector<CBatteryHelthDlg::BatteryCapacityRecord>& out)
+{
+    out.clear();
+
+    const CString reportPath = GenBatteryReportPath();
+    if (!RunPowerCfgBatteryReport(reportPath)) return false;
+
+    const CString html = ReadTextAutoEncoding(reportPath);
+    if (html.IsEmpty()) return false;
+
+    // ---- 1) Parse Design Capacity (header section) ----
+    int design_mWh = 0;
+    {
+        std::wsmatch mh;
+        std::wstring W = html.GetString();
+        std::wregex reDesign(L"DESIGN\\s+CAPACITY[\\s\\S]*?([\\d,]+)", std::regex_constants::icase);
+        if (std::regex_search(W, mh, reDesign)) {
+            CString tmp(mh[1].str().c_str()); tmp.Remove(','); design_mWh = _ttoi(tmp);
+        }
+    }
+
+    // ---- 2) Locate the "Battery capacity history" table ----
+    std::wsmatch table;
+    std::wstring H = html.GetString();
+    std::wregex reTable(L"BATTERY\\s*CAPACITY\\s*HISTORY[\\s\\S]*?<table[^>]*>([\\s\\S]*?)</table>",
+        std::regex_constants::icase);
+    if (!std::regex_search(H, table, reTable)) return false;
+
+    std::wstring tableHtml = table[1].str();
+
+    // ---- 3) Iterate rows/cells ----
+    std::wregex reRow(L"<tr[^>]*>([\\s\\S]*?)</tr>", std::regex_constants::icase);
+    std::wregex reCell(L"<t[dh][^>]*>([\\s\\S]*?)</t[dh]>", std::regex_constants::icase);
+
+    std::wsregex_iterator it(tableHtml.begin(), tableHtml.end(), reRow), end;
+
+    for (; it != end; ++it) {
+        std::wstring row = (*it)[1].str();
+
+        std::vector<CString> cells;
+        for (std::wsregex_iterator ic(row.begin(), row.end(), reCell); ic != end; ++ic) {
+            CString cell = StripHtml(CString((*ic)[1].str().c_str()));
+            if (!cell.IsEmpty()) cells.push_back(cell);
+        }
+        if (cells.size() < 2) continue;
+
+        // skip header-ish rows
+        CString c0U = cells[0]; c0U.MakeUpper();
+        CString c1U = cells[1]; c1U.MakeUpper();
+        if (c0U.Find(L"DATE") >= 0 || c0U.Find(L"PERIOD") >= 0 || c1U.Find(L"FULL") >= 0)
+            continue;
+
+        CBatteryHelthDlg::BatteryCapacityRecord rec;
+        rec.dateText = cells[0];
+        rec.fullCharge_mWh = ExtractFirstInt(cells[1]);
+        rec.design_mWh = design_mWh;
+        if (rec.design_mWh > 0 && rec.fullCharge_mWh > 0)
+            rec.healthPct = 100.0 * rec.fullCharge_mWh / rec.design_mWh;
+
+        // try date parse
+        if (!rec.date.ParseDateTime(rec.dateText))
+            rec.date.m_dt = 0; // leave unparsed but keep dateText
+
+        if (rec.fullCharge_mWh > 0)
+            out.push_back(rec);
+    }
+
+    return !out.empty();
+}
+
+
+//////////////////////////////Capacity History Ends//////////////////////////////////////
+
+
+
+
 
 CString QueryWmiValue(LPCWSTR wmiNamespace, LPCWSTR wmiClass, LPCWSTR propertyName)
 {
@@ -1436,289 +1821,367 @@ CString QueryBatteryTemperature()
 
 
 
-
-
-void CBatteryHelthDlg::GetBatteryInfo()
+void CBatteryHelthDlg::GetStaticBatteryInfo()
 {
-    // Initialize COM
-    HRESULT hres;
+    // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
+    IWbemLocator* pLoc = nullptr;
+    IWbemServices* pSvc = nullptr;
 
-    // Connect to WMI
-    IWbemLocator* pLoc = NULL;
-    hres = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+    HRESULT hr = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
         IID_IWbemLocator, (LPVOID*)&pLoc);
-    if (FAILED(hres)) { AfxMessageBox(L"Failed to create IWbemLocator."); CoUninitialize(); return; }
-
-    IWbemServices* pSvc = NULL;
-
-    hres = pLoc->ConnectServer(
-        _bstr_t(L"ROOT\\CIMV2"),
-        NULL, NULL, 0, NULL, 0, 0, &pSvc);
-    if (FAILED(hres)) { AfxMessageBox(L"Could not connect to WMI."); pLoc->Release(); CoUninitialize(); return; }
-
-    // Set security levels
-    hres = CoSetProxyBlanket(
-        pSvc,
-        RPC_C_AUTHN_WINNT,
-        RPC_C_AUTHZ_NONE,
-        NULL,
-        RPC_C_AUTHN_LEVEL_CALL,
-        RPC_C_IMP_LEVEL_IMPERSONATE,
-        NULL,
-        EOAC_NONE);
-    if (FAILED(hres)) { AfxMessageBox(L"Could not set proxy blanket."); pSvc->Release(); pLoc->Release(); CoUninitialize(); return; }
-
-    // Query Battery Information
-    IEnumWbemClassObject* pEnumerator = NULL;
-    hres = pSvc->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_Battery"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &pEnumerator);
-
-    if (FAILED(hres)) { AfxMessageBox(L"WMI query failed."); pSvc->Release(); pLoc->Release(); CoUninitialize(); return; }
-
-    IWbemClassObject* pClsObj = NULL;
-    ULONG uReturn = 0;
-
-    if (pEnumerator)
-    {
-        HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, &pClsObj, &uReturn);
-        if (uReturn == 0) { AfxMessageBox(L"No battery found."); }
-        else
-        {
-            VARIANT vtProp;
-
-            // Charging Status
-            hr = pClsObj->Get(L"BatteryStatus", 0, &vtProp, 0, 0);
-            CString status;
-            switch (vtProp.intVal)
-            {
-            case 1: status = L"Discharging"; break;
-            case 2: status = L"Charging"; break;
-            case 3: status = L"Fully Charged"; break;
-            default: status = L"Unknown"; break;
-            }
-            /*SetDlgItemText(IDC_BATT_STATUS, status);*/
-            UpdateLabel(this, IDC_BATT_STATUS, status);
-
-            VariantClear(&vtProp);
-
-            // Battery percentage using win32api
-            SYSTEM_POWER_STATUS sps;
-            if (GetSystemPowerStatus(&sps))
-            {
-                CString percentage;
-                if (sps.BatteryLifePercent != 255) // 255 = unknown
-                {
-                    percentage.Format(L"%d%%", sps.BatteryLifePercent);
-                    m_BatteryProgress.SetPos(sps.BatteryLifePercent);
-                }
-                else
-                {
-                    percentage = L"Unknown";
-                    m_BatteryProgress.SetPos(0);
-                }
-             /*   SetDlgItemText(IDC_BATT_PERCENTAGE, percentage);*/
-                
-                UpdateLabel(this, IDC_BATT_PERCENTAGE, percentage);
-
-
-
-            }
-            else
-            {
-                UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
-            }
-
-            // Estimated Time Remaining using Win32 API
-            DWORD batteryLifeSeconds = sps.BatteryLifeTime; // in seconds
-            CString remainingTime;
-            if (batteryLifeSeconds != (DWORD)-1) // -1 = unknown
-            {
-                int hours = batteryLifeSeconds / 3600;
-                int minutes = (batteryLifeSeconds % 3600) / 60;
-                remainingTime.Format(L"%d hr %d min", hours, minutes);
-            }
-            else
-            {
-                remainingTime = L"Unknown";
-            }
-            /*SetDlgItemText(IDC_BATT_TIME, remainingTime);*/
-            UpdateLabel(this, IDC_BATT_TIME, remainingTime);
-
-            // Full Charge Capacity
-            CString fullCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
-            if (fullCap != L"Not available")
-            {
-                fullCap += L" mWh";
-            }
-            else {
-                fullCap = L"Unknown";
-            }
-
-            UpdateLabel(this, IDC_BATT_CAPACITY, fullCap);
-
-            // Design Capacity
-            CString designCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
-            if (designCap != L"Not available")
-            {
-                designCap += L" mWh";
-            }
-            else {
-				designCap = L"Unknown";
-            }
-            UpdateLabel(this, IDC_BATT_DCAPACITY, designCap);
-
-
-            // Current Capacity (Remaining Capacity)
-            CString currCap = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
-            if (currCap != L"Not available")
-            {
-                currCap += L" mWh";
-            }
-            else {
-                currCap = L"Unknown";
-            }
-            UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCap);
-
-
-            // Battery Health Calculation
-            CString fullCapStr = fullCap;
-            CString designCapStr = designCap;
-
-            if (fullCapStr != L"Unknown" && designCapStr != L"Unknown")
-            {
-                int fullCap = _wtoi(fullCapStr);
-                int designCap = _wtoi(designCapStr);
-                if (designCap > 0 && fullCap != designCap)
-                {
-                    double health = (static_cast<double>(fullCap) / designCap) * 100.0;
-                    CString healthStr;
-                    healthStr.Format(L"%.2f %%", health);
-                    UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
-                }
-                else
-                {
-                    UpdateLabel(this, IDC_BATT_HEALTH, L"Unknown");
-                }
-            }
-            else
-            {
-                UpdateLabel(this, IDC_BATT_HEALTH, L"Unkown");
-            }
-
-            // Voltage
-            CString voltage = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
-            if (voltage != L"Not available")
-            {
-                double volts = _wtoi(voltage) / 1000.0; // convert mV to V
-                CString voltStr;
-                voltStr.Format(L"%.2f V", volts);
-                UpdateLabel(this, IDC_BATT_VOLTAGE, voltStr);
-            }
-            else
-            {
-                UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
-            }
-
-            // Get Battery DeviceID
-            VARIANT vtDeviceID;
-            hr = pClsObj->Get(L"DeviceID", 0, &vtDeviceID, 0, 0);
-            CString deviceID;
-            if (vtDeviceID.vt != VT_NULL && vtDeviceID.vt != VT_EMPTY)
-            {
-                deviceID = vtDeviceID.bstrVal;
-            }
-            else
-            {
-                deviceID = L"Unknown";
-            }
-
-            UpdateLabel(this, IDC_BATT_MANUFAC, deviceID);
-            VariantClear(&vtDeviceID);
-
-            // Battery Name
-            hr = pClsObj->Get(L"Name", 0, &vtProp, 0, 0);
-            CString batteryName;
-            if (vtProp.vt != VT_NULL && vtProp.vt != VT_EMPTY)
-            {
-                batteryName = vtProp.bstrVal;
-            }
-            else
-            {
-                batteryName = L"Unknown";
-            }
-            UpdateLabel(this, IDC_BATT_NAME, batteryName);
-            VariantClear(&vtProp);
-
-            // Battery Cycle Count
-            CString cycleCount = QueryBatteryCycleCount();
-            if (cycleCount != L"Not available" && cycleCount != L"0")
-            {
-                cycleCount += L" cycles";
-            }
-            else {
-				cycleCount = L"Unknown";
-            }
-            UpdateLabel(this, IDC_BATT_CYCLE, cycleCount);
-
-            // Battery Temperature - NEW ADDITION
-            CString temperature = QueryBatteryTemperature();
-
-            if(temperature == L"Not available")
-            {
-                temperature = L"Unknown";
-			}
-
-            UpdateLabel(this, IDC_BATT_TEMP, temperature);
-
-            // System UUID
-            {
-                IEnumWbemClassObject* pEnumUUID = NULL;
-                HRESULT hresUUID = pSvc->ExecQuery(
-                    bstr_t("WQL"),
-                    bstr_t("SELECT UUID FROM Win32_ComputerSystemProduct"),
-                    WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-                    NULL,
-                    &pEnumUUID);
-
-                if (SUCCEEDED(hresUUID) && pEnumUUID)
-                {
-                    IWbemClassObject* pObjUUID = NULL;
-                    ULONG uReturnUUID = 0;
-                    if (pEnumUUID->Next(WBEM_INFINITE, 1, &pObjUUID, &uReturnUUID) == S_OK)
-                    {
-                        VARIANT vtUUID;
-                        if (SUCCEEDED(pObjUUID->Get(L"UUID", 0, &vtUUID, 0, 0)))
-                        {
-                            CString uuid = (vtUUID.vt != VT_NULL && vtUUID.vt != VT_EMPTY) ? vtUUID.bstrVal : L"Not available";
-                            UpdateLabel(this, IDC_BATT_DID, uuid);
-                            VariantClear(&vtUUID);
-                        }
-                        pObjUUID->Release();
-                    }
-                    pEnumUUID->Release();
-                }
-                else
-                {
-                    UpdateLabel(this, IDC_BATT_DID, L"Not available");
-                }
-            }
-
-            pClsObj->Release();
-        }
-
-        pEnumerator->Release();
+    if (FAILED(hr) || !pLoc) {
+        UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
+        return;
     }
 
+    hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
+    if (FAILED(hr) || !pSvc) {
+        UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
+        pLoc->Release();
+        return;
+    }
+
+    hr = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL, EOAC_NONE);
+    if (FAILED(hr)) {
+        UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
+        pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+    // --- Query Win32_Battery ---
+    IEnumWbemClassObject* pEnumerator = nullptr;
+    hr = pSvc->ExecQuery(bstr_t("WQL"),
+        bstr_t("SELECT * FROM Win32_Battery"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL, &pEnumerator);
+    if (FAILED(hr) || !pEnumerator) {
+        UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+        pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+    IWbemClassObject* pObj = nullptr;
+    ULONG uReturn = 0;
+    hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
+
+    if (uReturn == 0 || !pObj) {
+        UpdateLabel(this, IDC_BATT_DID, L"No battery found");
+        pEnumerator->Release(); pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+ 
+    VARIANT vt{};
+  
+
+    // ---------------------------------------
+    // 2) Full Charge Capacity (current WMI)
+    // ---------------------------------------
+    CString fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
+    int     fullCap_mWh = 0;
+
+    if (fullCapStr != L"Not available") {
+        fullCap_mWh = _wtoi(fullCapStr);
+        fullCapStr += L" mWh";
+    }
+    else {
+        fullCapStr = L"Unknown";
+    }
+    UpdateLabel(this, IDC_BATT_CAPACITY, fullCapStr);
+
+    // ---------------------------------------
+    // 3) Design Capacity (current WMI)
+    // ---------------------------------------
+    CString designCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
+    int     designCapWmi_mWh = 0;
+
+    if (designCapStr != L"Not available") {
+        designCapWmi_mWh = _wtoi(designCapStr);
+        designCapStr += L" mWh";
+    }
+    else {
+        designCapStr = L"Unknown";
+    }
+
+    // -------------------------------------------------
+    // 4) History fallback for Design Capacity (report)
+    //    Prefer the larger of first/last design value.
+    // -------------------------------------------------
+    int     designCapHist_mWh = 0;
+    CString designCapHistPretty;
+
+    {
+        std::vector<BatteryCapacityRecord> hist;
+        if (GetBatteryCapacityHistory(hist) && !hist.empty()) {
+            const auto& first = hist.front();
+            const auto& last = hist.back();
+            int d1 = first.design_mWh;
+            int d2 = last.design_mWh;
+            if (d1 > 0 || d2 > 0) {
+                designCapHist_mWh = max(d1, d2);
+                designCapHistPretty.Format(L"%d mWh", designCapHist_mWh);
+            }
+        }
+    }
+
+    // Choose which Design Capacity to DISPLAY
+    if (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) {
+        UpdateLabel(this, IDC_BATT_DCAPACITY, designCapStr);            // WMI preferred
+    }
+    else if (designCapHist_mWh > 0) {
+        UpdateLabel(this, IDC_BATT_DCAPACITY, designCapHistPretty);      // history fallback
+    }
+    else {
+        UpdateLabel(this, IDC_BATT_DCAPACITY, L"Unknown");
+    }
+
+ 
+
+    // --------------------------
+    // 6) Battery Health (%)
+    // --------------------------
+    {
+        // Prefer WMI design; if missing, use history design
+        int designForHealth_mWh = (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) ? designCapWmi_mWh : designCapHist_mWh;
+
+        if (fullCap_mWh > 0 && designForHealth_mWh > 0) {
+            double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
+            CString healthStr; healthStr.Format(L"%.2f %%", health);
+            UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
+        }
+        else {
+            UpdateLabel(this, IDC_BATT_HEALTH, L"Unknown");
+        }
+    }
+
+  
+    // --------------------------
+    // 8) DeviceID / Name
+    // --------------------------
+    VARIANT vtDev{};
+    if (SUCCEEDED(pObj->Get(L"DeviceID", 0, &vtDev, 0, 0))) {
+        CString dev = (vtDev.vt != VT_NULL && vtDev.vt != VT_EMPTY) ? vtDev.bstrVal : L"Unknown";
+        UpdateLabel(this, IDC_BATT_MANUFAC, dev);
+        VariantClear(&vtDev);
+    }
+    else {
+        UpdateLabel(this, IDC_BATT_MANUFAC, L"Unknown");
+    }
+
+    if (SUCCEEDED(pObj->Get(L"Name", 0, &vt, 0, 0))) {
+        CString name = (vt.vt != VT_NULL && vt.vt != VT_EMPTY) ? vt.bstrVal : L"Unknown";
+        UpdateLabel(this, IDC_BATT_NAME, name);
+        VariantClear(&vt);
+    }
+    else {
+        UpdateLabel(this, IDC_BATT_NAME, L"Unknown");
+    }
+
+    // --------------------------
+    // 9) Cycle Count (vendor/WMI)
+    // --------------------------
+    {
+        CString cycles = QueryBatteryCycleCount(); // your helper
+        if (cycles != L"Not available" && cycles != L"0")
+            cycles += L" cycles";
+        else
+            cycles = L"Unknown";
+        UpdateLabel(this, IDC_BATT_CYCLE, cycles);
+    }
+
+    // --------------------------
+    // 11) System UUID
+    // --------------------------
+    {
+        IEnumWbemClassObject* pEnumUUID = nullptr;
+        if (SUCCEEDED(pSvc->ExecQuery(bstr_t("WQL"),
+            bstr_t("SELECT UUID FROM Win32_ComputerSystemProduct"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL, &pEnumUUID)) && pEnumUUID)
+        {
+            IWbemClassObject* pUUID = nullptr; ULONG ret = 0;
+            if (pEnumUUID->Next(WBEM_INFINITE, 1, &pUUID, &ret) == S_OK) {
+                VARIANT v{};
+                if (SUCCEEDED(pUUID->Get(L"UUID", 0, &v, 0, 0))) {
+                    CString uuid = (v.vt != VT_NULL && v.vt != VT_EMPTY) ? v.bstrVal : L"Not available";
+                    UpdateLabel(this, IDC_BATT_DID, uuid);
+                    VariantClear(&v);
+                }
+                pUUID->Release();
+            }
+            else {
+                UpdateLabel(this, IDC_BATT_DID, L"Not available");
+            }
+            pEnumUUID->Release();
+        }
+        else {
+            UpdateLabel(this, IDC_BATT_DID, L"Not available");
+        }
+    }
+
+    // cleanup
+    pObj->Release();
+    pEnumerator->Release();
     pSvc->Release();
     pLoc->Release();
 
+    // your post-actions
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 }
+
+void CBatteryHelthDlg::GetBatteryInfo()
+{
+    // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
+    IWbemLocator* pLoc = nullptr;
+    IWbemServices* pSvc = nullptr;
+
+    HRESULT hr = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator, (LPVOID*)&pLoc);
+    if (FAILED(hr) || !pLoc) {
+        UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
+        return;
+    }
+
+    hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
+    if (FAILED(hr) || !pSvc) {
+        UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
+        pLoc->Release();
+        return;
+    }
+
+    hr = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL, EOAC_NONE);
+    if (FAILED(hr)) {
+        UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
+        pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+    // --- Query Win32_Battery ---
+    IEnumWbemClassObject* pEnumerator = nullptr;
+    hr = pSvc->ExecQuery(bstr_t("WQL"),
+        bstr_t("SELECT * FROM Win32_Battery"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL, &pEnumerator);
+    if (FAILED(hr) || !pEnumerator) {
+        UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+        pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+    IWbemClassObject* pObj = nullptr;
+    ULONG uReturn = 0;
+    hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
+
+    if (uReturn == 0 || !pObj) {
+        UpdateLabel(this, IDC_BATT_DID, L"No battery found");
+        pEnumerator->Release(); pSvc->Release(); pLoc->Release();
+        return;
+    }
+
+    // ----------------------------
+    // 1) Status / Percent / Time
+    // ----------------------------
+    VARIANT vt{};
+    CString statusText = L"Unknown";
+
+    if (SUCCEEDED(pObj->Get(L"BatteryStatus", 0, &vt, 0, 0))) {
+        switch (vt.intVal) {
+        case 1: statusText = L"Discharging";   break;
+        case 2: statusText = L"Charging";      break;
+        case 3: statusText = L"Fully Charged"; break;
+        default: statusText = L"Unknown";      break;
+        }
+        VariantClear(&vt);
+    }
+    UpdateLabel(this, IDC_BATT_STATUS, statusText);
+
+    SYSTEM_POWER_STATUS sps{};
+    if (GetSystemPowerStatus(&sps)) {
+        CString pct;
+        if (sps.BatteryLifePercent != 255) {
+            pct.Format(L"%d%%", sps.BatteryLifePercent);
+            m_BatteryProgress.SetPos(sps.BatteryLifePercent);
+        }
+        else {
+            pct = L"Unknown";
+            m_BatteryProgress.SetPos(0);
+        }
+        UpdateLabel(this, IDC_BATT_PERCENTAGE, pct);
+
+        CString remain;
+        if (sps.BatteryLifeTime != (DWORD)-1) {
+            int hours = static_cast<int>(sps.BatteryLifeTime / 3600);
+            int mins = static_cast<int>((sps.BatteryLifeTime % 3600) / 60);
+            remain.Format(L"%d hr %d min", hours, mins);
+        }
+        else {
+            remain = L"Unknown";
+        }
+        UpdateLabel(this, IDC_BATT_TIME, remain);
+    }
+    else {
+        UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
+        UpdateLabel(this, IDC_BATT_TIME, L"Unknown");
+    }
+
+    
+
+    // ---------------------------------------
+    // 5) Current (Remaining) Capacity
+    // ---------------------------------------
+    CString currCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+    if (currCapStr != L"Not available") {
+        currCapStr += L" mWh";
+    }
+    else {
+        currCapStr = L"Unknown";
+    }
+    UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapStr);
+
+    
+    // --------------------------
+    // 7) Voltage
+    // --------------------------
+    CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
+    if (voltageStr != L"Not available") {
+        double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
+        CString out; out.Format(L"%.2f V", volts);
+        UpdateLabel(this, IDC_BATT_VOLTAGE, out);
+    }
+    else {
+        UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
+    }
+
+  
+    
+
+    // --------------------------
+    // 10) Temperature (if avail)
+    // --------------------------
+    {
+        CString t = QueryBatteryTemperature(); // your helper
+        if (t == L"Not available") t = L"Unknown";
+        UpdateLabel(this, IDC_BATT_TEMP, t);
+    }
+
+    
+
+    // cleanup
+    pObj->Release();
+    pEnumerator->Release();
+    pSvc->Release();
+    pLoc->Release();
+
+    // your post-actions
+    UpdateDischargeButtonStatus();
+    CheckBatteryTransition();
+}
+
 
 
 
@@ -1757,7 +2220,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
         /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
         m_discharge_progress.ShowWindow(SW_HIDE);
 
-        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+       /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
        
 
            // If discharge test is running, stop it immediately
@@ -1768,7 +2231,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
             m_discharge_progress.ShowWindow(SW_HIDE);
             /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped");*/
-            UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+      /*      UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
         }
 
     }
@@ -1780,6 +2243,9 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
     
 }
+
+
+
 
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
@@ -1804,7 +2270,9 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     {
         m_discharge_progress.ShowWindow(SW_HIDE);
 
-        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
+
+  /*      UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
 
         KillTimer(m_dischargeTimerID);
         m_dischargeTestRunning = false;
@@ -1831,7 +2299,16 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
         /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
 
-        UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
+
+
+        if (sps.ACLineStatus == 1) {
+            UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");
+        }
+        else
+        {
+            UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+        }
 
         GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
@@ -1944,7 +2421,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             if (sps.ACLineStatus == 1) {
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
-                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");
 				m_discharge_progress.ShowWindow(SW_HIDE);
             }
 
@@ -1952,7 +2429,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             {
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
-                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");
+               /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
 
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
@@ -1981,16 +2458,36 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 m_dischargeResult.Format(L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                     m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
 
-                msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
-                    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
+                //msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
+                //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
+
+                msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
+                    m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+
+                {
+                    // ---- Static values for learning/demo ----
+                    float initial = static_cast<float>(m_initialBatteryPercent);
+                    float current = static_cast<float>(sps.BatteryLifePercent);
+                    float rate = static_cast<float>(drainRate);     // %/min
+    
+
+                    // Build (time, %) series
+                    std::vector<float> tt, yy;
+                    BuildSeries(initial, current, rate, tt, yy);
+
+                    // Show the graph dialog
+                    CDischargeDlg dlg;
+                    dlg.SetData(initial, current, rate, tt, yy);
+                    dlg.DoModal();
+                }
 
                 /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
-                UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
+             /*   UpdateLabel(this, IDC_BATT_DISCHARGR, msg);*/
 
                 GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
                 SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
 
-                AfxMessageBox(L"Discharge Test Completed!");
+               /* AfxMessageBox(L"Discharge Test Completed!");*/
             }
         }
         else
@@ -2173,7 +2670,7 @@ void RunCPULoadRemaining(
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
-
+    UpdateLabel(this,IDC_BATT_DISCHARGR, L"");
 
     // Stop if running
     if (m_cpuLoadTestRunning)
@@ -2183,7 +2680,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
         SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
 
-        UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");
+       /* UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");*/
         return;
     }
 
@@ -2268,13 +2765,23 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
                 int drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
                 double rate = drop / (m_cpuLoadDurationSeconds / 60.0); // %/min
 
-                msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nTOPS: %.4f\nGFLOPS: %.3f",
-                    m_initialBatteryCPUPercent,
-                    spsEnd.BatteryLifePercent,
-                    drop,
-                    rate,
-                    tops,
-                    gflops);
+                if (drop == 0) {
+                    msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                        m_initialBatteryCPUPercent,
+                        spsEnd.BatteryLifePercent,
+                        drop,
+                        0,
+                        gflops);
+                }
+              
+                else {
+                    msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                        m_initialBatteryCPUPercent,
+                        spsEnd.BatteryLifePercent,
+                        drop,
+                        rate,
+                        gflops);
+                }
 
 
             }
@@ -2367,10 +2874,63 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
     }
 
+
+    m_CPU_Progress.ShowWindow(SW_HIDE);
+
     CString* pMsg = (CString*)lParam;
     //SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);
 
-    UpdateLabel(this, IDC_BATT_CPULOAD, *pMsg);
+    //UpdateLabel(this, IDC_BATT_CPULOAD, *pMsg);
+     UpdateLabel(this, IDC_BATT_CPULOAD, L"");
+
+	
+
+    // ---- Parse dynamic values from *pMsg and show the graph ----
+    {
+        // Convert CString -> std::wstring for regex
+        std::wstring w = pMsg->GetString();
+
+        auto grab = [&](const std::wregex& re, double defVal) -> double {
+            std::wsmatch m;
+            if (std::regex_search(w, m, re) && m.size() >= 2) {
+                try { return std::stod(m[1].str()); }
+                catch (...) { /* fall through */ }
+            }
+            return defVal;
+            };
+
+        // Patterns tolerate spaces and integer/float values
+        // Examples expected:
+        //   "Initial Charge: 100%"
+        //   "Current Charge: 90%"
+        //   "Drop: 10%"                      (we won't actually need it for plotting)
+        //   "Rate: 5.00%/min"
+        //   "GFLOPS: 234.122"
+        const std::wregex reInit(LR"(Initial\s*Charge:\s*([0-9]+(?:\.[0-9]+)?)\s*%)", std::regex::icase);
+        const std::wregex reCurr(LR"(Current\s*Charge:\s*([0-9]+(?:\.[0-9]+)?)\s*%)", std::regex::icase);
+        const std::wregex reRate(LR"(Rate:\s*([0-9]+(?:\.[0-9]+)?)\s*%/min)", std::regex::icase);
+        const std::wregex reGflp(LR"(GFLOPS:\s*([0-9]+(?:\.[0-9]+)?))", std::regex::icase);
+
+        const double initD = grab(reInit, 100.0);
+        const double currD = grab(reCurr, initD);
+        const double rateD = grab(reRate, 0.0);
+        const double gflops = grab(reGflp, 0.0);
+
+        float  initial = static_cast<float>(initD);
+        float  current = static_cast<float>(currD);
+        float  rate = static_cast<float>(rateD);
+
+        // Build series: your BuildSeries() draws out to 0% using 'rate'
+        std::vector<float> tt, yy;
+        BuildSeries(initial, current, rate, tt, yy);
+
+        CPerfDlg dlg;
+        dlg.SetData(initial, current, rate, gflops, tt, yy);
+        dlg.DoModal();
+    }
+
+
+
 	//AfxMessageBox(*pMsg);
 
     //if (m_cpuLoadClick) {
@@ -2388,7 +2948,7 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     // Re-enable the Discharge Test button after finishing
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
 
-    m_CPU_Progress.ShowWindow(SW_HIDE);
+   
 
 
 
@@ -2645,7 +3205,10 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
     // Check if the cursor is over your button
-    if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF)
+    if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY 
+        || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS || pWnd->GetDlgCtrlID() == IDC_BTN_PREDICTION
+		|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE
+        )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
         return TRUE; // handled
@@ -2677,3 +3240,505 @@ void CBatteryHelthDlg::CleanupFonts()
         m_scaledBoldFont.DeleteObject();
 }
 
+
+
+static bool SaveCsvUtf8AndOpen(const std::wstring& csv, CString& outPath)
+{
+    // 1) Build a fixed path in %TEMP% (no timestamp -> overwrite each time)
+    TCHAR tempDir[MAX_PATH] = { 0 };
+    if (!GetTempPath(MAX_PATH, tempDir)) return false;
+
+    // Use a fixed filename so it gets replaced each time
+    CString fname = L"battery_history.csv";
+
+    CString full = CString(tempDir) + fname;
+    outPath = full;
+
+    // 2) Convert wide string to UTF-8
+    int needed = WideCharToMultiByte(CP_UTF8, 0,
+        csv.c_str(), static_cast<int>(csv.size()),
+        nullptr, 0, nullptr, nullptr);
+    if (needed <= 0) return false;
+
+    std::string utf8;
+    utf8.resize(needed);
+    if (WideCharToMultiByte(CP_UTF8, 0,
+        csv.c_str(), static_cast<int>(csv.size()),
+        &utf8[0], needed, nullptr, nullptr) <= 0) {
+        return false;
+    }
+
+    // 3) Write BOM + content (CREATE_ALWAYS overwrites existing file)
+    HANDLE h = CreateFile(full, GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return false;
+
+    const BYTE bom[3] = { 0xEF, 0xBB, 0xBF };
+    DWORD written = 0;
+    BOOL ok = WriteFile(h, bom, 3, &written, nullptr);
+    if (!ok) { CloseHandle(h); return false; }
+
+    ok = WriteFile(h, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+    CloseHandle(h);
+    if (!ok) return false;
+
+    // 4) Open with default handler
+    HINSTANCE hInst = ShellExecute(nullptr, L"open", full, nullptr, nullptr, SW_SHOWNORMAL);
+    return ((INT_PTR)hInst > 32);
+}
+
+
+void CBatteryHelthDlg::OnBnClickedBtnCaphis()
+{
+    std::vector<CBatteryHelthDlg::BatteryCapacityRecord> hist;
+    if (!GetBatteryCapacityHistory(hist) || hist.empty()) {
+        AfxMessageBox(L"Could not read Battery Capacity History.");
+        return;
+    }
+
+    // Build CSV content (header + rows)
+    std::wstring csv;
+    csv += L"Period ,FullChargeCapacity,DesignCapacity,Health_%\r\n";
+
+    for (const auto& r : hist) {
+        // If you also want ISO date, you can format COleDateTime here; we’ll stick to dateText.
+        CString line;
+        line.Format(L"%s,%d,%d,%.2f\r\n",
+            r.dateText.GetString(),
+            r.fullCharge_mWh,
+            r.design_mWh,
+            r.healthPct);
+        csv += line.GetString();
+    }
+
+    // Save to %TEMP%\battery_capacity_history_YYYYMMDD_HHMMSS.csv and open it
+    CString outPath;
+    if (!SaveCsvUtf8AndOpen(csv, outPath)) {
+        AfxMessageBox(L"Failed to write/open CSV file.");
+        return;
+    }
+
+    // Optional toast
+    CString msg;
+    msg.Format(L"CSV exported:\n%s", outPath.GetString());
+    AfxMessageBox(msg);
+}
+
+
+
+// ---- Utilities: safe date diff in days
+// Simple day difference
+static double DaysBetween(const COleDateTime& a, const COleDateTime& b)
+{
+    COleDateTimeSpan span = a - b;
+    return span.GetTotalDays();
+}
+
+// Linear regression of Health% vs. time (days since t0)
+struct LinearFit {
+    bool ok = false;
+    double a = 0.0;   // intercept: health at day 0 (t0)
+    double b = 0.0;   // slope: health change per day (usually negative)
+    COleDateTime t0;  // reference date (first valid record)
+    CString note;
+};
+
+static LinearFit FitHealthVsDays(const std::vector<CBatteryHelthDlg::BatteryCapacityRecord>& hist)
+{
+    LinearFit fit;
+
+    // Collect (t, y) pairs with valid dates
+    std::vector<double> t; t.reserve(hist.size());
+    std::vector<double> y; y.reserve(hist.size());
+
+    // Find first valid date
+    COleDateTime t0;
+    bool t0Set = false;
+
+    for (const auto& r : hist) {
+        if (r.date.m_dt == 0) continue;       // skip invalid dates
+        if (r.healthPct <= 0.0) continue;     // skip bogus
+        if (!t0Set) { t0 = r.date; t0Set = true; }
+        t.push_back(DaysBetween(r.date, t0));  // days since t0
+        y.push_back(r.healthPct);
+    }
+
+    if (t.size() < 2) {
+        fit.ok = false;
+        fit.note = L"Not enough dated points to fit a trend.";
+        return fit;
+    }
+
+    // Ordinary least squares: y = a + b*t
+    const size_t n = t.size();
+    double sumT = 0, sumY = 0, sumTT = 0, sumTY = 0;
+    for (size_t i = 0; i < n; ++i) {
+        sumT += t[i];
+        sumY += y[i];
+        sumTT += t[i] * t[i];
+        sumTY += t[i] * y[i];
+    }
+    double denom = n * sumTT - sumT * sumT;
+    if (fabs(denom) < 1e-9) {
+        fit.ok = false;
+        fit.note = L"Time points are degenerate.";
+        return fit;
+    }
+
+    fit.b = (n * sumTY - sumT * sumY) / denom;           // slope (% per day)
+    fit.a = (sumY - fit.b * sumT) / static_cast<double>(n); // intercept
+    fit.t0 = t0;
+    fit.ok = true;
+    return fit;
+}
+
+static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDateTime& outDate)
+{
+    if (!fit.ok) return false;
+    // y = a + b*t  ->  t = (y - a)/b
+    if (fabs(fit.b) < 1e-9) return false;  // flat line, can't predict
+    double tDays = (targetPct - fit.a) / fit.b;
+    if (tDays < 0) return false;           // already below target
+    outDate = fit.t0 + COleDateTimeSpan(tDays, 0, 0, 0);
+    return true;
+}
+
+
+
+void CBatteryHelthDlg::OnBnClickedBtnPrediction()
+{
+    CPredictionDlg dlg(this);
+
+	dlg.DoModal(); // open modal window
+}
+
+void CBatteryHelthDlg::OnBnClickedBtnActive()
+{
+    CTrendDlg dlg(this);
+
+    // Optional: pass custom data instead of defaults
+    // std::vector<CString> labels = { L"08-01", ... };
+    // std::vector<float> full = { ... };
+    // std::vector<float> design = { ... };
+    // dlg.SetData(labels, full, design);
+
+    dlg.DoModal(); // open modal window
+}
+
+void CBatteryHelthDlg::OnBnClickedBtnStandby()
+{
+    StandByDlg dlg(this);
+
+    // Optional: pass custom data instead of defaults
+    // std::vector<CString> labels = { L"08-01", ... };
+    // std::vector<float> full = { ... };
+    // std::vector<float> design = { ... };
+    // dlg.SetData(labels, full, design);
+
+    dlg.DoModal(); // open modal window
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ---------- Usage History row model ----------
+struct UsageHistoryRow {
+    CString period;        // e.g. "2025-08-01 - 2025-08-04"
+    double battActiveHrs = 0.0;  // Battery ACTIVE
+    double battStandbyHrs = 0.0;  // Battery CONNECTED STANDBY
+    double acActiveHrs = 0.0;  // AC ACTIVE
+    double acStandbyHrs = 0.0;  // AC CONNECTED STANDBY
+};
+
+// ---------- Small helpers (local linkage) ----------
+static CString StripHtmlSimple(const CString& in)
+{
+    std::wstring s(in);
+    static const std::wregex reTags(L"<[^>]*>", std::regex_constants::icase);
+    static const std::wregex reNBSP(L"&nbsp;", std::regex_constants::icase);
+    static const std::wregex reWS(L"[ \t\r\n]+");
+    s = std::regex_replace(s, reTags, L" ");
+    s = std::regex_replace(s, reNBSP, L" ");
+    s = std::regex_replace(s, reWS, L" ");
+    CString o(s.c_str()); o.Trim(); return o;
+}
+
+// Read text file (UTF-16LE BOM / UTF-8 BOM / UTF-8 / ANSI)
+static CString ReadTextAutoEncodingLocal(const CString& path)
+{
+    CFile f;
+    if (!f.Open(path, CFile::modeRead | CFile::shareDenyNone)) return {};
+    const ULONGLONG len = f.GetLength();
+    if (len == 0 || len > 32ULL * 1024 * 1024) { f.Close(); return {}; }
+
+    std::vector<BYTE> buf((size_t)len);
+    f.Read(buf.data(), (UINT)len); f.Close();
+
+    // UTF-16LE BOM
+    if (len >= 2 && buf[0] == 0xFF && buf[1] == 0xFE) {
+        return CString((LPCWSTR)(buf.data() + 2), (int)((len - 2) / 2));
+    }
+    // UTF-8 BOM
+    if (len >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) {
+        int n = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data() + 3, (int)len - 3, nullptr, 0);
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data() + 3, (int)len - 3, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    // Try UTF-8 (no BOM)
+    int n = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data(), (int)len, nullptr, 0);
+    if (n > 0) {
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)buf.data(), (int)len, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    // ANSI
+    n = MultiByteToWideChar(CP_ACP, 0, (LPCSTR)buf.data(), (int)len, nullptr, 0);
+    if (n > 0) {
+        CStringW w; LPWSTR p = w.GetBuffer(n);
+        MultiByteToWideChar(CP_ACP, 0, (LPCSTR)buf.data(), (int)len, p, n);
+        w.ReleaseBuffer(n); return w;
+    }
+    return {};
+}
+
+static float HmsToHoursLocal(int h, int m, int s) {
+    return (float)h + (float)m / 60.f + (float)s / 3600.f;
+}
+
+// Returns first two H:MM:SS matches found in text
+static std::vector<CString> ExtractHms2(const std::wstring& text)
+{
+    std::vector<CString> out;
+    std::wregex re(LR"((\d{1,6}):([0-5]\d):([0-5]\d))");
+    for (std::wsregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
+        out.emplace_back(it->str().c_str());
+        if (out.size() == 2) break;
+    }
+    return out;
+}
+
+
+static CString ExtractFirstHms(const CString& s)
+{
+    std::wregex re(LR"((\d{1,6}):([0-9]{2}):([0-9]{2}))");
+    std::wstring ws = s.GetString();
+    std::wsmatch m;
+    if (std::regex_search(ws, m, re)) {
+        return CString(m[0].str().c_str());
+    }
+    return L"";
+}
+
+static double HmsTextToHours(const CString& hms)
+{
+    if (hms.IsEmpty() || hms == L"-") return 0.0;
+    int h = 0, m = 0, s = 0;
+    if (swscanf_s(hms.GetString(), L"%d:%d:%d", &h, &m, &s) == 3) {
+        if (h > 100000) return 0.0; // guard for glitches
+        return static_cast<double>(h) + m / 60.0 + s / 3600.0;
+    }
+    return 0.0;
+}
+
+// Extract *all* H:MM:SS occurrences from a string (keeps order)
+static std::vector<CString> ExtractAllHms(const CString& s)
+{
+    std::vector<CString> out;
+    std::wregex re(LR"((\d{1,6}):([0-9]{2}):([0-9]{2}))");
+    std::wstring ws = s.GetString();
+    for (std::wsregex_iterator it(ws.begin(), ws.end(), re), end; it != end; ++it) {
+        out.emplace_back(CString(it->str().c_str()));
+    }
+    return out;
+}
+
+
+// Parse Usage History table from battery_report.html
+bool GetUsageHistory(std::vector<UsageHistoryRow>& outRows)
+{
+    outRows.clear();
+
+    // Fresh report (best effort)
+    auto GenBatteryReportPath = []() -> CString {
+        TCHAR tempPath[MAX_PATH] = {};
+        GetTempPath(MAX_PATH, tempPath);
+        CString path; path.Format(_T("%sbattery_report.html"), tempPath);
+        return path;
+        };
+    auto RunPowerCfgBatteryReport = [](const CString& path) -> bool {
+        CString cmd; cmd.Format(_T("powercfg /batteryreport /output \"%s\""), path);
+        STARTUPINFO si{ sizeof(si) }; PROCESS_INFORMATION pi{};
+        CString cmdBuf = cmd;
+        if (!CreateProcess(nullptr, cmdBuf.GetBuffer(), nullptr, nullptr, FALSE,
+            CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) return false;
+        WaitForSingleObject(pi.hProcess, 10000);
+        CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+        return true;
+        };
+
+    const CString reportPath = GenBatteryReportPath();
+    RunPowerCfgBatteryReport(reportPath);
+
+    CString html = ReadTextAutoEncoding(reportPath);
+    if (html.IsEmpty()) return false;
+
+    std::wstring H = html.GetString();
+
+    // Find the Usage history table
+    std::wsmatch mh;
+    std::wregex reTable(
+        LR"(USAGE\s*HISTORY[\s\S]*?<table[^>]*>([\s\S]*?)</table>)",
+        std::regex_constants::icase
+    );
+    if (!std::regex_search(H, mh, reTable)) {
+        std::wregex reTableLoose(
+            LR"(Usage\s*history[\s\S]*?<table[^>]*>([\s\S]*?)</table>)",
+            std::regex_constants::icase
+        );
+        if (!std::regex_search(H, mh, reTableLoose)) return false;
+    }
+    std::wstring tableHtml = mh[1].str();
+
+    // Row/cell regex
+    std::wregex reRow(L"<tr[^>]*>([\\s\\S]*?)</tr>", std::regex_constants::icase);
+    std::wregex reCell(L"<t[dh][^>]*>([\\s\\S]*?)</t[dh]>", std::regex_constants::icase);
+
+    for (std::wsregex_iterator it(tableHtml.begin(), tableHtml.end(), reRow), end; it != end; ++it) {
+        std::wstring rowHtml = (*it)[1].str();
+
+        // Gather cells (stripped)
+        std::vector<CString> cells;
+        for (std::wsregex_iterator ic(rowHtml.begin(), rowHtml.end(), reCell); ic != end; ++ic) {
+            CString cell = StripHtml(CString((*ic)[1].str().c_str()));
+            cell.Trim();
+            if (!cell.IsEmpty()) cells.push_back(cell);
+        }
+        if (cells.size() < 2) continue;
+
+        // Skip header rows like "PERIOD ACTIVE CONNECTED STANDBY ..."
+        CString up0 = cells[0]; up0.MakeUpper();
+        if (up0.Find(L"PERIOD") >= 0) continue;
+
+        // We expect a layout like:
+        // PERIOD | (Battery) ACTIVE | (Battery) CONNECTED STANDBY | (AC) ACTIVE | (AC) CONNECTED STANDBY
+        // Some builds show "-" in some columns.
+        UsageHistoryRow row;
+        row.period = cells[0];
+
+        // Strategy: try to read exactly from columns if present,
+        // else parse all H:MM:SS in order as a fallback (0..3 = battA, battS, acA, acS).
+        auto hmsOrDash = [&](int idx) -> double {
+            if ((int)cells.size() > idx) {
+                CString c = cells[idx];
+                if (c == L"-") return 0.0;
+                // If it's already H:MM:SS, convert; otherwise, find first time inside it
+                auto times = ExtractAllHms(c);
+                if (!times.empty()) return HmsTextToHours(times[0]);
+            }
+            return 0.0;
+            };
+
+        if (cells.size() >= 5) {
+            row.battActiveHrs = hmsOrDash(1);
+            row.battStandbyHrs = hmsOrDash(2);
+            row.acActiveHrs = hmsOrDash(3);
+            row.acStandbyHrs = hmsOrDash(4);
+        }
+        else {
+            // Fallback: scan the whole row for four H:MM:SS in order
+            CString joined;
+            for (auto& c : cells) { joined += c; joined += L" "; }
+            auto times = ExtractAllHms(joined);
+            if (times.size() >= 1) row.battActiveHrs = HmsTextToHours(times[0]);
+            if (times.size() >= 2) row.battStandbyHrs = HmsTextToHours(times[1]);
+            if (times.size() >= 3) row.acActiveHrs = HmsTextToHours(times[2]);
+            if (times.size() >= 4) row.acStandbyHrs = HmsTextToHours(times[3]);
+        }
+
+        // Basic sanity check (drop absurd glitches)
+        auto ok = [](double v) { return v >= 0.0 && v < 100000.0; };
+        if (!ok(row.battActiveHrs) || !ok(row.battStandbyHrs) ||
+            !ok(row.acActiveHrs) || !ok(row.acStandbyHrs)) {
+            continue;
+        }
+
+        outRows.push_back(std::move(row));
+    }
+
+    return !outRows.empty();
+}
+
+
+
+void CBatteryHelthDlg::OnBnClickedBtnUsage()
+{
+    std::vector<UsageHistoryRow> rows;
+    if (!GetUsageHistory(rows) || rows.empty()) {
+        AfxMessageBox(L"Could not read Usage History from the battery report.");
+        return;
+    }
+
+    std::wstring csv;
+    csv += L",Battery Duration,Battery Duration,AC Duration,AC Duration,\r\n";
+    csv += L"Period,Battery Active (hrs),Battery Standby (hrs),AC Active (hrs),AC Standby (hrs)\r\n";
+
+    // Rows (skip the summary headers like "BATTERY DURATION" / "AC DURATION")
+    for (const auto& r : rows) {
+        CString period = r.period; period.Trim();
+        if (period.CompareNoCase(L"BATTERY DURATION") == 0 ||
+            period.CompareNoCase(L"AC DURATION") == 0)
+        {
+            continue; // <-- drop that full row
+        }
+
+        CString line;
+        line.Format(L"%s,%.2f,%.2f,%.2f,%.2f\r\n",
+            period.GetString(),
+            r.battActiveHrs,
+            r.battStandbyHrs,
+            r.acActiveHrs,
+            r.acStandbyHrs);
+        csv += line.GetString();
+    }
+
+    CString outPath;
+    if (!SaveCsvUtf8AndOpen(csv, outPath)) {
+        AfxMessageBox(L"Failed to write/open CSV file.");
+        return;
+    }
+
+    CString msg;
+    msg.Format(L"Usage history (Battery & AC) exported:\n%s", outPath.GetString());
+    AfxMessageBox(msg);
+}

@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by BatteryHelth.rc
 //
+#define IDD_TREND_DIALOG                9
 #define IDM_ABOUTBOX                    0x0010
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
@@ -11,6 +12,16 @@
 #define IDB_PNG2                        138
 #define IDB_PNG3                        141
 #define IDB_PNG4                        143
+#define IDR_ACCELERATOR1                151
+#define IDB_PNG5                        154
+#define IDB_PNG6                        155
+#define IDD_STANDBY_DIALOG              158
+#define IDD_PERF_DIALOG                 160
+#define IDD_DISCHARGE_DIALOG            164
+#define IDB_PNG7                        166
+#define IDB_PNG8                        169
+#define IDD_PREDICTION_DIALOG           170
+#define IDB_PNG9                        172
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -47,17 +58,26 @@
 #define IDC_STATIC_ABT                  1041
 #define IDC_STATIC_DH                   1042
 #define IDC_STATIC_HEADER               1043
+#define IDC_BTN_CAPHIS                  1044
 #define IDC_BATT_DID                    1045
+#define IDC_BTN_PREDICTION              1046
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
+#define IDC_BTN_ACTIVE                  1057
+#define IDC_BTN_ACTIVE2                 1059
+#define IDC_BTN_STANDBY                 1059
+#define IDC_BUTTON2                     1061
+#define IDC_BTN_USAGE                   1061
+#define IDC_BUTTON1                     1062
+#define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        150
-#define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1056
+#define _APS_NEXT_RESOURCE_VALUE        173
+#define _APS_NEXT_COMMAND_VALUE         32773
+#define _APS_NEXT_CONTROL_VALUE         1066
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
