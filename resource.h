@@ -22,6 +22,8 @@
 #define IDB_PNG8                        169
 #define IDD_PREDICTION_DIALOG           170
 #define IDB_PNG9                        172
+#define IDD_MANIPULATION                173
+#define IDB_PNG10                       175
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -66,6 +68,7 @@
 #define IDC_BTN_ACTIVE                  1057
 #define IDC_BTN_ACTIVE2                 1059
 #define IDC_BTN_STANDBY                 1059
+#define IDC_BTN_MANIPULATIOIN           1060
 #define IDC_BUTTON2                     1061
 #define IDC_BTN_USAGE                   1061
 #define IDC_BUTTON1                     1062
@@ -75,7 +78,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        173
+#define _APS_NEXT_RESOURCE_VALUE        176
 #define _APS_NEXT_COMMAND_VALUE         32773
 #define _APS_NEXT_CONTROL_VALUE         1066
 #define _APS_NEXT_SYMED_VALUE           101

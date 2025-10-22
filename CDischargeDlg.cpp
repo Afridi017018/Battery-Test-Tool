@@ -3,9 +3,8 @@
 #include "afxdialogex.h"
 
 #include <gdiplus.h>
-#include <algorithm>   // std::max / std::min
-#include <cmath>       // std::ceil
-
+#include <algorithm>   
+#include <cmath>       
 #pragma comment(lib, "gdiplus.lib")
 using namespace Gdiplus;
 

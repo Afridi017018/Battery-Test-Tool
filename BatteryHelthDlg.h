@@ -165,8 +165,8 @@ public:
 		// All the button control IDs you want to owner-draw
 		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, 
 			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
-			IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
-			IDC_BTN_USAGE
+			IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
+			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN
 		};
 
 		// Per-button hover state, keyed by control ID
@@ -179,10 +179,11 @@ public:
 			{ IDC_BTN_HISTORY, IDB_PNG3 },
 			{ IDC_BTN_UPLOADPDF, IDB_PNG4 },
 			{ IDC_BTN_CAPHIS, IDB_PNG5 },
-			{ IDC_BTN_PREDICTION, IDB_PNG6 },
+	/*		{ IDC_BTN_PREDICTION, IDB_PNG6 },*/
 			{ IDC_BTN_ACTIVE, IDB_PNG7 },
 		    { IDC_BTN_STANDBY, IDB_PNG8 },
-			{ IDC_BTN_USAGE, IDB_PNG9 }
+			{ IDC_BTN_USAGE, IDB_PNG9 },
+			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 }
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
@@ -258,6 +259,7 @@ public:
 					afx_msg void OnBnClickedButton2();
 					afx_msg void OnBnClickedUsage();
 					afx_msg void OnBnClickedBtnUsage();
+					afx_msg void OnBnClickedBtnManipulatioin();
 };
 
 

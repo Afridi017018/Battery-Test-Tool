@@ -51,6 +51,8 @@
 
 #include "CPredictionDlg.h"
 
+#include "CManipulationDlg.h"
+
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -148,11 +150,12 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_MESSAGE(WM_DPICHANGED, &CBatteryHelthDlg::OnDpiChanged)
 
     ON_BN_CLICKED(IDC_BTN_CAPHIS, &CBatteryHelthDlg::OnBnClickedBtnCaphis)
-    ON_BN_CLICKED(IDC_BTN_PREDICTION, &CBatteryHelthDlg::OnBnClickedBtnPrediction)
+    //ON_BN_CLICKED(IDC_BTN_PREDICTION, &CBatteryHelthDlg::OnBnClickedBtnPrediction)
     ON_BN_CLICKED(IDC_BTN_ACTIVE, &CBatteryHelthDlg::OnBnClickedBtnActive)
     ON_BN_CLICKED(IDC_BTN_STANDBY, &CBatteryHelthDlg::OnBnClickedBtnStandby)
 
     ON_BN_CLICKED(IDC_BTN_USAGE, &CBatteryHelthDlg::OnBnClickedBtnUsage)
+    ON_BN_CLICKED(IDC_BTN_MANIPULATIOIN, &CBatteryHelthDlg::OnBnClickedBtnManipulatioin)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -489,7 +492,7 @@ void CBatteryHelthDlg::ApplyScaledFonts()
             IDC_BATT_CAPACITY, IDC_BATT_NAME, IDC_BATT_DCAPACITY,
             IDC_BATT_MANUFAC, IDC_BATT_CYCLE, IDC_BATT_HEALTH,
             IDC_BATT_VOLTAGE, IDC_BATT_TEMP, IDC_BATT_CURRCAPACITY,
-            IDC_STATIC_DH, IDC_STATIC_ABT, IDC_STATIC_BBI
+            IDC_STATIC_DH, IDC_STATIC_ABT, IDC_STATIC_BBI, 
     };
 
     for (UINT id : boldIds)
@@ -555,7 +558,7 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY
+		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN
     };
 
     for (auto id : ids)
@@ -837,7 +840,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_PREDICTION, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE
+		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN
     };
 
     for (auto id : ids)
@@ -910,10 +913,11 @@ void CBatteryHelthDlg::InitToolTips()
         { IDC_BATT_PERCENTAGE, L"Current battery percentage reported by Windows." },
         { IDC_BATT_CAPACITY,   L"Full charge vs. design capacity (health estimate)." },
         { IDC_BTN_CAPHIS,   L"Battery Charge Capacity History" },
-        { IDC_BTN_PREDICTION,   L"Health Prediction" },
+        //{ IDC_BTN_PREDICTION,   L"Health Prediction" },
         { IDC_BTN_ACTIVE,   L"Active Battery Life Trend" },
         { IDC_BTN_STANDBY,   L"Standby Battery Life Trend" },
-        { IDC_BTN_USAGE,   L"Usage History" }
+        { IDC_BTN_USAGE,   L"Usage History" },
+        { IDC_BTN_MANIPULATIOIN,   L"Ditect Manipulation" }
     };
 
     for (size_t i = 0; i < _countof(tips); ++i)
@@ -3206,8 +3210,8 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
     // Check if the cursor is over your button
     if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY 
-        || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS || pWnd->GetDlgCtrlID() == IDC_BTN_PREDICTION
-		|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE
+        || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE 
+        || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
@@ -3405,12 +3409,12 @@ static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDat
 
 
 
-void CBatteryHelthDlg::OnBnClickedBtnPrediction()
-{
-    CPredictionDlg dlg(this);
-
-	dlg.DoModal(); // open modal window
-}
+//void CBatteryHelthDlg::OnBnClickedBtnPrediction()
+//{
+//    CPredictionDlg dlg(this);
+//
+//	dlg.DoModal(); // open modal window
+//}
 
 void CBatteryHelthDlg::OnBnClickedBtnActive()
 {
@@ -3741,4 +3745,11 @@ void CBatteryHelthDlg::OnBnClickedBtnUsage()
     CString msg;
     msg.Format(L"Usage history (Battery & AC) exported:\n%s", outPath.GetString());
     AfxMessageBox(msg);
+}
+
+void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
+{
+	CManipulationDlg dlg(this);
+	dlg.DoModal(); 
+ 
 }

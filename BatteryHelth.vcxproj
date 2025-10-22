@@ -187,6 +187,7 @@
     <ClInclude Include="BatteryHelth.h" />
     <ClInclude Include="BatteryHelthDlg.h" />
     <ClInclude Include="CDischargeDlg.h" />
+    <ClInclude Include="CManipulationDlg.h" />
     <ClInclude Include="CPerfDlg.h" />
     <ClInclude Include="CPredictionDlg.h" />
     <ClInclude Include="CTrendDlg.h" />
@@ -200,6 +201,7 @@
     <ClCompile Include="BatteryHelth.cpp" />
     <ClCompile Include="BatteryHelthDlg.cpp" />
     <ClCompile Include="CDischargeDlg.cpp" />
+    <ClCompile Include="CManipulationDlg.cpp" />
     <ClCompile Include="CPerfDlg.cpp" />
     <ClCompile Include="CPredictionDlg.cpp" />
     <ClCompile Include="CTrendDlg.cpp" />
@@ -231,6 +233,7 @@
     <Image Include="..\..\..\OneDrive\Desktop\cpuload1.png" />
     <Image Include="..\..\..\OneDrive\Desktop\discharge1.png" />
     <Image Include="..\..\..\OneDrive\Desktop\ExportCsv.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\Manipulation.png" />
     <Image Include="..\..\..\OneDrive\Desktop\prediction.png" />
     <Image Include="..\..\..\OneDrive\Desktop\stand by.png" />
     <Image Include="..\..\..\OneDrive\Desktop\standby.png" />

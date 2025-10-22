@@ -48,6 +48,9 @@
     <ClInclude Include="CPredictionDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CManipulationDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -72,6 +75,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CPredictionDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CManipulationDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -144,6 +150,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\..\..\OneDrive\Desktop\usageHistory.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\Manipulation.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
