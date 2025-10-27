@@ -14,6 +14,10 @@
 
 #include <atomic>
 
+#include "Resource.h"
+#include <shellapi.h>   // tray
+#pragma comment(lib, "Shell32.lib")
+
 #include <unordered_map>
 
 
@@ -260,6 +264,50 @@ public:
 					afx_msg void OnBnClickedUsage();
 					afx_msg void OnBnClickedBtnUsage();
 					afx_msg void OnBnClickedBtnManipulatioin();
+
+
+					protected:
+		/*				virtual void DoDataExchange(CDataExchange* pDX) override;*/
+				/*		virtual BOOL OnInitDialog() override;*/
+
+						afx_msg void OnBnClickedBtnShow2();
+	
+
+				
+
+protected:
+	// --- Report builder ---
+	CString BuildVisibleAppsReport();
+
+	// --- Tray notification helpers ---
+	void EnsureTrayIcon();
+	void RemoveTrayIcon();
+	void ShowBalloon(LPCWSTR title, LPCWSTR text, DWORD infoFlags);
+
+	// Checks top visible app by uptime; if >=30mins, shows balloon with idle/active status
+	void CheckAndNotifyTopLongRunning();
+
+	// --- Idle detection helpers ---
+	// Returns idle time in seconds for a given process/window
+	ULONGLONG GetProcessIdleTime(DWORD pid, HWND mainWindow);
+
+	// Check if window is responding to input
+	bool IsWindowResponding(HWND hWnd);
+
+	// Get global input idle time (seconds)
+	ULONGLONG GetGlobalInputIdleTime();
+
+protected:
+	// tray + timer
+	NOTIFYICONDATAW m_nid{};
+	bool            m_trayAdded{ false };
+	UINT_PTR        m_timerId{ 0 };
+
+	// Track last input time (not strictly required for current logic but kept)
+	ULONGLONG       m_lastInputCheck{ 0 };
+
+public:
+	afx_msg void OnBnClickedBtnBgapp();
 };
 
 

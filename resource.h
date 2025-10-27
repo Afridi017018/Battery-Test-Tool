@@ -72,6 +72,7 @@
 #define IDC_BUTTON2                     1061
 #define IDC_BTN_USAGE                   1061
 #define IDC_BUTTON1                     1062
+#define IDC_BTN_BGAPP                   1062
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects

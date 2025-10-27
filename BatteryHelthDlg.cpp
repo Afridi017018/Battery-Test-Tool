@@ -54,6 +54,16 @@
 #include "CManipulationDlg.h"
 
 
+#include <string>
+#include <algorithm>
+#include <cwchar>      // _wcsnicmp
+
+#include <psapi.h>      // EnumProcesses, QueryFullProcessImageNameW
+#include <winver.h>     // GetFileVersionInfo*, VerQueryValue
+#pragma comment(lib, "psapi.lib")
+#pragma comment(lib, "Version.lib")
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -156,6 +166,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_BN_CLICKED(IDC_BTN_USAGE, &CBatteryHelthDlg::OnBnClickedBtnUsage)
     ON_BN_CLICKED(IDC_BTN_MANIPULATIOIN, &CBatteryHelthDlg::OnBnClickedBtnManipulatioin)
+    ON_BN_CLICKED(IDC_BTN_BGAPP, &CBatteryHelthDlg::OnBnClickedBtnBgapp)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -735,6 +746,111 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 }
 
 
+
+
+namespace {
+    constexpr UINT  IDT_NOTIFY_LONGRUN = 2001;
+    constexpr UINT  NOTIFY_INTERVAL_MS = 10000;             // every 10 seconds
+    constexpr ULONGLONG MIN_UPTIME_SEC = 15ULL * 60ULL;     // 15 minutes (requirement)
+    constexpr ULONGLONG IDLE_THRESHOLD_SEC = 5ULL * 60ULL;  // 5 minutes = idle
+}
+
+// ----------------- helpers -----------------
+struct Row {
+    std::wstring name;
+    DWORD        pid{};
+    FILETIME     startFT{};
+    ULONGLONG    uptimeSec{};
+    std::wstring title;
+    HWND         mainWindow{};
+    ULONGLONG    idleTimeSec{};
+};
+
+static bool StartsWithI(const std::wstring& s, const std::wstring& prefix) {
+    if (s.size() < prefix.size()) return false;
+    return _wcsnicmp(s.c_str(), prefix.c_str(), static_cast<unsigned>(prefix.size())) == 0;
+}
+
+static inline ULONGLONG FTtoU64(const FILETIME& ft) {
+    ULARGE_INTEGER u; u.LowPart = ft.dwLowDateTime; u.HighPart = ft.dwHighDateTime; return u.QuadPart;
+}
+
+static CString FormatTimespan(ULONGLONG totalSec) {
+    ULONGLONG d = totalSec / 86400; totalSec %= 86400;
+    ULONGLONG h = totalSec / 3600;  totalSec %= 3600;
+    ULONGLONG m = totalSec / 60;    ULONGLONG s = totalSec % 60;
+    CString out;
+    if (d) out.Format(L"%llud %02llu:%02llu:%02llu", d, h, m, s);
+    else   out.Format(L"%02llu:%02llu:%02llu", h, m, s);
+    return out;
+}
+
+static CString FormatFileTimeLocal(const FILETIME& ftUtc) {
+    SYSTEMTIME u{}, l{}; FileTimeToSystemTime(&ftUtc, &u); SystemTimeToTzSpecificLocalTime(nullptr, &u, &l);
+    CString s; s.Format(L"%02u/%02u/%04u %02u:%02u:%02u", l.wMonth, l.wDay, l.wYear, l.wHour, l.wMinute, l.wSecond);
+    return s;
+}
+
+// Strip \\?\ or \??\ prefix
+static std::wstring StripLongPrefix(const std::wstring& p) {
+    if (StartsWithI(p, L"\\\\?\\")) return p.substr(4);
+    if (StartsWithI(p, L"\\??\\"))  return p.substr(4);
+    return p;
+}
+
+// Map NT device path (\Device\HarddiskVolumeX\...) -> DOS drive (X:\...)
+static std::wstring NtToDosPath(const std::wstring& pathIn) {
+    std::wstring p = StripLongPrefix(pathIn);
+    if (p.size() >= 3 && p[1] == L':' && (p[2] == L'\\' || p[2] == L'/')) return p;
+    if (!StartsWithI(p, L"\\Device\\")) return p;
+
+    wchar_t drives[512] = {};
+    DWORD n = GetLogicalDriveStringsW(_countof(drives) - 1, drives);
+    for (wchar_t* d = drives; n && *d; d += wcslen(d) + 1) {
+        wchar_t root[3] = { d[0], L':', 0 };
+        wchar_t dev[512] = {};
+        if (QueryDosDeviceW(root, dev, _countof(dev))) {
+            size_t len = wcslen(dev);
+            if (len && _wcsnicmp(p.c_str(), dev, (unsigned)len) == 0) {
+                std::wstring tail = p.substr(len);
+                if (!tail.empty() && tail[0] != L'\\') tail.insert(tail.begin(), L'\\');
+                return std::wstring(root) + tail;
+            }
+        }
+    }
+    return p;
+}
+
+// Visible main window for a PID - returns title and HWND
+struct WindowSearchResult { std::wstring title; HWND hwnd; };
+
+static WindowSearchResult GetMainWindowAndTitleByPid(DWORD targetPid) {
+    WindowSearchResult result; result.hwnd = nullptr;
+
+    struct ED { DWORD pid; std::wstring* outTitle; HWND* outHwnd; } ed{ targetPid, &result.title, &result.hwnd };
+    auto cb = [](HWND hWnd, LPARAM lp)->BOOL {
+        auto* d = reinterpret_cast<ED*>(lp);
+        if (!IsWindowVisible(hWnd)) return TRUE;
+        DWORD pid = 0; GetWindowThreadProcessId(hWnd, &pid);
+        if (pid != d->pid) return TRUE;
+
+        HWND root = GetAncestor(hWnd, GA_ROOTOWNER);
+        if (root && root != hWnd) return TRUE;
+
+        wchar_t buf[512] = {};
+        int len = GetWindowTextW(hWnd, buf, _countof(buf));
+        if (len <= 0) return TRUE;
+
+        d->outTitle->assign(buf, buf + len);
+        *(d->outHwnd) = hWnd;
+        return FALSE;
+        };
+    EnumWindows(cb, reinterpret_cast<LPARAM>(&ed));
+    return result;
+}
+
+
+
 BOOL CBatteryHelthDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
@@ -884,6 +1000,17 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
     SetTimer(1, 100, NULL);
     InitToolTips();
+
+
+    // Initialize last input check time (kept from your code)
+    m_lastInputCheck = GetTickCount64();
+
+    // Tray + first notification immediately
+    EnsureTrayIcon();
+    CheckAndNotifyTopLongRunning();
+
+    // Then keep checking every 10 seconds
+    m_timerId = SetTimer(IDT_NOTIFY_LONGRUN, NOTIFY_INTERVAL_MS, nullptr);
 
     return TRUE;
 }
@@ -2542,7 +2669,9 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
     }
 
-
+    if (nIDEvent == IDT_NOTIFY_LONGRUN) {
+        CheckAndNotifyTopLongRunning();
+    }
 
     CDialogEx::OnTimer(nIDEvent);
 }
@@ -3227,6 +3356,10 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CBatteryHelthDlg::OnDestroy()
 {
     KillTimer(1); // Stop hover detection timer
+
+    if (m_timerId) { KillTimer(m_timerId); m_timerId = 0; }
+    RemoveTrayIcon();
+
     CDialogEx::OnDestroy();
 }
 
@@ -3752,4 +3885,276 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 	CManipulationDlg dlg(this);
 	dlg.DoModal(); 
  
+}
+
+
+
+
+
+void CBatteryHelthDlg::OnBnClickedBtnBgapp()
+{
+    // TODO: Add your control notification handler code here
+    AfxMessageBox(BuildVisibleAppsReport(), MB_ICONINFORMATION | MB_OK);
+}
+
+
+
+// ----------------- tray helpers -----------------
+void CBatteryHelthDlg::EnsureTrayIcon()
+{
+    if (m_trayAdded) return;
+
+    ZeroMemory(&m_nid, sizeof(m_nid));
+    m_nid.cbSize = sizeof(m_nid);
+
+    m_nid.hWnd = GetSafeHwnd();       // HWND (not CWnd*)
+    m_nid.uID = 1;
+    m_nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    m_nid.uCallbackMessage = WM_APP + 10;
+    m_nid.hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    lstrcpynW(m_nid.szTip, L"App Uptime Notifier", _countof(m_nid.szTip));
+
+    if (Shell_NotifyIconW(NIM_ADD, &m_nid))
+        m_trayAdded = true;
+}
+
+
+
+void CBatteryHelthDlg::RemoveTrayIcon()
+{
+    if (!m_trayAdded) return;
+    Shell_NotifyIconW(NIM_DELETE, &m_nid);
+    m_trayAdded = false;
+}
+
+void CBatteryHelthDlg::ShowBalloon(LPCWSTR title, LPCWSTR text, DWORD infoFlags)
+{
+    if (!m_trayAdded) EnsureTrayIcon();
+
+    NOTIFYICONDATAW nid = m_nid;
+    nid.uFlags |= NIF_INFO;
+    lstrcpynW(nid.szInfoTitle, title ? title : L"", _countof(nid.szInfoTitle));
+    lstrcpynW(nid.szInfo, text ? text : L"", _countof(nid.szInfo));
+    nid.dwInfoFlags = infoFlags;
+
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+}
+
+// ----------------- Idle Detection -----------------
+ULONGLONG CBatteryHelthDlg::GetGlobalInputIdleTime()
+{
+    LASTINPUTINFO lii = {};
+    lii.cbSize = sizeof(LASTINPUTINFO);
+
+    if (GetLastInputInfo(&lii)) {
+        ULONGLONG currentTick = GetTickCount64();
+        ULONGLONG lastInputTick = lii.dwTime; // DWORD but compatible within range
+        if (currentTick >= lastInputTick) {
+            return (currentTick - lastInputTick) / 1000; // seconds
+        }
+    }
+    return 0;
+}
+
+bool CBatteryHelthDlg::IsWindowResponding(HWND hWnd)
+{
+    if (!hWnd || !IsWindow(hWnd)) return false;
+
+    DWORD_PTR result = 0;
+    LRESULT res = SendMessageTimeout(hWnd, WM_NULL, 0, 0,
+        SMTO_ABORTIFHUNG | SMTO_BLOCK,
+        1000, &result);
+    return (res != 0);
+}
+
+ULONGLONG CBatteryHelthDlg::GetProcessIdleTime(DWORD pid, HWND /*mainWindow*/)
+{
+    // Foreground process?
+    HWND fgWnd = ::GetForegroundWindow();
+    DWORD fgPid = 0;
+    if (fgWnd) ::GetWindowThreadProcessId(fgWnd, &fgPid);
+
+    // If this process is foreground: use real system idle time
+    if (fgPid == pid) {
+        return GetGlobalInputIdleTime();
+    }
+
+    // If NOT foreground: treat as idle immediately (PowerShell parity)
+    // Return a value above the threshold so it qualifies.
+    ULONGLONG sysIdle = GetGlobalInputIdleTime();
+    ULONGLONG atLeast = IDLE_THRESHOLD_SEC + 1; // ensures >= threshold
+    return (sysIdle > atLeast) ? sysIdle : atLeast;
+}
+
+// ----------------- core (report) -----------------
+CString CBatteryHelthDlg::BuildVisibleAppsReport()
+{
+    wchar_t windir[MAX_PATH] = L""; GetWindowsDirectoryW(windir, _countof(windir));
+    std::wstring winPrefix = NtToDosPath(windir); if (!winPrefix.empty() && winPrefix.back() != L'\\') winPrefix.push_back(L'\\');
+
+    wchar_t pf[MAX_PATH] = L"", pf86[MAX_PATH] = L"";
+    GetEnvironmentVariableW(L"ProgramFiles", pf, _countof(pf));
+    GetEnvironmentVariableW(L"ProgramFiles(x86)", pf86, _countof(pf86));
+
+    std::wstring winApps1 = NtToDosPath(pf);
+    if (!winApps1.empty() && winApps1.back() != L'\\') winApps1.push_back(L'\\');
+    winApps1 += L"WindowsApps\\";
+
+    std::wstring winApps2 = NtToDosPath(pf86);
+    if (!winApps2.empty() && winApps2.back() != L'\\') winApps2.push_back(L'\\');
+    winApps2 += L"WindowsApps\\";
+
+    DWORD pids[8192] = {}; DWORD cb = 0;
+    if (!EnumProcesses(pids, sizeof(pids), &cb)) return L"Failed to enumerate processes.";
+    const DWORD count = cb / sizeof(DWORD);
+
+    FILETIME nowFT{}; GetSystemTimeAsFileTime(&nowFT); const ULONGLONG now100 = FTtoU64(nowFT);
+
+    std::vector<Row> rows; rows.reserve(count);
+
+    for (DWORD i = 0; i < count; ++i) {
+        DWORD pid = pids[i]; if (!pid) continue;
+        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid); if (!h) continue;
+
+        wchar_t pathBuf[MAX_PATH] = L""; DWORD sz = _countof(pathBuf);
+        std::wstring path; if (QueryFullProcessImageNameW(h, 0, pathBuf, &sz)) path.assign(pathBuf);
+        if (path.empty()) { CloseHandle(h); continue; }
+
+        std::wstring norm = NtToDosPath(path);
+        if (StartsWithI(norm, winPrefix) || StartsWithI(norm, winApps1) || StartsWithI(norm, winApps2)) {
+            CloseHandle(h); continue;
+        }
+
+        FILETIME ftCreate{}, ftExit{}, ftKernel{}, ftUser{};
+        if (!GetProcessTimes(h, &ftCreate, &ftExit, &ftKernel, &ftUser)) { CloseHandle(h); continue; }
+
+        WindowSearchResult wsResult = GetMainWindowAndTitleByPid(pid);
+        if (wsResult.title.empty()) { CloseHandle(h); continue; }
+
+        const ULONGLONG start100 = FTtoU64(ftCreate);
+        if (now100 <= start100) { CloseHandle(h); continue; }
+        const ULONGLONG uptimeSec = (now100 - start100) / 10000000ULL;
+
+        std::wstring name = norm; size_t pos = name.find_last_of(L"\\/");
+        if (pos != std::wstring::npos) name = name.substr(pos + 1);
+
+        Row row;
+        row.name = name;
+        row.pid = pid;
+        row.startFT = ftCreate;
+        row.uptimeSec = uptimeSec;
+        row.title = wsResult.title;
+        row.mainWindow = wsResult.hwnd;
+        row.idleTimeSec = 0;
+
+        rows.push_back(row);
+        CloseHandle(h);
+    }
+
+    if (rows.empty()) return L"No eligible apps (visible window, non-Windows path).";
+
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.uptimeSec > b.uptimeSec; });
+
+    CString out;
+    out += L"Name                      StartTime              Uptime\r\n";
+    out += L"------------------------- ---------------------- -------------\r\n";
+
+    for (size_t idx = 0; idx < rows.size(); ++idx) {
+        const Row& r = rows[idx];
+        CString name = r.name.c_str();
+        CString start = FormatFileTimeLocal(r.startFT);
+        CString up = FormatTimespan(r.uptimeSec);
+
+        CString line;
+        line.Format(L"%-25.25s %-22.22s %-13.13s\r\n",
+            name.GetString(), start.GetString(), up.GetString());
+        out += line;
+
+        if (out.GetLength() > 60000) { out += L"... (truncated)\r\n"; break; }
+    }
+
+    return out;
+}
+
+
+
+// ----------------- periodic notifier WITH IDLE DETECTION -----------------
+void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
+{
+    wchar_t windir[MAX_PATH] = L""; GetWindowsDirectoryW(windir, _countof(windir));
+    std::wstring winPrefix = NtToDosPath(windir); if (!winPrefix.empty() && winPrefix.back() != L'\\') winPrefix.push_back(L'\\');
+
+    wchar_t pf[MAX_PATH] = L"", pf86[MAX_PATH] = L"";
+    GetEnvironmentVariableW(L"ProgramFiles", pf, _countof(pf));
+    GetEnvironmentVariableW(L"ProgramFiles(x86)", pf86, _countof(pf86));
+    std::wstring winApps1 = NtToDosPath(pf); if (!winApps1.empty() && winApps1.back() != L'\\') winApps1.push_back(L'\\'); winApps1 += L"WindowsApps\\";
+    std::wstring winApps2 = NtToDosPath(pf86); if (!winApps2.empty() && winApps2.back() != L'\\') winApps2.push_back(L'\\'); winApps2 += L"WindowsApps\\";
+
+    DWORD pids[8192] = {}; DWORD cb = 0;
+    if (!EnumProcesses(pids, sizeof(pids), &cb)) return;
+    const DWORD count = cb / sizeof(DWORD);
+
+    FILETIME nowFT{}; GetSystemTimeAsFileTime(&nowFT); const ULONGLONG now100 = FTtoU64(nowFT);
+
+    Row* best = nullptr;
+    Row  tmp{};
+
+    for (DWORD i = 0; i < count; ++i) {
+        DWORD pid = pids[i]; if (!pid) continue;
+        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid); if (!h) continue;
+
+        wchar_t pathBuf[MAX_PATH] = L""; DWORD sz = _countof(pathBuf);
+        std::wstring path; if (QueryFullProcessImageNameW(h, 0, pathBuf, &sz)) path.assign(pathBuf);
+        if (path.empty()) { CloseHandle(h); continue; }
+
+        std::wstring norm = NtToDosPath(path);
+        if (StartsWithI(norm, winPrefix) || StartsWithI(norm, winApps1) || StartsWithI(norm, winApps2)) { CloseHandle(h); continue; }
+
+        FILETIME ftCreate{}, ftExit{}, ftKernel{}, ftUser{};
+        if (!GetProcessTimes(h, &ftCreate, &ftExit, &ftKernel, &ftUser)) { CloseHandle(h); continue; }
+
+        WindowSearchResult wsResult = GetMainWindowAndTitleByPid(pid);
+        if (wsResult.title.empty()) { CloseHandle(h); continue; }
+
+        const ULONGLONG start100 = FTtoU64(ftCreate);
+        if (now100 <= start100) { CloseHandle(h); continue; }
+        const ULONGLONG uptimeSec = (now100 - start100) / 10000000ULL;
+
+        std::wstring name = norm; size_t pos = name.find_last_of(L"\\/");
+        if (pos != std::wstring::npos) name = name.substr(pos + 1);
+
+        // Compute idle time
+        ULONGLONG idleSec = GetProcessIdleTime(pid, wsResult.hwnd);
+
+        // Only consider apps that are IDLE (>= threshold)
+        if (idleSec >= IDLE_THRESHOLD_SEC) {
+            if (!best || uptimeSec > best->uptimeSec) {
+                tmp.name = name;
+                tmp.pid = pid;
+                tmp.startFT = ftCreate;
+                tmp.uptimeSec = uptimeSec;
+                tmp.title = wsResult.title;
+                tmp.mainWindow = wsResult.hwnd;
+                tmp.idleTimeSec = idleSec;
+                best = &tmp;
+            }
+        }
+
+        CloseHandle(h);
+    }
+
+    // Only notify if we found an IDLE app
+    if (!best) return;
+
+    // Require at least 15 minutes of uptime
+    if (best->uptimeSec < MIN_UPTIME_SEC) return;
+
+    CString up = FormatTimespan(best->uptimeSec);
+    CString idleStr = FormatTimespan(best->idleTimeSec);
+
+    CString title; title.Format(L"Idle long-running app: %s", best->name.c_str());
+    CString body;  body.Format(L"%s has been running for %s.\nStatus: IDLE",
+        best->name.c_str(), up.GetString());
+
+    ShowBalloon(title, body, NIIF_INFO);
 }
