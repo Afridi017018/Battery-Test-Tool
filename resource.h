@@ -24,6 +24,9 @@
 #define IDB_PNG9                        172
 #define IDD_MANIPULATION                173
 #define IDB_PNG10                       175
+#define IDD_RATEINFO                    176
+#define IDB_PNG11                       182
+#define IDB_PNG12                       183
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -73,13 +76,14 @@
 #define IDC_BTN_USAGE                   1061
 #define IDC_BUTTON1                     1062
 #define IDC_BTN_BGAPP                   1062
+#define IDC_BTN_RATEINFO                1063
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        176
+#define _APS_NEXT_RESOURCE_VALUE        184
 #define _APS_NEXT_COMMAND_VALUE         32773
 #define _APS_NEXT_CONTROL_VALUE         1066
 #define _APS_NEXT_SYMED_VALUE           101

@@ -53,6 +53,8 @@
 
 #include "CManipulationDlg.h"
 
+#include "CRateInfoDlg.h"
+
 
 #include <string>
 #include <algorithm>
@@ -167,6 +169,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_USAGE, &CBatteryHelthDlg::OnBnClickedBtnUsage)
     ON_BN_CLICKED(IDC_BTN_MANIPULATIOIN, &CBatteryHelthDlg::OnBnClickedBtnManipulatioin)
     ON_BN_CLICKED(IDC_BTN_BGAPP, &CBatteryHelthDlg::OnBnClickedBtnBgapp)
+    ON_BN_CLICKED(IDC_BTN_RATEINFO, &CBatteryHelthDlg::OnBnClickedBtnRateinfo)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -569,7 +572,8 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN
+		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP
     };
 
     for (auto id : ids)
@@ -956,7 +960,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN
+		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP
     };
 
     for (auto id : ids)
@@ -1044,7 +1049,10 @@ void CBatteryHelthDlg::InitToolTips()
         { IDC_BTN_ACTIVE,   L"Active Battery Life Trend" },
         { IDC_BTN_STANDBY,   L"Standby Battery Life Trend" },
         { IDC_BTN_USAGE,   L"Usage History" },
-        { IDC_BTN_MANIPULATIOIN,   L"Ditect Manipulation" }
+        { IDC_BTN_MANIPULATIOIN,   L"Ditect Manipulation" },
+		{ IDC_BTN_RATEINFO,   L"Charge/Discharge Rate Information" },
+        { IDC_BTN_BGAPP,   L"Long-Running Background Applications" },
+
     };
 
     for (size_t i = 0; i < _countof(tips); ++i)
@@ -3239,6 +3247,7 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
         table += startStr + endStr + totalStr + L"\n";
     }
 
+
     if (m_batteryHistory.empty())
         table += L"No history recorded yet.";
 
@@ -3341,6 +3350,7 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
     if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY 
         || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE 
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
+		|| pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
@@ -3574,33 +3584,6 @@ void CBatteryHelthDlg::OnBnClickedBtnStandby()
 
     dlg.DoModal(); // open modal window
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -4157,4 +4140,12 @@ void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
         best->name.c_str(), up.GetString());
 
     ShowBalloon(title, body, NIIF_INFO);
+}
+
+void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
+{
+    // TODO: Add your control notification handler code here
+
+	CRateInfoDlg dlg(this); 
+	dlg.DoModal();
 }

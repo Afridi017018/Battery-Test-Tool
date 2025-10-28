@@ -170,7 +170,8 @@ public:
 		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, 
 			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
 			IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
-			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN
+			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN, IDC_BTN_RATEINFO,
+			IDC_BTN_BGAPP
 		};
 
 		// Per-button hover state, keyed by control ID
@@ -187,7 +188,9 @@ public:
 			{ IDC_BTN_ACTIVE, IDB_PNG7 },
 		    { IDC_BTN_STANDBY, IDB_PNG8 },
 			{ IDC_BTN_USAGE, IDB_PNG9 },
-			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 }
+			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 },
+		     { IDC_BTN_RATEINFO, IDB_PNG11 },	
+			{IDC_BTN_BGAPP, IDB_PNG12},
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
@@ -308,6 +311,7 @@ protected:
 
 public:
 	afx_msg void OnBnClickedBtnBgapp();
+	afx_msg void OnBnClickedBtnRateinfo();
 };
 
 
