@@ -206,98 +206,6 @@ static void BuildSeries(float initialPct, float currentPct, float ratePctPerMin,
 
 
 
-
-//void CBatteryHelthDlg::CalculateDPIScale()
-//{
-//    // Get monitor DPI
-//    HDC hdc = ::GetDC(NULL);
-//    int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-//    ::ReleaseDC(NULL, hdc);
-//
-//    m_dpiScaleFactor = dpiX / 96.0;  // baseline
-//
-//    // Get screen work area
-//    CRect workArea;
-//    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
-//
-//    int screenW = workArea.Width();
-//    int screenH = workArea.Height();
-//
-//    // Dynamically choose base dialog size
-//    if (screenW <= 1600 || screenH <= 700) {
-//        // Small screen / laptop
-//        m_baseWidth = 650;
-//        m_baseHeight = 685;
-//    }
-//    else if (screenW <= 1920) {
-//        // Standard HD / FHD
-//        m_baseWidth = 615;
-//        m_baseHeight = 670;
-//    }
-//    else {
-//        // Large screen (WQHD, 4K, etc.)
-//        m_baseWidth = 900;
-//        m_baseHeight = 920;
-//    }
-//
-//    // Optional: further clamp scaling
-//    if (screenH < 800) {
-//        m_dpiScaleFactor = min(m_dpiScaleFactor, 0.9);
-//    }
-//}
-
-
-
-
-//void CBatteryHelthDlg::CalculateDPIScale()
-//{
-//    // 1) Get DPI for THIS window (per-monitor if supported)
-//    UINT dpi = 96;
-//    if (m_hWnd) {
-//        // GetDpiForWindow is Win10+; use it if present
-//        HMODULE hUser32 = ::GetModuleHandleW(L"user32.dll");
-//        if (hUser32) {
-//            using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
-//            auto pGetDpiForWindow = reinterpret_cast<GetDpiForWindow_t>(
-//                ::GetProcAddress(hUser32, "GetDpiForWindow"));
-//            if (pGetDpiForWindow) {
-//                dpi = pGetDpiForWindow(m_hWnd);
-//            }
-//            else {
-//                HDC hdc = ::GetDC(m_hWnd);
-//                if (hdc) {
-//                    dpi = static_cast<UINT>(::GetDeviceCaps(hdc, LOGPIXELSX));
-//                    ::ReleaseDC(m_hWnd, hdc);
-//                }
-//            }
-//        }
-//    }
-//    if (dpi == 0) dpi = 96;
-//    m_dpiScaleFactor = static_cast<double>(dpi) / 96.0;
-//
-//    // 2) Use the dialog's CURRENT client size as the base (design) size
-//    //    (Capture it once; don't overwrite later unless you intentionally re-base.)
-//    CRect rcClient;
-//    GetClientRect(&rcClient);
-//
-//    // Guard in case called too early
-//    int w = rcClient.Width();
-//    int h = rcClient.Height();
-//    if (w <= 0) w = 1;
-//    if (h <= 0) h = 1;
-//
-//    // Only set if not initialized yet; keeps your "design" size stable
-//    if (m_baseWidth <= 0 || m_baseHeight <= 0) {
-//        m_baseWidth = w;
-//        m_baseHeight = h;
-//    }
-//
-//    // 3) Optional: clamp overall UI scale if you want to limit extremes
-//    // (Leave commented unless you need it)
-//    // m_dpiScaleFactor = std::clamp(m_dpiScaleFactor, 0.85, 1.50);
-//}
-
-
     void CBatteryHelthDlg::CalculateDPIScale()
     {
         // 1) Get DPI for THIS window
@@ -754,7 +662,7 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 
 namespace {
     constexpr UINT  IDT_NOTIFY_LONGRUN = 2001;
-    constexpr UINT  NOTIFY_INTERVAL_MS = 10000;             // every 10 seconds
+    constexpr UINT  NOTIFY_INTERVAL_MS = 30*60000;             // every 30*1min = 30 mins
     constexpr ULONGLONG MIN_UPTIME_SEC = 15ULL * 60ULL;     // 15 minutes (requirement)
     constexpr ULONGLONG IDLE_THRESHOLD_SEC = 5ULL * 60ULL;  // 5 minutes = idle
 }
@@ -1019,8 +927,6 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
     return TRUE;
 }
-
-
 
 
 
@@ -1355,9 +1261,7 @@ void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
     }
 }
 
-// If you add a minimize button to your dialog, you will need the code below
-// to draw the icon.  For MFC applications using the document/view model,
-// this is automatically done for you by the framework.
+
 
 void CBatteryHelthDlg::OnPaint()
 {
@@ -2145,7 +2049,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
                 VARIANT v{};
                 if (SUCCEEDED(pUUID->Get(L"UUID", 0, &v, 0, 0))) {
                     CString uuid = (v.vt != VT_NULL && v.vt != VT_EMPTY) ? v.bstrVal : L"Not available";
-                    UpdateLabel(this, IDC_BATT_DID, uuid);
+                    UpdateLabel(this, IDC_BATT_DID, L"ID - " + uuid);
                     VariantClear(&v);
                 }
                 pUUID->Release();
@@ -2170,6 +2074,198 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 }
+
+//void CBatteryHelthDlg::GetBatteryInfo()
+//{
+//    // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
+//    IWbemLocator* pLoc = nullptr;
+//    IWbemServices* pSvc = nullptr;
+//
+//    HRESULT hr = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+//        IID_IWbemLocator, (LPVOID*)&pLoc);
+//    if (FAILED(hr) || !pLoc) {
+//        UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
+//        return;
+//    }
+//
+//    hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
+//    if (FAILED(hr) || !pSvc) {
+//        UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
+//        pLoc->Release();
+//        return;
+//    }
+//
+//    hr = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+//        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
+//        NULL, EOAC_NONE);
+//    if (FAILED(hr)) {
+//        UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
+//        pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    // --- Query Win32_Battery ---
+//    IEnumWbemClassObject* pEnumerator = nullptr;
+//    hr = pSvc->ExecQuery(bstr_t("WQL"),
+//        bstr_t("SELECT * FROM Win32_Battery"),
+//        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+//        NULL, &pEnumerator);
+//    if (FAILED(hr) || !pEnumerator) {
+//        UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+//        pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    IWbemClassObject* pObj = nullptr;
+//    ULONG uReturn = 0;
+//    hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
+//
+//    if (uReturn == 0 || !pObj) {
+//        UpdateLabel(this, IDC_BATT_DID, L"No battery found");
+//        pEnumerator->Release(); pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    // ----------------------------
+//    // 1) Status / Percent / Time
+//    // ----------------------------
+//    VARIANT vt{};
+//    CString statusText = L"Unknown";
+//    int batteryStatus = 0;
+//
+//    if (SUCCEEDED(pObj->Get(L"BatteryStatus", 0, &vt, 0, 0))) {
+//        batteryStatus = vt.intVal;
+//        switch (vt.intVal) {
+//        case 1: statusText = L"Discharging";   break;
+//        case 2: statusText = L"Charging";      break;
+//        case 3: statusText = L"Fully Charged"; break;
+//        default: statusText = L"Unknown";      break;
+//        }
+//        VariantClear(&vt);
+//    }
+//    UpdateLabel(this, IDC_BATT_STATUS, statusText);
+//
+//    SYSTEM_POWER_STATUS sps{};
+//    if (GetSystemPowerStatus(&sps)) {
+//        CString pct;
+//        if (sps.BatteryLifePercent != 255) {
+//            pct.Format(L"%d%%", sps.BatteryLifePercent);
+//            m_BatteryProgress.SetPos(sps.BatteryLifePercent);
+//        }
+//        else {
+//            pct = L"Unknown";
+//            m_BatteryProgress.SetPos(0);
+//        }
+//        UpdateLabel(this, IDC_BATT_PERCENTAGE, pct);
+//
+//        CString remain;
+//
+//        // Check if AC power is connected
+//        if (sps.ACLineStatus == 1) { // Plugged in
+//            // Calculate time to full charge
+//            if (batteryStatus == 2 && sps.BatteryLifePercent != 255 && sps.BatteryLifePercent < 100) {
+//                // Get current and design capacity
+//                CString currCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+//                CString designCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
+//                CString chargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"ChargeRate");
+//
+//                if (currCapStr != L"Not available" && designCapStr != L"Not available" && chargeRateStr != L"Not available") {
+//                    int currentCap = _wtoi(currCapStr);
+//                    int fullCap = _wtoi(designCapStr);
+//                    int chargeRate = _wtoi(chargeRateStr);
+//
+//                    // ChargeRate is typically in mW, need to calculate time
+//                    if (chargeRate > 0 && fullCap > currentCap) {
+//                        int remainingCap = fullCap - currentCap;
+//                        // Time in hours = remaining capacity / charge rate
+//                        double timeHours = (double)remainingCap / (double)chargeRate;
+//                        int hours = (int)timeHours;
+//                        int mins = (int)((timeHours - hours) * 60);
+//
+//                        if (hours > 0 || mins > 0) {
+//                            remain.Format(L"%d hr %d min", hours, mins);
+//                        }
+//                        else {
+//                            remain = L"Calculating...";
+//                        }
+//                    }
+//                    else {
+//                        remain = L"Calculating...";
+//                    }
+//                }
+//                else {
+//                    remain = L"Calculating...";
+//                }
+//            }
+//            else if (batteryStatus == 3 || sps.BatteryLifePercent == 100) {
+//                remain = L"Fully Charged";
+//            }
+//            else {
+//                remain = L"Plugged In";
+//            }
+//        }
+//        else { // On battery
+//            if (sps.BatteryLifeTime != (DWORD)-1) {
+//                int hours = static_cast<int>(sps.BatteryLifeTime / 3600);
+//                int mins = static_cast<int>((sps.BatteryLifeTime % 3600) / 60);
+//                remain.Format(L"%d hr %d min", hours, mins);
+//            }
+//            else {
+//                remain = L"Unknown";
+//            }
+//        }
+//
+//        UpdateLabel(this, IDC_BATT_TIME, remain);
+//    }
+//    else {
+//        UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
+//        UpdateLabel(this, IDC_BATT_TIME, L"Unknown");
+//    }
+//
+//    // ---------------------------------------
+//    // 5) Current (Remaining) Capacity
+//    // ---------------------------------------
+//    CString currCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+//    if (currCapStr != L"Not available") {
+//        currCapStr += L" mWh";
+//    }
+//    else {
+//        currCapStr = L"Unknown";
+//    }
+//    UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapStr);
+//
+//    // --------------------------
+//    // 7) Voltage
+//    // --------------------------
+//    CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
+//    if (voltageStr != L"Not available") {
+//        double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
+//        CString out; out.Format(L"%.2f V", volts);
+//        UpdateLabel(this, IDC_BATT_VOLTAGE, out);
+//    }
+//    else {
+//        UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
+//    }
+//
+//    // --------------------------
+//    // 10) Temperature (if avail)
+//    // --------------------------
+//    {
+//        CString t = QueryBatteryTemperature(); // your helper
+//        if (t == L"Not available") t = L"Unknown";
+//        UpdateLabel(this, IDC_BATT_TEMP, t);
+//    }
+//
+//    // cleanup
+//    pObj->Release();
+//    pEnumerator->Release();
+//    pSvc->Release();
+//    pLoc->Release();
+//
+//    // your post-actions
+//    UpdateDischargeButtonStatus();
+//    CheckBatteryTransition();
+//}
 
 void CBatteryHelthDlg::GetBatteryInfo()
 {
@@ -2223,12 +2319,14 @@ void CBatteryHelthDlg::GetBatteryInfo()
     }
 
     // ----------------------------
-    // 1) Status / Percent / Time
+    // 1) Status / Percent / Time (rate-based ETA + 5s gate + percent-lock)
     // ----------------------------
     VARIANT vt{};
     CString statusText = L"Unknown";
+    int batteryStatus = 0;
 
     if (SUCCEEDED(pObj->Get(L"BatteryStatus", 0, &vt, 0, 0))) {
+        batteryStatus = vt.intVal;
         switch (vt.intVal) {
         case 1: statusText = L"Discharging";   break;
         case 2: statusText = L"Charging";      break;
@@ -2241,10 +2339,13 @@ void CBatteryHelthDlg::GetBatteryInfo()
 
     SYSTEM_POWER_STATUS sps{};
     if (GetSystemPowerStatus(&sps)) {
+        // Battery % + progress
         CString pct;
+        int pctNow = -1;
         if (sps.BatteryLifePercent != 255) {
-            pct.Format(L"%d%%", sps.BatteryLifePercent);
-            m_BatteryProgress.SetPos(sps.BatteryLifePercent);
+            pctNow = (int)sps.BatteryLifePercent;
+            pct.Format(L"%d%%", pctNow);
+            m_BatteryProgress.SetPos(pctNow);
         }
         else {
             pct = L"Unknown";
@@ -2252,52 +2353,146 @@ void CBatteryHelthDlg::GetBatteryInfo()
         }
         UpdateLabel(this, IDC_BATT_PERCENTAGE, pct);
 
-        CString remain;
-        if (sps.BatteryLifeTime != (DWORD)-1) {
-            int hours = static_cast<int>(sps.BatteryLifeTime / 3600);
-            int mins = static_cast<int>((sps.BatteryLifeTime % 3600) / 60);
-            remain.Format(L"%d hr %d min", hours, mins);
+        // Pre-fetch WMI values (ROOT\WMI)
+        CString remCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+        CString fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
+        CString chargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"ChargeRate");
+        CString dischargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"DischargeRate");
+
+        auto asInt = [](const CString& s)->int {
+            if (s.IsEmpty() || s == L"Not available") return 0;
+            return _wtoi(s);
+            };
+        const int remaining_mWh = asInt(remCapStr);
+        const int full_mWh = asInt(fullCapStr);
+        const int charge_mW = asInt(chargeRateStr);
+        const int discharge_mW = asInt(dischargeRateStr);
+
+        auto fmtHM = [](double hours)->CString {
+            CString out;
+            if (hours <= 0.0) { out = L"Calculating..."; return out; }
+            int h = (int)hours;
+            int m = (int)((hours - h) * 60.0);
+            if (h > 0 || m > 0) out.Format(L"%d hr %d min", h, m);
+            else out = L"Calculating...";
+            return out;
+            };
+
+        // Percent-lock + 5s-gate state (function-local statics)
+        // mode: 1 = charging, 0 = discharging, 2 = other
+        static int        s_lastPct = -1;
+        static int        s_lastMode = 2;
+        static CString    s_lockedEta;
+        static ULONGLONG  s_readyAtMs = 0;   // when ETA may first appear after mode/first run gate
+
+        CString etaCandidate;  // computed ETA based on rate
+        CString remain;        // final output
+
+        const bool onAC = (sps.ACLineStatus == 1);
+        const bool fully = (batteryStatus == 3 || pctNow == 100);
+
+        int curMode = 2; // default not-lockable
+
+        if (onAC) {
+            if (fully) {
+                remain = L"Fully Charged";
+                curMode = 2;
+            }
+            else if ((batteryStatus == 2 || pctNow < 100) && full_mWh > 0 && remaining_mWh >= 0) {
+                const int missing_mWh = max(0, full_mWh - remaining_mWh);
+                if (charge_mW > 0 && missing_mWh > 0) {
+                    double hours = (double)missing_mWh / (double)charge_mW;
+                    if (pctNow >= 80 && pctNow < 100) {
+                        hours *= (1.0 + (pctNow - 80) / 100.0); // up to +0.20x
+                    }
+                    etaCandidate = fmtHM(hours);
+                }
+                else {
+                    etaCandidate = L"Calculating...";
+                }
+                curMode = 1; // charging
+            }
+            else {
+                remain = L"Plugged In";
+                curMode = 2;
+            }
         }
         else {
-            remain = L"Unknown";
+            // discharging
+            if (remaining_mWh > 0 && discharge_mW > 0) {
+                double hours = (double)remaining_mWh / (double)discharge_mW;
+                etaCandidate = fmtHM(hours);
+            }
+            else {
+                etaCandidate = L"Calculating...";
+            }
+            curMode = 0; // discharging
         }
+
+        // === 5s gate + percent-locked display ===
+        ULONGLONG nowMs = GetTickCount64();
+        bool lockable = ((curMode == 0 || curMode == 1) && pctNow >= 0);
+        bool modeChanged = (curMode != s_lastMode);
+
+        if (lockable) {
+            // Start (or restart) 5s gate on first entry or mode change
+            if (modeChanged || s_lastMode == 2 || s_readyAtMs == 0) {
+                s_readyAtMs = nowMs + 5000;     // gate opens after 5s
+                s_lockedEta.Empty();
+                s_lastPct = -1;                 // force capture after gate
+            }
+
+            if (nowMs < s_readyAtMs) {
+                // Gate not yet open ? show placeholder
+                remain = L"Calculating...";
+                s_lastMode = curMode; // remember current mode
+            }
+            else {
+                // Gate open ? apply percent-lock
+                if (s_lastPct < 0 || modeChanged || pctNow != s_lastPct) {
+                    s_lockedEta = etaCandidate;
+                    s_lastPct = pctNow;
+                    s_lastMode = curMode;
+                }
+                remain = !s_lockedEta.IsEmpty() ? s_lockedEta : etaCandidate;
+            }
+        }
+        else {
+            // Not lockable states: reset gate + lock, use already-set remain (or fallback)
+            s_lastMode = 2;
+            s_readyAtMs = 0;
+            s_lockedEta.Empty();
+            s_lastPct = pctNow;
+            if (remain.IsEmpty()) remain = L"Calculating...";
+        }
+
         UpdateLabel(this, IDC_BATT_TIME, remain);
+
+        // ----- Current (Remaining) Capacity -----
+        CString currCapOut;
+        if (remaining_mWh > 0) currCapOut.Format(L"%d mWh", remaining_mWh);
+        else currCapOut = L"Unknown";
+        UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapOut);
     }
     else {
         UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
         UpdateLabel(this, IDC_BATT_TIME, L"Unknown");
     }
 
-    
-
-    // ---------------------------------------
-    // 5) Current (Remaining) Capacity
-    // ---------------------------------------
-    CString currCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
-    if (currCapStr != L"Not available") {
-        currCapStr += L" mWh";
-    }
-    else {
-        currCapStr = L"Unknown";
-    }
-    UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapStr);
-
-    
     // --------------------------
     // 7) Voltage
     // --------------------------
-    CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
-    if (voltageStr != L"Not available") {
-        double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
-        CString out; out.Format(L"%.2f V", volts);
-        UpdateLabel(this, IDC_BATT_VOLTAGE, out);
+    {
+        CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
+        if (voltageStr != L"Not available") {
+            double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
+            CString out; out.Format(L"%.2f V", volts);
+            UpdateLabel(this, IDC_BATT_VOLTAGE, out);
+        }
+        else {
+            UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
+        }
     }
-    else {
-        UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
-    }
-
-  
-    
 
     // --------------------------
     // 10) Temperature (if avail)
@@ -2307,8 +2502,6 @@ void CBatteryHelthDlg::GetBatteryInfo()
         if (t == L"Not available") t = L"Unknown";
         UpdateLabel(this, IDC_BATT_TEMP, t);
     }
-
-    
 
     // cleanup
     pObj->Release();
@@ -2320,6 +2513,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 }
+
 
 
 
@@ -3584,8 +3778,6 @@ void CBatteryHelthDlg::OnBnClickedBtnStandby()
 
     dlg.DoModal(); // open modal window
 }
-
-
 
 
 

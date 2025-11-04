@@ -971,5 +971,6 @@ void CManipulationDlg::RunBatteryManipulationCheck()
 
     // Reset scroll to top on new result
     m_scrollY = 0;
+
     Invalidate(FALSE);
 }

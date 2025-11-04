@@ -1,4 +1,3 @@
-// YourDlg.cpp
 // Live battery ETA panel + Live Charge/Discharge rate line chart (WMI + CallNtPowerInformation)
 // FIXED: Double-buffering to eliminate flicker
 
@@ -37,7 +36,6 @@ bool BatteryTimeEstimator::GetBatteryState(SYSTEM_BATTERY_STATE& state)
 
 static bool InitComSecurityOnce()
 {
-    // It's okay if this was already set in-process.
     HRESULT hr = CoInitializeSecurity(
         nullptr, -1, nullptr, nullptr,
         RPC_C_AUTHN_LEVEL_DEFAULT,
@@ -77,7 +75,7 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
         nullptr, EOAC_NONE);
     if (FAILED(hr)) { pSvc->Release(); pLoc->Release(); scopeUninit(); return false; }
 
-    // Query both ChargeRate and DischargeRate; some systems expose multiple instances
+    // Query both ChargeRate and DischargeRate
     IEnumWbemClassObject* pEnum = nullptr;
     hr = pSvc->ExecQuery(bstr_t("WQL"),
         bstr_t("SELECT ChargeRate, DischargeRate FROM BatteryStatus"),
@@ -85,7 +83,7 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
         nullptr, &pEnum);
     if (FAILED(hr) || !pEnum) { pSvc->Release(); pLoc->Release(); scopeUninit(); return false; }
 
-    LONG totalCharge_mW = 0;      // WMI is unsigned; we store in LONG
+    LONG totalCharge_mW = 0;
     LONG totalDischarge_mW = 0;
 
     IWbemClassObject* pObj = nullptr;
@@ -106,7 +104,6 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
     }
     pEnum->Release();
 
-    // Determine power state / sign
     SYSTEM_POWER_STATUS ps{};
     bool onAC = (GetSystemPowerStatus(&ps) && ps.ACLineStatus == 1);
 
@@ -114,18 +111,16 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
     bool okBat = GetBatteryState(bs);
     bool charging = okBat ? !!bs.Charging : false;
 
-    // If charging -> +ChargeRate; if discharging -> -DischargeRate
-    // If one side is zero due to driver quirk, fall back to the other
     LONG chosen = 0;
     if (charging || onAC) {
         chosen = (totalCharge_mW != 0) ? totalCharge_mW
             : (totalDischarge_mW != 0 ? +totalDischarge_mW : 0);
-        signedRate_mW = chosen; // positive
+        signedRate_mW = chosen;
     }
     else {
         chosen = (totalDischarge_mW != 0) ? totalDischarge_mW
             : (totalCharge_mW != 0 ? +totalCharge_mW : 0);
-        signedRate_mW = (chosen == 0) ? 0 : -chosen; // negative when discharging
+        signedRate_mW = (chosen == 0) ? 0 : -chosen;
     }
 
     pSvc->Release();
@@ -136,17 +131,14 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
 
 void BatteryTimeEstimator::UpdateSmoothedRate(LONG currentRate_mW)
 {
-    // NOTE: currentRate_mW is signed; we smooth absolute for magnitude display
     const float rateAbs = static_cast<float>(std::llabs(static_cast<long long>(currentRate_mW)));
 
     if (kUseRawRate) {
-        // RAW (no smoothing) — matches PowerShell 1:1
         m_smoothedRate = rateAbs;
         m_initialized = true;
         return;
     }
 
-    // EMA smoothing (for nicer UI)
     if (!m_initialized) {
         m_smoothedRate = rateAbs;
         m_initialized = true;
@@ -161,41 +153,119 @@ void BatteryTimeEstimator::CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BA
     info.hoursRemaining = 0.0f;
     info.hoursToFull = 0.0f;
 
-    // Prefer smoothed; fallback to instantaneous Rate if smoothing is 0
     float effectiveRate_mW = (m_smoothedRate > 1.0f) ? m_smoothedRate
         : static_cast<float>(std::llabs(static_cast<long long>(state.Rate)));
 
-    // Very small/missing rate -> idle/unknown; skip ETA
-    if (effectiveRate_mW < 100.0f) return;
+    // Compute a fresh ETA if rate is usable
+    bool etaComputed = false;
+    if (effectiveRate_mW >= 100.0f) {
+        if (info.isCharging) {
+            ULONG missing_mWh = 0;
+            if (info.maxCapacity > info.currentCapacity)
+                missing_mWh = info.maxCapacity - info.currentCapacity;
 
-    if (info.isCharging) {
-        // Time to full (linear + gentle taper near full)
-        ULONG missing_mWh = 0;
-        if (info.maxCapacity > info.currentCapacity)
-            missing_mWh = info.maxCapacity - info.currentCapacity;
-
-        float hours = (missing_mWh > 0) ? (missing_mWh / effectiveRate_mW) : 0.0f;
-
-        // Simple taper correction over 80%
-        if (info.chargePercent > 80.0f) {
-            float slow = 1.0f + (info.chargePercent - 80.0f) / 100.0f; // up to +0.2x
-            hours *= slow;
+            float hours = (missing_mWh > 0) ? (missing_mWh / effectiveRate_mW) : 0.0f;
+            if (info.chargePercent > 80.0f) {
+                float slow = 1.0f + (info.chargePercent - 80.0f) / 100.0f;
+                hours *= slow;
+            }
+            if (hours < 0.05f) hours = 0.05f;
+            if (hours > 10.0f) hours = 10.0f;
+            info.hoursToFull = hours;
+            etaComputed = true;
         }
+        else {
+            if (info.currentCapacity > 0) {
+                float hours = info.currentCapacity / effectiveRate_mW;
+                if (hours < 0.05f) hours = 0.05f;
+                if (hours > 24.0f) hours = 24.0f;
+                info.hoursRemaining = hours;
+                etaComputed = true;
+            }
+        }
+    }
 
-        // Clamp
-        if (hours < 0.05f) hours = 0.05f;
-        if (hours > 10.0f) hours = 10.0f;
-        info.hoursToFull = hours;
+    // === Gate + Percent lock ==========================================
+    // Mode: 0=discharging, 1=charging, 2=neutral
+    static int        s_lastPct = -1;
+    static int        s_lastStableMode = 2;
+    static float      s_lockedToFull = 0.0f;
+    static float      s_lockedRemaining = 0.0f;
+    static bool       s_gateActive = false;
+    static ULONGLONG  s_gateEndMs = 0;
 
+    const bool modeCharging = info.isCharging && !info.isFullyCharged;
+    const bool modeDischarging = !info.isOnAC && !info.isCharging;
+    const int  curMode = modeCharging ? 1 : (modeDischarging ? 0 : 2);
+
+    const int  pctNow = static_cast<int>(info.chargePercent);
+    const ULONGLONG nowMs = GetTickCount64();
+
+    // Start 5s gate only when entering charging/discharging from a different stable mode
+    if (!s_gateActive && (curMode == 0 || curMode == 1) && curMode != s_lastStableMode) {
+        s_gateActive = true;
+        s_gateEndMs = nowMs + 5000;
+        s_lastPct = -1; // force a capture after gate
+        s_lastStableMode = curMode;
+
+        if (curMode == 1)  info.hoursToFull = -1.0f;     // "Calculating…"
+        if (curMode == 0)  info.hoursRemaining = -1.0f;  // "Calculating…"
+        // keep "Calculating..." during gate
+        return;
+    }
+
+    // If moved to neutral, cancel gate and clear sentinels
+    if (curMode == 2) {
+        s_gateActive = false;
+        s_gateEndMs = 0;
+        // neutral does not lock or arm
+        s_lastStableMode = 2;
+    }
+
+    // While gate is active ? stay "Calculating..."
+    if (s_gateActive) {
+        if (nowMs < s_gateEndMs) {
+            if (curMode == 1) info.hoursToFull = -1.0f;
+            if (curMode == 0) info.hoursRemaining = -1.0f;
+            return;
+        }
+        // gate ended
+        s_gateActive = false;
+        s_gateEndMs = 0;
+
+        // If we still couldn't compute ETA, fall back to last lock (or 0 to avoid sticking)
+        if (!etaComputed) {
+            if (curMode == 1)  info.hoursToFull = (s_lockedToFull > 0.0f ? s_lockedToFull : 0.0f);
+            if (curMode == 0)  info.hoursRemaining = (s_lockedRemaining > 0.0f ? s_lockedRemaining : 0.0f);
+        }
+    }
+
+    // Percent lock (update only when integer % changes)
+    if (curMode == 1) {
+        if (s_lastPct < 0 || pctNow != s_lastPct) {
+            if (etaComputed && info.hoursToFull > 0.0f)
+                s_lockedToFull = info.hoursToFull;
+            info.hoursToFull = s_lockedToFull; // might be 0 on first capture
+            s_lastPct = pctNow;
+        }
+        else {
+            info.hoursToFull = s_lockedToFull;
+        }
+    }
+    else if (curMode == 0) {
+        if (s_lastPct < 0 || pctNow != s_lastPct) {
+            if (etaComputed && info.hoursRemaining > 0.0f)
+                s_lockedRemaining = info.hoursRemaining;
+            info.hoursRemaining = s_lockedRemaining;
+            s_lastPct = pctNow;
+        }
+        else {
+            info.hoursRemaining = s_lockedRemaining;
+        }
     }
     else {
-        // Discharge time = remaining mWh / mW
-        if (info.currentCapacity > 0) {
-            float hours = info.currentCapacity / effectiveRate_mW;
-            if (hours < 0.05f) hours = 0.05f;
-            if (hours > 24.0f) hours = 24.0f;
-            info.hoursRemaining = hours;
-        }
+        // neutral: keep lastPct in sync but no locking
+        s_lastPct = pctNow;
     }
 }
 
@@ -203,28 +273,27 @@ void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info)
 {
     if (info.isFullyCharged) {
         info.statusText = L"Fully Charged (100%)";
-        info.detailText.Format(L"%s | %lu mWh",
-            kUseRawRate ? L"src=WMI sum, raw" : L"src=WMI sum, EMA",
-            info.currentCapacity);
+        info.detailText.Format(L"%lu mWh", info.currentCapacity);
         return;
     }
 
     if (info.isCharging) {
-        int h = (int)info.hoursToFull;
-        int m = (int)((info.hoursToFull - h) * 60.0f);
-
-        if (h > 0) {
-            info.statusText.Format(L"Charging: %.0f%% | %dh %02dm until full",
-                info.chargePercent, h, m);
+        if (info.hoursToFull < 0.0f) {
+            info.statusText.Format(L"Charging: %.0f%% | Calculating...", info.chargePercent);
+        }
+        else if (info.hoursToFull <= 0.0f) {
+            info.statusText.Format(L"Charging: %.0f%% | Estimating...", info.chargePercent);
         }
         else {
-            info.statusText.Format(L"Charging: %.0f%% | %d min until full",
-                info.chargePercent, m);
+            int h = (int)info.hoursToFull;
+            int m = (int)((info.hoursToFull - h) * 60.0f);
+            if (h > 0)
+                info.statusText.Format(L"Charging: %.0f%% | %dh %02dm until full", info.chargePercent, h, m);
+            else
+                info.statusText.Format(L"Charging: %.0f%% | %d min until full", info.chargePercent, m);
         }
-
-        info.detailText.Format(L"Charge rate: %.1f W | %lu / %lu mWh | %s",
-            m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity,
-            kUseRawRate ? L"WMI raw" : L"WMI EMA");
+        info.detailText.Format(L"Charge rate: %.1f W | %lu / %lu mWh",
+            m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity);
         return;
     }
 
@@ -235,28 +304,29 @@ void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info)
     }
 
     // Discharging
-    int h = (int)info.hoursRemaining;
-    int m = (int)((info.hoursRemaining - h) * 60.0f);
-
-    if (h > 0) {
-        info.statusText.Format(L"Battery: %.0f%% | %dh %02dm remaining",
-            info.chargePercent, h, m);
+    if (info.hoursRemaining < 0.0f) {
+        info.statusText.Format(L"Battery: %.0f%% | Calculating...", info.chargePercent);
+    }
+    else if (info.hoursRemaining <= 0.0f) {
+        info.statusText.Format(L"Battery: %.0f%% | Estimating...", info.chargePercent);
     }
     else {
-        info.statusText.Format(L"Battery: %.0f%% | %d min remaining",
-            info.chargePercent, m);
+        int h = (int)info.hoursRemaining;
+        int m = (int)((info.hoursRemaining - h) * 60.0f);
+        if (h > 0)
+            info.statusText.Format(L"Battery: %.0f%% | %dh %02dm remaining", info.chargePercent, h, m);
+        else
+            info.statusText.Format(L"Battery: %.0f%% | %d min remaining", info.chargePercent, m);
     }
 
-    info.detailText.Format(L"Discharge rate: %.1f W | %lu / %lu mWh | %s",
-        m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity,
-        kUseRawRate ? L"WMI raw" : L"WMI EMA");
+    info.detailText.Format(L"Discharge rate: %.1f W | %lu / %lu mWh",
+        m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity);
 }
 
 BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
 {
     BatteryTimeInfo info;
 
-    // Basic AC + %
     SYSTEM_POWER_STATUS ps{};
     if (GetSystemPowerStatus(&ps)) {
         info.isOnAC = (ps.ACLineStatus == 1);
@@ -265,7 +335,6 @@ BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
             : 0.0f;
     }
 
-    // Detailed battery state (capacity + raw Rate)
     SYSTEM_BATTERY_STATE bs{};
     if (!GetBatteryState(bs)) {
         info.statusText = L"? Cannot read battery state";
@@ -277,22 +346,16 @@ BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
     info.currentCapacity = bs.RemainingCapacity; // mWh
     info.maxCapacity = bs.MaxCapacity;           // mWh
     info.currentRate_mW = bs.Rate;               // signed (+/-), may be 0
-    info.designCapacity = 0;                     
+    info.designCapacity = 0;
     info.isFullyCharged = (info.chargePercent >= 99.0f && info.isOnAC);
 
-    // Prefer WMI rate if available (sum instances, correct sign)
     LONG wmiRateSigned = 0;
     if (TryReadChargeRateFromWMI(wmiRateSigned) && wmiRateSigned != 0) {
         info.currentRate_mW = wmiRateSigned;
     }
 
-    // Smooth/Raw magnitude update
     UpdateSmoothedRate(info.currentRate_mW);
-
-    // Compute ETAs (use absolute power)
     CalculateTimes(info, bs);
-
-    // Compose texts
     FormatStatusText(info);
 
     return info;
@@ -322,13 +385,11 @@ BOOL CRateInfoDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
-    // Start GDI+
     GdiplusStartupInput gpsi;
     if (GdiplusStartup(&m_gdiplusToken, &gpsi, nullptr) != Ok) {
         AfxMessageBox(L"GDI+ startup failed.", MB_ICONWARNING);
     }
 
-    // Initial read + timer
     UpdateBatteryInfo();
     StartBatteryMonitoring();
 
@@ -348,7 +409,6 @@ void CRateInfoDlg::OnDestroy()
 
 void CRateInfoDlg::StartBatteryMonitoring()
 {
-    // 1s refresh to match your PowerShell watch loop
     SetTimer(TIMER_BATTERY_UPDATE, 1000, nullptr);
 }
 
@@ -362,7 +422,6 @@ void CRateInfoDlg::OnTimer(UINT_PTR nIDEvent)
 
 void CRateInfoDlg::PushSamples(float chargeW, float dischargeW)
 {
-    // Store W or NaN (gap) for both series
     m_samplesChargeW[m_cursor] = chargeW;
     m_samplesDischargeW[m_cursor] = dischargeW;
 
@@ -374,8 +433,6 @@ void CRateInfoDlg::UpdateBatteryInfo()
 {
     m_last = m_estimator.GetBatteryTime();
 
-    // Decide samples based on the signed rate:
-    // >0 ? charging; <0 ? discharging; 0 ? idle
     float chargeW = kMissing, dischargeW = kMissing;
     if (m_last.currentRate_mW > 0) {
         chargeW = (float)m_last.currentRate_mW / 1000.0f; // W
@@ -383,15 +440,13 @@ void CRateInfoDlg::UpdateBatteryInfo()
     else if (m_last.currentRate_mW < 0) {
         dischargeW = std::fabs((float)m_last.currentRate_mW) / 1000.0f; // W
     }
-    // push both; one will be NaN => hidden
-    PushSamples(chargeW, dischargeW);
 
-    Invalidate(FALSE); // trigger repaint (will use double-buffer)
+    PushSamples(chargeW, dischargeW);
+    Invalidate(FALSE);
 }
 
 BOOL CRateInfoDlg::OnEraseBkgnd(CDC* pDC)
 {
-    // Prevent background erase to reduce flicker
     return TRUE;
 }
 
@@ -401,7 +456,6 @@ void CRateInfoDlg::OnPaint()
     CRect rcClient;
     GetClientRect(&rcClient);
 
-    // Create memory DC for double-buffering
     CDC memDC;
     memDC.CreateCompatibleDC(&dc);
 
@@ -409,12 +463,10 @@ void CRateInfoDlg::OnPaint()
     bmp.CreateCompatibleBitmap(&dc, rcClient.Width(), rcClient.Height());
     CBitmap* pOldBmp = memDC.SelectObject(&bmp);
 
-    // Draw everything to memory DC
     Graphics g(memDC.m_hDC);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
 
-    // Clear background
     SolidBrush bgBrush(Color(255, 240, 240, 240));
     g.FillRectangle(&bgBrush, 0, 0, rcClient.Width(), rcClient.Height());
 
@@ -423,51 +475,39 @@ void CRateInfoDlg::OnPaint()
     float y = (float)rcClient.top + margin;
     float w = (float)rcClient.Width() - 2.0f * margin;
 
-    // Card height
     float hCard = 110.0f;
     DrawBatteryCard(g, x, y, w, hCard);
 
-    // Chart rect below card
     float gap = 10.0f;
     float yChart = y + hCard + gap;
     float hChart = std::max(140.0f, (float)rcClient.Height() - (hCard + 3 * margin));
     DrawLivePowerChart(g, x, yChart, w, hChart);
 
-    // Copy memory DC to screen DC (single blit - no flicker)
     dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
-
-    // Cleanup
     memDC.SelectObject(pOldBmp);
 }
 
 void CRateInfoDlg::DrawBatteryCard(Graphics& g, float x, float y, float w, float h)
 {
-    // Background
     SolidBrush bg(Color(255, 255, 255, 255));
     g.FillRectangle(&bg, x, y, w, h);
 
-    // Border
     Pen border(Color(255, 210, 210, 210), 1.5f);
     g.DrawRectangle(&border, x, y, w, h);
 
-    // Fonts
     Gdiplus::FontFamily fam(L"Segoe UI");
     Gdiplus::Font fTitle(&fam, 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
     Gdiplus::Font fDetail(&fam, 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
 
-    // Brushes
     SolidBrush textDark(Color(255, 40, 40, 40));
     SolidBrush textMid(Color(255, 100, 100, 100));
 
-    // Status
     g.DrawString(m_last.statusText.GetString(), -1, &fTitle,
         Gdiplus::PointF(x + 12.f, y + 10.f), &textDark);
 
-    // Detail
     g.DrawString(m_last.detailText.GetString(), -1, &fDetail,
         Gdiplus::PointF(x + 12.f, y + 34.f), &textMid);
 
-    // Battery bar
     float barY = y + 64.f;
     float barH = 20.f;
     float barW = w - 24.f;
@@ -476,7 +516,6 @@ void CRateInfoDlg::DrawBatteryCard(Graphics& g, float x, float y, float w, float
     SolidBrush barBg(Color(255, 235, 235, 235));
     g.FillRectangle(&barBg, barX, barY, barW, barH);
 
-    // Fill color by state
     Color fillColor;
     if (m_last.isCharging) fillColor = Color(255, 0, 180, 0);
     else if (m_last.chargePercent < 20.0f) fillColor = Color(255, 220, 20, 60);
@@ -489,7 +528,6 @@ void CRateInfoDlg::DrawBatteryCard(Graphics& g, float x, float y, float w, float
     SolidBrush barFill(fillColor);
     g.FillRectangle(&barFill, barX, barY, fillW, barH);
 
-    // Percentage centered
     CString pct; pct.Format(L"%.0f%%", m_last.chargePercent);
 
     Gdiplus::RectF r(barX, barY, barW, barH);
@@ -505,25 +543,20 @@ static inline bool isNaNf(float v) { return std::isnan(v) != 0; }
 
 void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, float h)
 {
-    // Decide which series to display: charge OR discharge
     const bool showCharge = (m_last.currentRate_mW > 0) || m_last.isCharging;
 
     const std::vector<float>& series = showCharge ? m_samplesChargeW : m_samplesDischargeW;
     const WCHAR* chartTitle = showCharge ? L"Live Charge Rate" : L"Live Discharge Rate";
 
-    // Panel background
     SolidBrush bg(Color(255, 252, 252, 252));
     g.FillRectangle(&bg, x, y, w, h);
 
-    // Border
     Pen border(Color(255, 210, 210, 210), 1.5f);
     g.DrawRectangle(&border, x, y, w, h);
 
-    // Inner plot area with padding for axes (extra room under the title)
-    const float padL = 46.f, padR = 12.f, padT = 40.f, padB = 24.f; // <-- increased padT
+    const float padL = 46.f, padR = 12.f, padT = 40.f, padB = 24.f;
     const float px = x + padL, py = y + padT, pw = w - padL - padR, ph = h - padT - padB;
 
-    // Title & axis labels
     Gdiplus::FontFamily fam(L"Segoe UI");
     Gdiplus::Font fTitle(&fam, 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
     Gdiplus::Font fAxis(&fam, 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
@@ -533,19 +566,15 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
     CString title; title.Format(L"%s (last %d s)", chartTitle, kWindowSeconds);
     g.DrawString(title, -1, &fTitle, Gdiplus::PointF(x + 12.f, y + 6.f), &textDark);
 
-    // Determine Y max (auto-scale). Min 1 W
     float maxW = 1.0f;
     const int N = kWindowSeconds;
     for (int i = 0; i < N; ++i) {
         float v = series[i];
         if (!isNaNf(v)) maxW = std::max(maxW, v);
     }
-    // Add headroom
     maxW *= 1.15f;
-    // Round up a bit for nicer grid (to nearest 0.5)
     maxW = std::max(1.0f, std::ceil(maxW * 2.0f) / 2.0f);
 
-    // Grid lines (5 horizontal)
     Pen grid(Color(255, 230, 230, 230), 1.0f);
     const int gridLines = 5;
     for (int i = 0; i <= gridLines; ++i) {
@@ -557,9 +586,8 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         g.DrawString(lbl, -1, &fAxis, Gdiplus::PointF(x + 6.f, yy - 9.f), &textMid);
     }
 
-    // X-axis labels: 0s, 30s, 60s, 90s, 120s (left ? right)
     {
-        const int step = N / 4; // 120 -> 30
+        const int step = N / 4;
         CString l0, l1, l2, l3, l4;
         l0.Format(L"%ds", 0);
         l1.Format(L"%ds", step);
@@ -575,17 +603,14 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         g.DrawString(l4, -1, &fAxis, Gdiplus::PointF(px + pw - 22.f, yLab), &textMid);
     }
 
-    // Axes
     Pen axis(Color(255, 180, 180, 180), 1.2f);
     g.DrawLine(&axis, px, py, px, py + ph);
     g.DrawLine(&axis, px, py + ph, px + pw, py + ph);
 
-    // Build and draw polyline (skip NaN gaps)
     auto idxToSample = [&](int k)->float {
-        // k: 0..N-1 where 0 = oldest, N-1 = newest
-        int base = m_filled ? m_cursor : 0; // when filled, m_cursor points to *next* write slot
+        int base = m_filled ? m_cursor : 0;
         int realIdx = m_filled ? ((base + k) % N) : k;
-        if (!m_filled && k >= m_cursor) return kMissing; // not yet written
+        if (!m_filled && k >= m_cursor) return kMissing;
         return series[realIdx];
         };
 
@@ -599,7 +624,6 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         return py + ph * (1.0f - t);
         };
 
-    // Color per mode: green = charge, blue = discharge
     Pen linePen(showCharge ? Color(255, 0, 180, 0) : Color(255, 0, 122, 204), 2.0f);
 
     bool hasPrev = false;
@@ -612,7 +636,6 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         prev = cur; hasPrev = true;
     }
 
-    // Latest value badge (right-top)
     float latest = kMissing;
     if (m_filled || m_cursor > 0) {
         int newestIdx = (m_cursor + N - 1) % N;
