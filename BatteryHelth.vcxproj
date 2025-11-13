@@ -191,6 +191,7 @@
     <ClInclude Include="CPerfDlg.h" />
     <ClInclude Include="CPredictionDlg.h" />
     <ClInclude Include="CRateInfoDlg.h" />
+    <ClInclude Include="CSleepDataDlg.h" />
     <ClInclude Include="CTrendDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
@@ -206,6 +207,7 @@
     <ClCompile Include="CPerfDlg.cpp" />
     <ClCompile Include="CPredictionDlg.cpp" />
     <ClCompile Include="CRateInfoDlg.cpp" />
+    <ClCompile Include="CSleepDataDlg.cpp" />
     <ClCompile Include="CTrendDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -241,6 +243,7 @@
     <Image Include="..\..\..\OneDrive\Desktop\Manipulation.png" />
     <Image Include="..\..\..\OneDrive\Desktop\prediction.png" />
     <Image Include="..\..\..\OneDrive\Desktop\rate2.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\sleep.png" />
     <Image Include="..\..\..\OneDrive\Desktop\stand by.png" />
     <Image Include="..\..\..\OneDrive\Desktop\standby.png" />
     <Image Include="..\..\..\OneDrive\Desktop\standing-up-man-icon-png.png" />

@@ -20,6 +20,8 @@
 
 #include <unordered_map>
 
+#include <PowerSetting.h> 
+#pragma comment(lib, "User32.lib")
 
 
 // CBatteryHelthDlg dialog
@@ -171,7 +173,7 @@ public:
 			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
 			IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
 			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN, IDC_BTN_RATEINFO,
-			IDC_BTN_BGAPP
+			IDC_BTN_BGAPP,IDC_BTN_SLEEP
 		};
 
 		// Per-button hover state, keyed by control ID
@@ -191,15 +193,16 @@ public:
 			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 },
 		     { IDC_BTN_RATEINFO, IDB_PNG11 },	
 			{IDC_BTN_BGAPP, IDB_PNG12},
+			{IDC_BTN_SLEEP, IDB_PNG13},
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
 		CStatic textEdit;
 
 
-		CToolTipCtrl m_toolTip;   // tooltip control
+		CToolTipCtrl m_toolTip;   
 
-		virtual BOOL PreTranslateMessage(MSG* pMsg); // to relay mouse events
+		virtual BOOL PreTranslateMessage(MSG* pMsg); 
 		void InitToolTips();
 
 
@@ -312,6 +315,31 @@ protected:
 public:
 	afx_msg void OnBnClickedBtnBgapp();
 	afx_msg void OnBnClickedBtnRateinfo();
+
+
+	protected:
+		// === Toggle state ===
+		enum class Lang { EN, JP };
+		Lang m_lang = Lang::EN; // default: English
+
+		// Helpers
+		void RedrawToggleButtons();
+		void DrawToggleButton(LPDRAWITEMSTRUCT lpDrawItemStruct, bool active, const wchar_t* text);
+	
+
+		void UpdateLanguageTexts();
+
+		// Single power-broadcast sink for the whole app
+		afx_msg UINT OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData);
+
+		// Power setting notification handle (display on/off/dim)
+		HPOWERNOTIFY m_hDispNotify = nullptr;
+
+
+public:
+	afx_msg void OnBnClickedBtnEn();
+	afx_msg void OnBnClickedBtnJp();
+	afx_msg void OnBnClickedBtnSleep();
 };
 
 

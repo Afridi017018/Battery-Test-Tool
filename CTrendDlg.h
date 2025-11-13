@@ -38,6 +38,7 @@ protected:
 public:
     afx_msg void OnBnClickedButton2();
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
+	bool eng_lang;
 
 };
 

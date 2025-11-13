@@ -1,4 +1,4 @@
-// BatteryHelthDlg.cpp : implementation file
+﻿// BatteryHelthDlg.cpp : implementation file
 //
 
 #include "pch.h"
@@ -54,6 +54,8 @@
 #include "CManipulationDlg.h"
 
 #include "CRateInfoDlg.h"
+
+#include"CSleepDataDlg.h"
 
 
 #include <string>
@@ -170,6 +172,11 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_MANIPULATIOIN, &CBatteryHelthDlg::OnBnClickedBtnManipulatioin)
     ON_BN_CLICKED(IDC_BTN_BGAPP, &CBatteryHelthDlg::OnBnClickedBtnBgapp)
     ON_BN_CLICKED(IDC_BTN_RATEINFO, &CBatteryHelthDlg::OnBnClickedBtnRateinfo)
+    ON_BN_CLICKED(IDC_BTN_EN, &CBatteryHelthDlg::OnBnClickedBtnEn)
+    ON_BN_CLICKED(IDC_BTN_JP, &CBatteryHelthDlg::OnBnClickedBtnJp)
+    ON_BN_CLICKED(IDC_BTN_SLEEP, &CBatteryHelthDlg::OnBnClickedBtnSleep)
+
+    ON_WM_POWERBROADCAST()   // main dialog is the single logger
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -206,7 +213,7 @@ static void BuildSeries(float initialPct, float currentPct, float ratePctPerMin,
 
 
 
-    void CBatteryHelthDlg::CalculateDPIScale()
+void CBatteryHelthDlg::CalculateDPIScale()
     {
         // 1) Get DPI for THIS window
         UINT dpi = 96;
@@ -481,7 +488,7 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP
     };
 
     for (auto id : ids)
@@ -869,7 +876,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP
     };
 
     for (auto id : ids)
@@ -925,6 +932,26 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     // Then keep checking every 10 seconds
     m_timerId = SetTimer(IDT_NOTIFY_LONGRUN, NOTIFY_INTERVAL_MS, nullptr);
 
+
+    ///Toggle button
+    // === Make the two buttons owner-drawn so we can color them ===
+    if (CWnd* p = GetDlgItem(IDC_BTN_JP)) p->ModifyStyle(0, BS_OWNERDRAW);
+    if (CWnd* p = GetDlgItem(IDC_BTN_EN)) p->ModifyStyle(0, BS_OWNERDRAW);
+
+    // Initial visual state (default EN active)
+    RedrawToggleButtons();
+
+    //SetDlgItemTextW(IDC_STATIC_LN, L"言語: 日本語");
+
+
+
+	// Register for display on/off/dim notifications (sleep-awake features)
+    m_hDispNotify = RegisterPowerSettingNotification(
+        m_hWnd,
+        &GUID_CONSOLE_DISPLAY_STATE,
+        DEVICE_NOTIFY_WINDOW_HANDLE);
+
+
     return TRUE;
 }
 
@@ -958,6 +985,9 @@ void CBatteryHelthDlg::InitToolTips()
         { IDC_BTN_MANIPULATIOIN,   L"Ditect Manipulation" },
 		{ IDC_BTN_RATEINFO,   L"Charge/Discharge Rate Information" },
         { IDC_BTN_BGAPP,   L"Long-Running Background Applications" },
+        { IDC_BTN_EN,   L"English Language" },
+        { IDC_BTN_JP,   L"Japanese Language" },
+        { IDC_BTN_SLEEP,   L"Sleep Logs" },
 
     };
 
@@ -1726,7 +1756,7 @@ CString QueryBatteryTemperature()
                                     tempCelsius = vtProp.lVal; // Already in Celsius
                                 }
 
-                                result.Format(L"%.1f�C", tempCelsius);
+                                result.Format(L"%.1f°C", tempCelsius);
                                 VariantClear(&vtProp);
                                 pObj->Release();
                                 pEnumerator->Release();
@@ -1797,7 +1827,7 @@ CString QueryBatteryTemperature()
                                 }
                                 // else assume already in Celsius
 
-                                result.Format(L"%.1f�C", temp);
+                                result.Format(L"%.1f°C", temp);
                                 VariantClear(&vtProp);
                                 break;
                             }
@@ -1845,7 +1875,7 @@ CString QueryBatteryTemperature()
                                 // CurrentReading is usually in tenths of Kelvin
                                 double tempKelvin = vtProp.lVal / 10.0;
                                 double tempCelsius = tempKelvin - 273.15;
-                                result.Format(L"%.1f�C", tempCelsius);
+                                result.Format(L"%.1f°C", tempCelsius);
                             }
                         }
                         VariantClear(&vtProp);
@@ -3531,6 +3561,22 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 
 
 
+    if (!lpDrawItemStruct)
+    {
+        CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
+        return;
+    }
+
+    const bool isJP = (nIDCtl == IDC_BTN_JP);
+    const bool isEN = (nIDCtl == IDC_BTN_EN);
+
+    if (isJP || isEN)
+    {
+        const bool active = (isJP && m_lang == Lang::JP) || (isEN && m_lang == Lang::EN);
+        DrawToggleButton(lpDrawItemStruct, active, isJP ? L"JP" : L"EN");
+        return; // handled
+    }
+
 
     CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
 }
@@ -3544,7 +3590,8 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
     if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY 
         || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE 
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
-		|| pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP
+		|| pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP 
+        || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
@@ -3563,6 +3610,11 @@ void CBatteryHelthDlg::OnDestroy()
 
     if (m_timerId) { KillTimer(m_timerId); m_timerId = 0; }
     RemoveTrayIcon();
+
+    if (m_hDispNotify) {
+        UnregisterPowerSettingNotification(m_hDispNotify);
+        m_hDispNotify = nullptr;
+    }
 
     CDialogEx::OnDestroy();
 }
@@ -3642,7 +3694,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
     csv += L"Period ,FullChargeCapacity,DesignCapacity,Health_%\r\n";
 
     for (const auto& r : hist) {
-        // If you also want ISO date, you can format COleDateTime here; we�ll stick to dateText.
+        // If you also want ISO date, you can format COleDateTime here; we’ll stick to dateText.
         CString line;
         line.Format(L"%s,%d,%d,%.2f\r\n",
             r.dateText.GetString(),
@@ -3762,7 +3814,14 @@ void CBatteryHelthDlg::OnBnClickedBtnActive()
     // std::vector<float> full = { ... };
     // std::vector<float> design = { ... };
     // dlg.SetData(labels, full, design);
-
+    // TODO: Add your control notification handler code here
+    if (m_lang == Lang::EN)
+    {
+		dlg.eng_lang = true;
+    }
+    else{
+        dlg.eng_lang = false;
+    }
     dlg.DoModal(); // open modal window
 }
 
@@ -4340,4 +4399,117 @@ void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
 
 	CRateInfoDlg dlg(this); 
 	dlg.DoModal();
+}
+
+
+
+void CBatteryHelthDlg::RedrawToggleButtons()
+{
+    if (CWnd* p = GetDlgItem(IDC_BTN_JP)) p->Invalidate();
+    if (CWnd* p = GetDlgItem(IDC_BTN_EN)) p->Invalidate();
+    UpdateWindow();
+}
+
+
+
+void CBatteryHelthDlg::DrawToggleButton(LPDRAWITEMSTRUCT lp, bool active, const wchar_t* text)
+{
+    CDC* pDC = CDC::FromHandle(lp->hDC);
+    CRect rc(lp->rcItem);
+
+    // Colors
+    const COLORREF clrActiveBk = RGB(0, 120, 215);               // Blue
+    const COLORREF clrInactiveBk = ::GetSysColor(COLOR_BTNFACE);   // Default face
+    const COLORREF clrActiveTx = RGB(255, 255, 255);             // White
+    const COLORREF clrInactiveTx = ::GetSysColor(COLOR_BTNTEXT);   // Default text
+
+    // Background fill
+    CBrush br(active ? clrActiveBk : clrInactiveBk);
+    pDC->FillRect(&rc, &br);
+
+    // 3D edge depending on pressed state
+    pDC->DrawEdge(&rc, (lp->itemState & ODS_SELECTED) ? EDGE_SUNKEN : EDGE_RAISED, BF_RECT);
+
+    // Text
+    int oldBkMode = pDC->SetBkMode(TRANSPARENT);
+    COLORREF oldTx = pDC->SetTextColor(active ? clrActiveTx : clrInactiveTx);
+
+    // Use the control's assigned font (or dialog font)
+    CFont* pOldFont = nullptr;
+    if (CWnd* pBtn = GetDlgItem(lp->CtlID))
+    {
+        if (CFont* pFont = pBtn->GetFont())
+            pOldFont = pDC->SelectObject(pFont);
+    }
+
+    CRect rcText = rc;
+    rcText.DeflateRect(4, 2);
+    UINT format = DT_CENTER | DT_VCENTER | DT_SINGLELINE;
+    pDC->DrawText(text, (int)wcslen(text), &rcText, format);
+
+    // Focus rect (keyboard navigation)
+    if ((lp->itemState & ODS_FOCUS) != 0)
+    {
+        CRect rcFocus = rc; rcFocus.DeflateRect(3, 3);
+        pDC->DrawFocusRect(&rcFocus);
+    }
+
+    // Restore GDI objects/state
+    if (pOldFont) pDC->SelectObject(pOldFont);
+    pDC->SetTextColor(oldTx);
+    pDC->SetBkMode(oldBkMode);
+}
+void CBatteryHelthDlg::OnBnClickedBtnEn()
+{
+    // TODO: Add your control notification handler code here
+    if (m_lang != Lang::EN)
+    {
+        m_lang = Lang::EN;
+        /*UpdateLanguageTexts();*/
+        RedrawToggleButtons();
+        // TODO: apply English strings / resources here if needed
+    }
+}
+
+void CBatteryHelthDlg::OnBnClickedBtnJp()
+{
+    // TODO: Add your control notification handler code here
+    if (m_lang != Lang::JP)
+    {
+        m_lang = Lang::JP;
+       /* UpdateLanguageTexts();*/
+        RedrawToggleButtons();
+        // TODO: apply Japanese strings / resources here if needed
+    }
+}
+
+
+
+
+
+
+
+void CBatteryHelthDlg::OnBnClickedBtnSleep()
+{
+    CSleepDataDlg dlg;
+    dlg.DoModal(); // shows persistent log, auto-refreshing
+}
+
+
+// ====== Single power-broadcast sink(sleep-awake feture) ======
+UINT CBatteryHelthDlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData)
+{
+    // 1) Handle display on/off/dim (screen-only case -> create a single row like sleep)
+    if (nPowerEvent == PBT_POWERSETTINGCHANGE) {
+        auto* ps = reinterpret_cast<POWERBROADCAST_SETTING*>(nEventData);
+        if (ps && ps->PowerSetting == GUID_CONSOLE_DISPLAY_STATE && ps->DataLength >= sizeof(DWORD)) {
+            DWORD state = *reinterpret_cast<DWORD*>(ps->Data); // 0=Off,1=On,2=Dim
+            CSleepDataDlg::HandleDisplayState(state);
+            return TRUE;
+        }
+    }
+
+    // 2) Normal sleep/hibernate tracking (suspend/resume) with de-dup
+    CSleepDataDlg::HandlePowerBroadcast(nPowerEvent);
+    return TRUE; // handled
 }

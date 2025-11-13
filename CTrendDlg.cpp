@@ -179,6 +179,12 @@ BOOL CTrendDlg::OnInitDialog() {
     RunPowerCfgBatteryReport(reportPath); // best effort
     LoadFromBatteryReport(reportPath);    // populate m_periods/m_full/m_design
 
+ /*   if (eng_lang) {
+        AfxMessageBox(L"true", MB_ICONINFORMATION | MB_TOPMOST);
+    }
+    else {
+        AfxMessageBox(L"false", MB_ICONINFORMATION | MB_TOPMOST);
+    }*/
     return TRUE;
 }
 
