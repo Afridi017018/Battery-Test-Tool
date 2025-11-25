@@ -121,7 +121,7 @@ END_MESSAGE_MAP()
 CBatteryHelthDlg::CBatteryHelthDlg(CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_BATTERYHELTH_DIALOG, pParent)
 {
-    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    m_hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
 }
 
 void CBatteryHelthDlg::DoDataExchange(CDataExchange* pDX)
@@ -2862,7 +2862,6 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     }
 
 
-
     if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
     {
         m_CPU_Progress.ShowWindow(SW_SHOW);
@@ -2876,8 +2875,6 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         CString msg;
         /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
         msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", percentDone);
-
-
 
 
         /*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
@@ -3375,7 +3372,7 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         };
 
     // Write CSV header with Cycle Count
-    csvFile << "Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Battery ID,Battery Name,Estimated Time,Cycle Count,CPU Load Test,Discharge Test\n";
+    csvFile << "Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Battery ID,Battery Name,Estimated Time,Cycle Count\n";
 
     // Get current values from controls
     CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
@@ -3406,9 +3403,7 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         << toCsvField(deviceID) << ","
         << toCsvField(battName) << ","
         << toCsvField(estTime) << ","
-        << toCsvField(cycleCount) << ","
-        << toCsvField(m_cpuLoadResult) << ","
-        << toCsvField(m_dischargeResult) << "\n";
+        << toCsvField(cycleCount) << ","<< "\n";
 
     csvFile.close();
 
@@ -4145,7 +4140,7 @@ void CBatteryHelthDlg::EnsureTrayIcon()
     m_nid.uID = 1;
     m_nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     m_nid.uCallbackMessage = WM_APP + 10;
-    m_nid.hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    m_nid.hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
     lstrcpynW(m_nid.szTip, L"App Uptime Notifier", _countof(m_nid.szTip));
 
     if (Shell_NotifyIconW(NIM_ADD, &m_nid))

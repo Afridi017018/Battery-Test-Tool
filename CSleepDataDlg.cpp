@@ -393,6 +393,7 @@ CString CSleepDataDlg::FormatSysTime(const std::chrono::system_clock::time_point
     return CString(buf);
 }
 
+
 // ========================== Tracking logic (static, no UI) ==========================
 void CSleepDataDlg::TrackBeforeSleep_NoUI()
 {
@@ -417,6 +418,7 @@ void CSleepDataDlg::TrackBeforeSleep_NoUI()
     s_beforeSleep.percent = pctBefore;
     s_beforeSleep.t = std::chrono::system_clock::now();
 }
+
 
 void CSleepDataDlg::TrackAfterResume_NoUI()
 {
@@ -449,6 +451,7 @@ void CSleepDataDlg::TrackAfterResume_NoUI()
     AppendLogStatic(line);
     s_beforeSleep.valid = false;
 }
+
 
 void CSleepDataDlg::AppendLogStatic(const CString& line)
 {

@@ -146,6 +146,50 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
     return lab;
 }
 
+// ==================== NEW: Compute global min start date and max end date ====================
+static void ComputeMinMaxPeriodLabels(const std::vector<CString>& periods, int count,
+    CStringW& outMinStart, CStringW& outMaxEnd)
+{
+    outMinStart.Empty();
+    outMaxEnd.Empty();
+
+    if (count <= 0 || periods.empty())
+        return;
+
+    bool first = true;
+    CStringW minStart, maxEnd;
+
+    for (int i = 0; i < count && i < (int)periods.size(); ++i) {
+        CStringW p = periods[i]; // format: "MM-DD" or "MM-DD–MM-DD"
+        CStringW start = p;
+        CStringW end = p;
+
+        int dashPos = p.Find(L'–'); // en dash between two dates
+        if (dashPos >= 0) {
+            start = p.Left(dashPos);
+            end = p.Mid(dashPos + 1);
+        }
+
+        start.Trim();
+        end.Trim();
+
+        if (first) {
+            minStart = start;
+            maxEnd = end;
+            first = false;
+        }
+        else {
+            if (start.Compare(minStart) < 0)
+                minStart = start;
+            if (end.Compare(maxEnd) > 0)
+                maxEnd = end;
+        }
+    }
+
+    outMinStart = minStart;
+    outMaxEnd = maxEnd;
+}
+
 
 // ==================== MFC dialog plumbing ====================
 CTrendDlg::CTrendDlg(CWnd* pParent) : CDialogEx(IDD_TREND_DIALOG, pParent) {}
@@ -179,12 +223,6 @@ BOOL CTrendDlg::OnInitDialog() {
     RunPowerCfgBatteryReport(reportPath); // best effort
     LoadFromBatteryReport(reportPath);    // populate m_periods/m_full/m_design
 
- /*   if (eng_lang) {
-        AfxMessageBox(L"true", MB_ICONINFORMATION | MB_TOPMOST);
-    }
-    else {
-        AfxMessageBox(L"false", MB_ICONINFORMATION | MB_TOPMOST);
-    }*/
     return TRUE;
 }
 
@@ -453,8 +491,16 @@ void CTrendDlg::OnPaint()
             }
 
             // ---------- PERIOD LABELS: in reserved lane BELOW the chart ----------
+            // Compute global min start and max end across all fPeriods (filtered series)
+            CStringW minStartTop, maxEndTop;
+            ComputeMinMaxPeriodLabels(fPeriods, useF, minStartTop, maxEndTop);
+
             const float baseY = y1 + h1 + labelGap; // a bit below the axis
             for (int i = 0; i < useF; ++i) {
+                // draw labels only for first and last valid points
+                if (i != 0 && i != useF - 1)
+                    continue;
+
                 Gdiplus::REAL x = x1 + stepX * i;
 
                 // small guide tick pointing to label lane (optional)
@@ -462,19 +508,22 @@ void CTrendDlg::OnPaint()
 
                 // rotate -45° and draw text anchored to the RIGHT of the tick,
                 // so the label grows leftward (prevents clipping at the right edge)
-                Gdiplus::Matrix oldT; g.GetTransform(&oldT);
+                Gdiplus::Matrix oldT;
+                g.GetTransform(&oldT);
                 g.TranslateTransform(x, baseY + 10.f); // +10 so it stays well clear of axis
                 g.RotateTransform(-45.f);
 
                 Gdiplus::SolidBrush lblBrush(Gdiplus::Color(255, 40, 40, 40));
-                Gdiplus::Font tickFont(L"Segoe UI", 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
+                Gdiplus::Font tickFont2(L"Segoe UI", 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
 
                 Gdiplus::StringFormat farFmt;
                 farFmt.SetAlignment(Gdiplus::StringAlignmentFar);
                 farFmt.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
-                // negative small X-offset keeps last label fully visible
-                g.DrawString(fPeriods[i].GetString(), -1, &tickFont,
+                // First label = global min start; last label = global max end
+                const CStringW& label = (i == 0) ? minStartTop : maxEndTop;
+
+                g.DrawString(label, -1, &tickFont2,
                     Gdiplus::PointF(-2.f, 0.f), &farFmt, &lblBrush);
 
                 g.SetTransform(&oldT);
@@ -567,14 +616,23 @@ void CTrendDlg::OnPaint()
         }
 
         // ---------- PERIOD LABELS BELOW THE HEALTH CHART ----------
+        // Compute global min start and max end across all m_periods (health chart uses full series)
+        CStringW minStartBottom, maxEndBottom;
+        ComputeMinMaxPeriodLabels(m_periods, useN, minStartBottom, maxEndBottom);
+
         const float baseY2 = y2 + h2 + labelGap;
         for (int i = 0; i < useN; ++i) {
+            // draw labels only for first and last points
+            if (i != 0 && i != useN - 1)
+                continue;
+
             Gdiplus::REAL x = x2 + stepX2 * i;
 
             // small guide tick
             g.DrawLine(&axis, x, y2 + h2 + 4.f, x, y2 + h2 + 8.f);
 
-            Gdiplus::Matrix oldT; g.GetTransform(&oldT);
+            Gdiplus::Matrix oldT;
+            g.GetTransform(&oldT);
             g.TranslateTransform(x, baseY2 + 10.f);
             g.RotateTransform(-45.f);
 
@@ -583,7 +641,10 @@ void CTrendDlg::OnPaint()
             farFmt.SetAlignment(Gdiplus::StringAlignmentFar);
             farFmt.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
-            g.DrawString(m_periods[i].GetString(), -1, &fTick2,
+            // First label = global min start; last label = global max end
+            const CStringW& label = (i == 0) ? minStartBottom : maxEndBottom;
+
+            g.DrawString(label, -1, &fTick2,
                 Gdiplus::PointF(-2.f, 0.f), &farFmt, &lblBrush);
 
             g.SetTransform(&oldT);
@@ -607,10 +668,3 @@ void CTrendDlg::OnPaint()
     dc.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
 }
-
-
-
-
-
-
-

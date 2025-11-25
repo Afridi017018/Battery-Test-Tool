@@ -182,5 +182,8 @@
     <Image Include="..\..\..\OneDrive\Desktop\sleep.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\batteryHealthIcon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

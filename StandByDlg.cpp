@@ -146,6 +146,50 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
     return lab;
 }
 
+// ==================== NEW: Compute global min start date and max end date ====================
+static void ComputeMinMaxPeriodLabels(const std::vector<CString>& periods, int count,
+    CStringW& outMinStart, CStringW& outMaxEnd)
+{
+    outMinStart.Empty();
+    outMaxEnd.Empty();
+
+    if (count <= 0 || periods.empty())
+        return;
+
+    bool first = true;
+    CStringW minStart, maxEnd;
+
+    for (int i = 0; i < count && i < (int)periods.size(); ++i) {
+        CStringW p = periods[i]; // "MM-DD" or "MM-DD–MM-DD"
+        CStringW start = p;
+        CStringW end = p;
+
+        int dashPos = p.Find(L'–'); // en dash
+        if (dashPos >= 0) {
+            start = p.Left(dashPos);
+            end = p.Mid(dashPos + 1);
+        }
+
+        start.Trim();
+        end.Trim();
+
+        if (first) {
+            minStart = start;
+            maxEnd = end;
+            first = false;
+        }
+        else {
+            if (start.Compare(minStart) < 0)
+                minStart = start;
+            if (end.Compare(maxEnd) > 0)
+                maxEnd = end;
+        }
+    }
+
+    outMinStart = minStart;
+    outMaxEnd = maxEnd;
+}
+
 
 // ==================== MFC dialog plumbing ====================
 StandByDlg::StandByDlg(CWnd* pParent) : CDialogEx(IDD_STANDBY_DIALOG, pParent) {}
@@ -442,16 +486,24 @@ void StandByDlg::OnPaint()
             }
 
             // ---------- PERIOD LABELS: in reserved lane BELOW the chart ----------
+            // Only first label = global min start, last label = global max end
+            CStringW minStartTop, maxEndTop;
+            ComputeMinMaxPeriodLabels(fPeriods, useF, minStartTop, maxEndTop);
+
             const float baseY = y1 + h1 + labelGap; // a bit below the axis
             for (int i = 0; i < useF; ++i) {
+                // only draw two labels: first and last
+                if (i != 0 && i != useF - 1)
+                    continue;
+
                 const Gdiplus::REAL x = x1 + stepX * i;
 
                 // small guide tick pointing to label lane (optional)
                 g.DrawLine(&axis, x, y1 + h1 + 4.f, x, y1 + h1 + 8.f);
 
-                // rotate -45° and draw text anchored near the point's x
+                // rotate -45° and draw text
                 Gdiplus::Matrix oldT; g.GetTransform(&oldT);
-                g.TranslateTransform(x, baseY + 10.f); // +10 so it stays well clear of axis
+                g.TranslateTransform(x, baseY + 20.f); // increased padding from x-axis
                 g.RotateTransform(-45.f);
 
                 Gdiplus::SolidBrush lblBrush(Gdiplus::Color(255, 40, 40, 40));
@@ -460,7 +512,10 @@ void StandByDlg::OnPaint()
                 nearFmt.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
                 Gdiplus::Font tickFont(L"Segoe UI", 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
-                g.DrawString(fPeriods[i].GetString(), -1, &tickFont,
+
+                const CStringW& label = (i == 0) ? minStartTop : maxEndTop;
+
+                g.DrawString(label, -1, &tickFont,
                     Gdiplus::PointF(0.f, 0.f), &nearFmt, &lblBrush);
                 g.SetTransform(&oldT);
             }
@@ -551,15 +606,23 @@ void StandByDlg::OnPaint()
         }
 
         // ---------- PERIOD LABELS BELOW THE HEALTH CHART ----------
+        // Only first label = global min start, last = global max end
+        CStringW minStartBottom, maxEndBottom;
+        ComputeMinMaxPeriodLabels(m_periods, useN, minStartBottom, maxEndBottom);
+
         const float baseY2 = y2 + h2 + labelGap;
         for (int i = 0; i < useN; ++i) {
+            // only first and last
+            if (i != 0 && i != useN - 1)
+                continue;
+
             const Gdiplus::REAL x = x2 + stepX2 * i;
 
             // small guide tick
             g.DrawLine(&axis, x, y2 + h2 + 4.f, x, y2 + h2 + 8.f);
 
             Gdiplus::Matrix oldT; g.GetTransform(&oldT);
-            g.TranslateTransform(x, baseY2 + 10.f);
+            g.TranslateTransform(x, baseY2 + 20.f); // increased padding from x-axis
             g.RotateTransform(-45.f);
 
             Gdiplus::SolidBrush lblBrush(Gdiplus::Color(255, 40, 40, 40));
@@ -567,7 +630,9 @@ void StandByDlg::OnPaint()
             nearFmt.SetAlignment(Gdiplus::StringAlignmentNear);
             nearFmt.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
-            g.DrawString(m_periods[i].GetString(), -1, &fTick2,
+            const CStringW& label = (i == 0) ? minStartBottom : maxEndBottom;
+
+            g.DrawString(label, -1, &fTick2,
                 Gdiplus::PointF(0.f, 0.f), &nearFmt, &lblBrush);
             g.SetTransform(&oldT);
         }
@@ -590,4 +655,3 @@ void StandByDlg::OnPaint()
     dc.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
 }
-
