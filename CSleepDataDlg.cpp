@@ -478,15 +478,61 @@ void CSleepDataDlg::AppendLog_UI(const CString& line)
 }
 
 // ========================== Public static entries ==========================
+//void CSleepDataDlg::HandlePowerBroadcast(UINT nPowerEvent)
+//{
+//    switch (nPowerEvent)
+//    {
+//    case PBT_APMSUSPEND:
+//        s_activeCause = Cause::Real;
+//        TrackBeforeSleep_NoUI();
+//        s_resumeLogged = false;
+//        s_lastResumeTick = 0;
+//        break;
+//
+//    case PBT_APMRESUMECRITICAL:
+//        [[fallthrough]];
+//    case PBT_APMRESUMEAUTOMATIC:
+//        [[fallthrough]];
+//    case PBT_APMRESUMESUSPEND:
+//    {
+//        if (s_activeCause == Cause::Real) {
+//            const ULONGLONG now = ::GetTickCount64();
+//            const bool shouldLog =
+//                !s_resumeLogged || (s_lastResumeTick == 0) || (now - s_lastResumeTick > 1500ULL);
+//
+//            if (shouldLog) {
+//                TrackAfterResume_NoUI();
+//                s_resumeLogged = true;
+//                s_lastResumeTick = now;
+//                s_activeCause = Cause::None;
+//            }
+//        }
+//        break;
+//    }
+//
+//    default:
+//        break;
+//    }
+//}
+
+
+
+
+// ========================== Public static entries ==========================
 void CSleepDataDlg::HandlePowerBroadcast(UINT nPowerEvent)
 {
     switch (nPowerEvent)
     {
     case PBT_APMSUSPEND:
-        s_activeCause = Cause::Real;
-        TrackBeforeSleep_NoUI();
-        s_resumeLogged = false;
-        s_lastResumeTick = 0;
+        // Only track "before sleep" if we haven't already started tracking
+        // This prevents overwriting the original sleep time when hibernate follows sleep
+        if (s_activeCause == Cause::None) {
+            s_activeCause = Cause::Real;
+            TrackBeforeSleep_NoUI();
+            s_resumeLogged = false;
+            s_lastResumeTick = 0;
+        }
+        // If already tracking (Cause::Real or Cause::Screen), don't overwrite
         break;
 
     case PBT_APMRESUMECRITICAL:
@@ -514,6 +560,8 @@ void CSleepDataDlg::HandlePowerBroadcast(UINT nPowerEvent)
         break;
     }
 }
+
+
 
 void CSleepDataDlg::HandleDisplayState(DWORD displayState)
 {

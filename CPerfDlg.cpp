@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "CPerfDlg.h"
 #include "afxdialogex.h"
 
@@ -73,24 +73,40 @@ void CPerfDlg::OnPaint()
     const REAL yPadTop = 20.f;     // space for title
     const REAL x = margin, y = margin + yPadTop;
     const REAL w = (REAL)rc.Width() - 2 * margin;
-    const REAL h = (REAL)rc.Height() - 2 * margin - 50.f; // room for 45� labels
+    const REAL h = (REAL)rc.Height() - 2 * margin - 50.f; // room for 45° labels
 
     // Title (centered)
     {
         Gdiplus::Font fTitle(L"Segoe UI", 13.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
         SolidBrush tb(Color(255, 40, 40, 40));
         StringFormat c; c.SetAlignment(StringAlignmentCenter);
-        g.DrawString(L"CPU Load Test Result", -1, &fTitle,
-            PointF(x + w / 2.f, margin - 18.f), &c, &tb);
+       
+        if (eng_lang) {
+            g.DrawString(L"CPU Load Test Result", -1, &fTitle,
+                PointF(x + w / 2.f, margin - 18.f), &c, &tb);
+        }
+        else {
+            g.DrawString(L"CPU負荷テスト結果", -1, &fTitle,
+                PointF(x + w / 2.f, margin - 18.f), &c, &tb);
+        }
     }
+    
+
 
     // Too small to draw chart
     if (w < 50.f || h < 50.f) {
         Gdiplus::Font f(L"Segoe UI", 10.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
         SolidBrush b(Color(255, 60, 60, 60));
         StringFormat c; c.SetAlignment(StringAlignmentCenter); c.SetLineAlignment(StringAlignmentCenter);
-        g.DrawString(L"Window too small to draw chart.", -1, &f,
-            PointF(rc.Width() / 2.f, rc.Height() / 2.f), &c, &b);
+        
+        if (eng_lang) {
+            g.DrawString(L"Window too small to draw chart.", -1, &f,
+                PointF(rc.Width() / 2.f, rc.Height() / 2.f), &c, &b);
+        }
+        else {
+            g.DrawString(L"ウィンドウが小さすぎてグラフを描画できません。", -1, &f,
+                PointF(rc.Width() / 2.f, rc.Height() / 2.f), &c, &b);
+        }
 
         g.ResetTransform(); g.ResetClip(); g.Restore(gs);
         dc.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
@@ -106,7 +122,7 @@ void CPerfDlg::OnPaint()
 
     const bool hasSeries = (m_times.size() >= 2 && m_times.size() == m_perc.size());
 
-    // If no series: show �No data to plot.� + multi-line info centered (no background)
+    // If no series: show “No data to plot.” + multi-line info centered (no background)
     if (!hasSeries)
     {
         // Message
@@ -114,15 +130,29 @@ void CPerfDlg::OnPaint()
             Gdiplus::Font fMsg(L"Segoe UI", 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
             SolidBrush brMsg(Color(255, 60, 60, 60));
             StringFormat c; c.SetAlignment(StringAlignmentCenter); c.SetLineAlignment(StringAlignmentCenter);
-            g.DrawString(L"No data to plot.", -1, &fMsg,
-                PointF(rc.Width() / 2.f, rc.Height() / 2.f - 26.f), &c, &brMsg);
+           
+            if (eng_lang) {
+                g.DrawString(L"No data to plot.", -1, &fMsg,
+                    PointF(rc.Width() / 2.f, rc.Height() / 2.f - 26.f), &c, &brMsg);
+            }
+            else {
+                g.DrawString(L"プロットするデータがありません。", -1, &fMsg,
+                    PointF(rc.Width() / 2.f, rc.Height() / 2.f - 26.f), &c, &brMsg);
+            }
         }
         // Multi-line info (centered, no background)
         {
             CStringW info;
-            info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
-                m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
+            
+            if (eng_lang) {
+                info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                    m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
+            }
+            else {
+                info.Format(L"初期: %.0f%%\n現在: %.0f%%\nドロップ: %.0f%%\nレート: %.2f%%/分\nGFLOPS: %.3f",
+                    m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
 
+            }
             Gdiplus::Font fInfo(L"Segoe UI", 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
             SolidBrush brInfo(Color(255, 40, 40, 40));
             StringFormat c; c.SetAlignment(StringAlignmentCenter); c.SetLineAlignment(StringAlignmentCenter);
@@ -166,7 +196,7 @@ void CPerfDlg::OnPaint()
         g.DrawString(buf, -1, &fTick, PointF(x - 8.f, yy - 7.f), &right, &tTxt);
     }
 
-    // X ticks every 10 minutes, labels rotated 45�
+    // X ticks every 10 minutes, labels rotated 45°
     int maxMin = (int)std::ceil(tMax);
     const int xTickStepMin = 10;
     for (int m = 0; m <= maxMin; m += xTickStepMin) {
@@ -215,8 +245,15 @@ void CPerfDlg::OnPaint()
     // Multi-line info at top-right (NO background), with right padding
     {
         CStringW info;
-        info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
-            m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
+        
+        if (eng_lang) {
+            info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
+        }
+        else {
+            info.Format(L"初期: %.0f%%\n現在: %.0f%%\nドロップ: %.0f%%\nレート: %.2f%%/分\nGFLOPS: %.3f",
+                m_initial, m_current, (m_initial - m_current), m_rate, m_gflops);
+        }
 
         const REAL padRight = 14.f;   // right margin
         RectF box(x + w - 220.f - padRight, y - 6.f, 220.f, 100.f);

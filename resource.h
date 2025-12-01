@@ -84,6 +84,7 @@
 #define IDC_BTN_EN                      1066
 #define IDC_BTN_JP                      1067
 #define IDC_BTN_SLEEP                   1068
+#define IDC_LIST1                       1069
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
@@ -92,7 +93,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        195
 #define _APS_NEXT_COMMAND_VALUE         32773
-#define _APS_NEXT_CONTROL_VALUE         1069
+#define _APS_NEXT_CONTROL_VALUE         1072
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
