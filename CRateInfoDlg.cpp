@@ -1,4 +1,4 @@
-// Live battery ETA panel + Live Charge/Discharge rate line chart (WMI + CallNtPowerInformation)
+﻿// Live battery ETA panel + Live Charge/Discharge rate line chart (WMI + CallNtPowerInformation)
 // FIXED: Double-buffering to eliminate flicker
 
 #include "pch.h"
@@ -25,9 +25,130 @@ using namespace Gdiplus;
 // =====================================================
 static constexpr bool kUseRawRate = true;
 
+
+
+
+// ==================== Language support ====================
+
+enum LANG_INDEX
+{
+    LANG_EN = 0,
+    LANG_JP = 1
+};
+
+enum TEXT_KEY
+{
+    TK_ERR_GDIPLUS = 0,
+
+    TK_STATUS_FULLY_CHARGED,
+    TK_DETAIL_FULLY_CHARGED,
+
+    TK_STATUS_CHG_CALC,
+    TK_STATUS_CHG_EST,
+    TK_STATUS_CHG_HM,
+    TK_STATUS_CHG_M,
+    TK_DETAIL_CHG_RATE,
+
+    TK_STATUS_AC,
+    TK_DETAIL_AC,
+
+    TK_STATUS_DISCH_CALC,
+    TK_STATUS_DISCH_EST,
+    TK_STATUS_DISCH_HM,
+    TK_STATUS_DISCH_M,
+    TK_DETAIL_DISCH_RATE,
+
+    TK_ERR_BATSTATE,
+    TK_ERR_BATSTATE_DETAIL,
+
+    TK_CHART_TITLE_CHG,
+    TK_CHART_TITLE_DIS,
+    TK_CHART_TITLE_FMT,
+
+    TK_LATEST_NOT_CHG,
+    TK_LATEST_NOT_DIS,
+
+    TK_COUNT
+};
+
+static const wchar_t* g_Texts[2][TK_COUNT] =
+{
+    // English
+    {
+        L"GDI+ startup failed.",                                        // TK_ERR_GDIPLUS
+
+        L"Fully Charged (100%)",                                        // TK_STATUS_FULLY_CHARGED
+        L"%lu mWh",                                                     // TK_DETAIL_FULLY_CHARGED
+
+        L"Charging: %.0f%% | Calculating...",                           // TK_STATUS_CHG_CALC
+        L"Charging: %.0f%% | Estimating...",                            // TK_STATUS_CHG_EST
+        L"Charging: %.0f%% | %dh %02dm until full",                     // TK_STATUS_CHG_HM
+        L"Charging: %.0f%% | %d min until full",                        // TK_STATUS_CHG_M
+        L"Charge rate: %.1f W | %lu / %lu mWh",                         // TK_DETAIL_CHG_RATE
+
+        L"AC Power: %.0f%%",                                            // TK_STATUS_AC
+        L"Plugged in (not charging)",                                   // TK_DETAIL_AC
+
+        L"Battery: %.0f%% | Calculating...",                            // TK_STATUS_DISCH_CALC
+        L"Battery: %.0f%% | Estimating...",                             // TK_STATUS_DISCH_EST
+        L"Battery: %.0f%% | %dh %02dm remaining",                       // TK_STATUS_DISCH_HM
+        L"Battery: %.0f%% | %d min remaining",                          // TK_STATUS_DISCH_M
+        L"Discharge rate: %.1f W | %lu / %lu mWh",                      // TK_DETAIL_DISCH_RATE
+
+        L"? Cannot read battery state",                                 // TK_ERR_BATSTATE
+        L"CallNtPowerInformation(SystemBatteryState) failed",           // TK_ERR_BATSTATE_DETAIL
+
+        L"Live Charge Rate",                                            // TK_CHART_TITLE_CHG
+        L"Live Discharge Rate",                                         // TK_CHART_TITLE_DIS
+        L"%s (last %d s)",                                              // TK_CHART_TITLE_FMT
+
+        L"— W (not charging)",                                          // TK_LATEST_NOT_CHG
+        L"— W (not discharging)"                                        // TK_LATEST_NOT_DIS
+    },
+
+    // Japanese
+    {
+        L"GDI+ の起動に失敗しました。",                                  // TK_ERR_GDIPLUS
+
+        L"フル充電（100%）",                                              // TK_STATUS_FULLY_CHARGED
+        L"%lu mWh",                                                     // TK_DETAIL_FULLY_CHARGED
+
+        L"充電中: %.0f%% | 計算中...",                                   // TK_STATUS_CHG_CALC
+        L"充電中: %.0f%% | 推定中...",                                   // TK_STATUS_CHG_EST
+        L"充電中: %.0f%% | 満充電まで %d時間 %02d分",                    // TK_STATUS_CHG_HM
+        L"充電中: %.0f%% | 満充電まで %d分",                             // TK_STATUS_CHG_M
+        L"充電レート: %.1f W | %lu / %lu mWh",                          // TK_DETAIL_CHG_RATE
+
+        L"AC電源: %.0f%%",                                              // TK_STATUS_AC
+        L"電源に接続 (充電していません)",                                // TK_DETAIL_AC
+
+        L"バッテリー: %.0f%% | 計算中...",                               // TK_STATUS_DISCH_CALC
+        L"バッテリー: %.0f%% | 推定中...",                               // TK_STATUS_DISCH_EST
+        L"バッテリー: %.0f%% | 残り %d時間 %02d分",                     // TK_STATUS_DISCH_HM
+        L"バッテリー: %.0f%% | 残り %d分",                              // TK_STATUS_DISCH_M
+        L"放電レート: %.1f W | %lu / %lu mWh",                          // TK_DETAIL_DISCH_RATE
+
+        L"バッテリー状態を読み取れません",                              // TK_ERR_BATSTATE
+        L"CallNtPowerInformation(SystemBatteryState) に失敗しました",    // TK_ERR_BATSTATE_DETAIL
+
+        L"リアルタイム充電レート",                                       // TK_CHART_TITLE_CHG
+        L"リアルタイム放電レート",                                       // TK_CHART_TITLE_DIS
+        L"%s (直近 %d 秒)",                                             // TK_CHART_TITLE_FMT
+
+        L"— W (充電していません)",                                      // TK_LATEST_NOT_CHG
+        L"— W (放電していません)"                                       // TK_LATEST_NOT_DIS
+    }
+};
+
+
+
+
+
+
 // ===================== BatteryTimeEstimator =====================
 bool BatteryTimeEstimator::GetBatteryState(SYSTEM_BATTERY_STATE& state)
 {
+   
     ZeroMemory(&state, sizeof(state));
     auto ret = CallNtPowerInformation(
         SystemBatteryState, nullptr, 0, &state, sizeof(state));
@@ -208,8 +329,8 @@ void BatteryTimeEstimator::CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BA
         s_lastPct = -1; // force a capture after gate
         s_lastStableMode = curMode;
 
-        if (curMode == 1)  info.hoursToFull = -1.0f;     // "Calculating�"
-        if (curMode == 0)  info.hoursRemaining = -1.0f;  // "Calculating�"
+        if (curMode == 1)  info.hoursToFull = -1.0f;     // "Calculating…"
+        if (curMode == 0)  info.hoursRemaining = -1.0f;  // "Calculating…"
         // keep "Calculating..." during gate
         return;
     }
@@ -269,63 +390,70 @@ void BatteryTimeEstimator::CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BA
     }
 }
 
-void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info)
+void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info, int lang)
 {
+
+	/*int lang = eng_lang ? LANG_EN : LANG_JP;*/
+
     if (info.isFullyCharged) {
-        info.statusText = L"Fully Charged (100%)";
+        info.statusText = g_Texts[lang][TK_STATUS_FULLY_CHARGED];
         info.detailText.Format(L"%lu mWh", info.currentCapacity);
         return;
     }
 
     if (info.isCharging) {
         if (info.hoursToFull < 0.0f) {
-            info.statusText.Format(L"Charging: %.0f%% | Calculating...", info.chargePercent);
+            info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_CALC], info.chargePercent);
         }
         else if (info.hoursToFull <= 0.0f) {
-            info.statusText.Format(L"Charging: %.0f%% | Estimating...", info.chargePercent);
+            info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_EST], info.chargePercent);
         }
         else {
             int h = (int)info.hoursToFull;
             int m = (int)((info.hoursToFull - h) * 60.0f);
             if (h > 0)
-                info.statusText.Format(L"Charging: %.0f%% | %dh %02dm until full", info.chargePercent, h, m);
+                info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_HM], info.chargePercent, h, m);
             else
-                info.statusText.Format(L"Charging: %.0f%% | %d min until full", info.chargePercent, m);
+                info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_M], info.chargePercent, m);
         }
-        info.detailText.Format(L"Charge rate: %.1f W | %lu / %lu mWh",
+        info.detailText.Format(g_Texts[lang][TK_DETAIL_CHG_RATE],
             m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity);
         return;
     }
 
     if (info.isOnAC && !info.isCharging) {
-        info.statusText.Format(L"AC Power: %.0f%%", info.chargePercent);
-        info.detailText = L"Plugged in (not charging)";
+        info.statusText.Format(g_Texts[lang][TK_STATUS_AC], info.chargePercent);
+        info.detailText = g_Texts[lang][TK_DETAIL_AC];
         return;
     }
 
     // Discharging
     if (info.hoursRemaining < 0.0f) {
-        info.statusText.Format(L"Battery: %.0f%% | Calculating...", info.chargePercent);
+        info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_CALC], info.chargePercent);
     }
     else if (info.hoursRemaining <= 0.0f) {
-        info.statusText.Format(L"Battery: %.0f%% | Estimating...", info.chargePercent);
+        info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_EST], info.chargePercent);
     }
     else {
         int h = (int)info.hoursRemaining;
         int m = (int)((info.hoursRemaining - h) * 60.0f);
         if (h > 0)
-            info.statusText.Format(L"Battery: %.0f%% | %dh %02dm remaining", info.chargePercent, h, m);
+            info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_HM], info.chargePercent, h, m);
         else
-            info.statusText.Format(L"Battery: %.0f%% | %d min remaining", info.chargePercent, m);
+            info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_M], info.chargePercent, m);
     }
 
-    info.detailText.Format(L"Discharge rate: %.1f W | %lu / %lu mWh",
+    info.detailText.Format(g_Texts[lang][TK_DETAIL_DISCH_RATE],
         m_smoothedRate / 1000.0f, info.currentCapacity, info.maxCapacity);
 }
 
-BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
+
+
+BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime(int lang)
 {
     BatteryTimeInfo info;
+
+    //int lang = eng_lang ? LANG_EN : LANG_JP;
 
     SYSTEM_POWER_STATUS ps{};
     if (GetSystemPowerStatus(&ps)) {
@@ -337,8 +465,8 @@ BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
 
     SYSTEM_BATTERY_STATE bs{};
     if (!GetBatteryState(bs)) {
-        info.statusText = L"? Cannot read battery state";
-        info.detailText = L"CallNtPowerInformation(SystemBatteryState) failed";
+        info.statusText = g_Texts[lang][TK_ERR_BATSTATE];
+        info.detailText = g_Texts[lang][TK_ERR_BATSTATE_DETAIL];
         return info;
     }
 
@@ -356,7 +484,7 @@ BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime()
 
     UpdateSmoothedRate(info.currentRate_mW);
     CalculateTimes(info, bs);
-    FormatStatusText(info);
+    FormatStatusText(info, lang);
 
     return info;
 }
@@ -385,9 +513,11 @@ BOOL CRateInfoDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
+	int lang = eng_lang ? LANG_EN : LANG_JP;
+
     GdiplusStartupInput gpsi;
     if (GdiplusStartup(&m_gdiplusToken, &gpsi, nullptr) != Ok) {
-        AfxMessageBox(L"GDI+ startup failed.", MB_ICONWARNING);
+        AfxMessageBox(g_Texts[lang][TK_ERR_GDIPLUS], MB_ICONWARNING);
     }
 
     UpdateBatteryInfo();
@@ -431,7 +561,9 @@ void CRateInfoDlg::PushSamples(float chargeW, float dischargeW)
 
 void CRateInfoDlg::UpdateBatteryInfo()
 {
-    m_last = m_estimator.GetBatteryTime();
+	int lang = eng_lang ? LANG_EN : LANG_JP;
+
+    m_last = m_estimator.GetBatteryTime(lang);
 
     float chargeW = kMissing, dischargeW = kMissing;
     if (m_last.currentRate_mW > 0) {
@@ -545,8 +677,10 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
 {
     const bool showCharge = (m_last.currentRate_mW > 0) || m_last.isCharging;
 
+	int lang = eng_lang ? LANG_EN : LANG_JP;
+
     const std::vector<float>& series = showCharge ? m_samplesChargeW : m_samplesDischargeW;
-    const WCHAR* chartTitle = showCharge ? L"Live Charge Rate" : L"Live Discharge Rate";
+    const WCHAR* chartTitle = showCharge ? g_Texts[lang][TK_CHART_TITLE_CHG] : g_Texts[lang][TK_CHART_TITLE_DIS];
 
     SolidBrush bg(Color(255, 252, 252, 252));
     g.FillRectangle(&bg, x, y, w, h);
@@ -563,7 +697,7 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
     SolidBrush textDark(Color(255, 40, 40, 40));
     SolidBrush textMid(Color(255, 110, 110, 110));
 
-    CString title; title.Format(L"%s (last %d s)", chartTitle, kWindowSeconds);
+    CString title; title.Format(g_Texts[lang][TK_CHART_TITLE_FMT], chartTitle, kWindowSeconds);
     g.DrawString(title, -1, &fTitle, Gdiplus::PointF(x + 12.f, y + 6.f), &textDark);
 
     float maxW = 1.0f;
@@ -642,7 +776,7 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         latest = series[newestIdx];
     }
     CString latestTxt;
-    if (isNaNf(latest)) latestTxt = showCharge ? L"� W (not charging)" : L"� W (not discharging)";
+    if (isNaNf(latest)) latestTxt = showCharge ? g_Texts[lang][TK_LATEST_NOT_CHG] : g_Texts[lang][TK_LATEST_NOT_DIS];
     else latestTxt.Format(L"%.2f W", latest);
 
     Gdiplus::Font fBadge(&fam, 9.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);

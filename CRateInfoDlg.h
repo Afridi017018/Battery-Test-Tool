@@ -51,7 +51,7 @@ class BatteryTimeEstimator {
 public:
     BatteryTimeEstimator() : m_smoothedRate(0.0f), m_initialized(false) {}
 
-    BatteryTimeInfo GetBatteryTime();             // read OS + compute ETAs
+    BatteryTimeInfo GetBatteryTime(int lang);             // read OS + compute ETAs
     void UpdateSmoothedRate(LONG currentRate_mW); // EMA or raw
     float GetSmoothedRate() const { return m_smoothedRate; }
 
@@ -66,7 +66,7 @@ private:
 
     // Compute + format
     void CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BATTERY_STATE& state);
-    void FormatStatusText(BatteryTimeInfo& info);
+    void FormatStatusText(BatteryTimeInfo& info, int lang);
 };
 
 // ------------------------------------------------------
@@ -114,4 +114,9 @@ private:
     void DrawLivePowerChart(Gdiplus::Graphics& g, float x, float y, float w, float h);
 
     void PushSamples(float chargeW, float dischargeW); // circular buffer push
+
+public:
+    bool eng_lang;
+
+    int getLang();
 };

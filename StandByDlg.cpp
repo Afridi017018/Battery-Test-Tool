@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "StandByDlg.h"
 #include "afxdialogex.h"
 
@@ -20,6 +20,59 @@
 
 using namespace Gdiplus;
 #pragma comment(lib, "gdiplus.lib")
+
+
+// ==================== Language support ====================
+
+enum LANG_INDEX
+{
+    LANG_EN = 0,
+    LANG_JP = 1
+};
+
+enum TEXT_KEY
+{
+    TK_NO_DATA_OVERALL = 0,
+    TK_NO_VALID_STANDBY,
+    TK_TOP_TITLE,
+    TK_TOP_Y_LABEL,
+    TK_LEGEND_FULL,
+    TK_LEGEND_DESIGN,
+    TK_AXIS_PERIOD,
+    TK_BOTTOM_TITLE,
+    TK_BOTTOM_Y_LABEL,
+    TK_COUNT
+};
+
+static const wchar_t* g_Texts[2][TK_COUNT] =
+{
+    // English
+    {
+        L"No battery estimate data found.\nGenerate a report again and reopen.",        // TK_NO_DATA_OVERALL
+        L"No valid Connected Standby data for chart (glitched rows skipped).",         // TK_NO_VALID_STANDBY
+        L"Connected Standby Battery Life Trend (hours)",                               // TK_TOP_TITLE
+        L"Hours",                                                                      // TK_TOP_Y_LABEL
+        L"Standby (Full Charge)",                                                      // TK_LEGEND_FULL
+        L"Standby (Design Capacity)",                                                  // TK_LEGEND_DESIGN
+        L"Period",                                                                     // TK_AXIS_PERIOD
+        L"Battery Health Trend Over Time",                                             // TK_BOTTOM_TITLE
+        L"Health (%)"                                                                  // TK_BOTTOM_Y_LABEL
+    },
+
+    // Japanese
+    {
+        L"バッテリー推定データが見つかりません。\nレポートを再生成して再度開いてください。", // TK_NO_DATA_OVERALL
+        L"グラフ用の有効な接続スタンバイデータがありません（異常値の行は除外されました）。",   // TK_NO_VALID_STANDBY
+        L"接続スタンバイ時のバッテリー寿命の傾向（時間）",                                      // TK_TOP_TITLE
+        L"時間",                                                                         // TK_TOP_Y_LABEL
+        L"スタンバイ（フル充電）",                                                         // TK_LEGEND_FULL
+        L"スタンバイ（設計容量）",                                                         // TK_LEGEND_DESIGN
+        L"期間",                                                                         // TK_AXIS_PERIOD
+        L"バッテリーの状態の経時的傾向",                                                      // TK_BOTTOM_TITLE
+        L"健康 （％）"                                                                    // TK_BOTTOM_Y_LABEL
+    }
+};
+
 
 // ==================== Helpers (powercfg + IO + text) ====================
 static CString GenBatteryReportPath()
@@ -141,8 +194,8 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
     auto m2 = *it;
     CStringW s2; s2.Format(L"%s-%s", m2.str(2).c_str(), m2.str(3).c_str()); // MM-DD
 
-    // Return "MM-DD�MM-DD"
-    CStringW lab; lab.Format(L"%s�%s", s1.GetString(), s2.GetString());
+    // Return "MM-DD–MM-DD"
+    CStringW lab; lab.Format(L"%s–%s", s1.GetString(), s2.GetString());
     return lab;
 }
 
@@ -160,11 +213,11 @@ static void ComputeMinMaxPeriodLabels(const std::vector<CString>& periods, int c
     CStringW minStart, maxEnd;
 
     for (int i = 0; i < count && i < (int)periods.size(); ++i) {
-        CStringW p = periods[i]; // "MM-DD" or "MM-DD�MM-DD"
+        CStringW p = periods[i]; // "MM-DD" or "MM-DD–MM-DD"
         CStringW start = p;
         CStringW end = p;
 
-        int dashPos = p.Find(L'�'); // en dash
+        int dashPos = p.Find(L'–'); // en dash
         if (dashPos >= 0) {
             start = p.Left(dashPos);
             end = p.Mid(dashPos + 1);
@@ -335,6 +388,8 @@ void StandByDlg::OnPaint()
     CPaintDC dc(this);
     CRect rc; GetClientRect(&rc);
 
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
     CDC memDC; memDC.CreateCompatibleDC(&dc);
     CBitmap bmp; bmp.CreateCompatibleBitmap(&dc, rc.Width(), rc.Height());
     CBitmap* pOldBmp = memDC.SelectObject(&bmp);
@@ -350,7 +405,7 @@ void StandByDlg::OnPaint()
         Gdiplus::Font f(L"Segoe UI", 12.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
         Gdiplus::SolidBrush b(Gdiplus::Color(255, 60, 60, 60));
         Gdiplus::StringFormat c; c.SetAlignment(Gdiplus::StringAlignmentCenter); c.SetLineAlignment(Gdiplus::StringAlignmentCenter);
-        g.DrawString(L"No battery estimate data found.\nGenerate a report again and reopen.",
+        g.DrawString(g_Texts[lang][TK_NO_DATA_OVERALL],
             -1, &f, Gdiplus::PointF((Gdiplus::REAL)rc.Width() / 2.f, (Gdiplus::REAL)rc.Height() / 2.f), &c, &b);
 
         dc.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
@@ -398,7 +453,7 @@ void StandByDlg::OnPaint()
             Gdiplus::SolidBrush b(Gdiplus::Color(255, 120, 120, 120));
             Gdiplus::StringFormat c; c.SetAlignment(Gdiplus::StringAlignmentCenter);
             c.SetLineAlignment(Gdiplus::StringAlignmentCenter);
-            g.DrawString(L"No valid Connected Standby data for chart (glitched rows skipped).",
+            g.DrawString(g_Texts[lang][TK_NO_VALID_STANDBY],
                 -1, &f, Gdiplus::PointF(x1 + w1 / 2.f, y1 + h1 / 2.f), &c, &b);
         }
         else {
@@ -457,7 +512,7 @@ void StandByDlg::OnPaint()
                 Gdiplus::StringFormat centerTop;
                 centerTop.SetAlignment(Gdiplus::StringAlignmentCenter);
                 centerTop.SetLineAlignment(Gdiplus::StringAlignmentNear);
-                g.DrawString(L"Connected Standby Battery Life Trend (hours)", -1, &fTitle,
+                g.DrawString(g_Texts[lang][TK_TOP_TITLE], -1, &fTitle,
                     Gdiplus::PointF(x1 + w1 / 2.f, y1 - 28.f), &centerTop, &titleBrush);
             }
 
@@ -468,7 +523,7 @@ void StandByDlg::OnPaint()
                 Gdiplus::StringFormat center; center.SetAlignment(Gdiplus::StringAlignmentCenter);
                 g.TranslateTransform(x1 - 70.f, y1 + h1 / 2.f);
                 g.RotateTransform(-90.f);
-                g.DrawString(L"Hours", -1, &fAxis, Gdiplus::PointF(0, 0), &center, &axisBrush);
+                g.DrawString(g_Texts[lang][TK_TOP_Y_LABEL], -1, &fAxis, Gdiplus::PointF(0, 0), &center, &axisBrush);
                 g.ResetTransform();
             }
 
@@ -480,9 +535,9 @@ void StandByDlg::OnPaint()
                 Gdiplus::Pen legendFull(Gdiplus::Color(255, 0, 122, 204), 3.f);
                 Gdiplus::Pen legendDes(Gdiplus::Color(255, 255, 140, 0), 3.f);
                 g.DrawLine(&legendFull, lx, ly + 5.f, lx + 20.f, ly + 5.f);
-                g.DrawString(L"Standby (Full Charge)", -1, &fLegend, Gdiplus::PointF(lx + 28.f, ly - 4.f), nullptr, &tLegend);
+                g.DrawString(g_Texts[lang][TK_LEGEND_FULL], -1, &fLegend, Gdiplus::PointF(lx + 28.f, ly - 4.f), nullptr, &tLegend);
                 g.DrawLine(&legendDes, lx, ly + 25.f, lx + 20.f, ly + 25.f);
-                g.DrawString(L"Standby (Design Capacity)", -1, &fLegend, Gdiplus::PointF(lx + 28.f, ly + 16.f), nullptr, &tLegend);
+                g.DrawString(g_Texts[lang][TK_LEGEND_DESIGN], -1, &fLegend, Gdiplus::PointF(lx + 28.f, ly + 16.f), nullptr, &tLegend);
             }
 
             // ---------- PERIOD LABELS: in reserved lane BELOW the chart ----------
@@ -501,7 +556,7 @@ void StandByDlg::OnPaint()
                 // small guide tick pointing to label lane (optional)
                 g.DrawLine(&axis, x, y1 + h1 + 4.f, x, y1 + h1 + 8.f);
 
-                // rotate -45� and draw text
+                // rotate -45° and draw text
                 Gdiplus::Matrix oldT; g.GetTransform(&oldT);
                 g.TranslateTransform(x, baseY + 20.f); // increased padding from x-axis
                 g.RotateTransform(-45.f);
@@ -529,7 +584,7 @@ void StandByDlg::OnPaint()
                 centerX.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
                 // place it inside the reserved label lane
-                g.DrawString(L"Period", -1, &fAxisX,
+                g.DrawString(g_Texts[lang][TK_AXIS_PERIOD], -1, &fAxisX,
                     Gdiplus::PointF(x1 + w1 / 2.f, y1 + h1 + labelLaneTop - 18.f),
                     &centerX, &axisText);
             }
@@ -590,7 +645,7 @@ void StandByDlg::OnPaint()
             centerBottom.SetAlignment(Gdiplus::StringAlignmentCenter);
             centerBottom.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
-            g.DrawString(L"Battery Health Trend Over Time", -1, &fTitle2,
+            g.DrawString(g_Texts[lang][TK_BOTTOM_TITLE], -1, &fTitle2,
                 Gdiplus::PointF(x2 + w2 / 2.f, y2 - 28.f), &centerBottom, &tBrush2);
         }
 
@@ -601,7 +656,7 @@ void StandByDlg::OnPaint()
             Gdiplus::StringFormat center2; center2.SetAlignment(Gdiplus::StringAlignmentCenter);
             g.TranslateTransform(x2 - 70.f, y2 + h2 / 2.f);
             g.RotateTransform(-90.f);
-            g.DrawString(L"Health (%)", -1, &fAxis2, Gdiplus::PointF(0, 0), &center2, &axisBrush);
+            g.DrawString(g_Texts[lang][TK_BOTTOM_Y_LABEL], -1, &fAxis2, Gdiplus::PointF(0, 0), &center2, &axisBrush);
             g.ResetTransform();
         }
 
@@ -645,7 +700,7 @@ void StandByDlg::OnPaint()
             centerX2.SetAlignment(Gdiplus::StringAlignmentCenter);
             centerX2.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
-            g.DrawString(L"Period", -1, &fAxisX2,
+            g.DrawString(g_Texts[lang][TK_AXIS_PERIOD], -1, &fAxisX2,
                 Gdiplus::PointF(x2 + w2 / 2.f, y2 + h2 + labelLaneBottom - 18.f),
                 &centerX2, &axisText2);
         }

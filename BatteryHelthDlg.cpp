@@ -3167,6 +3167,15 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
                     // Show the graph dialog
                     CDischargeDlg dlg;
+
+                    if (m_lang == Lang::EN)
+                    {
+                        dlg.eng_lang = true;
+                    }
+                    else {
+                        dlg.eng_lang = false;
+                    }
+
                     dlg.SetData(initial, current, rate, tt, yy);
                     dlg.DoModal();
                 }
@@ -3713,16 +3722,11 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
     delete pMsg; // free memory
 
-
-
     // Re-enable the CPU Load button after finishing
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
     // Re-enable the Discharge Test button after finishing
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
-
-   
-
 
 
     return 0;
@@ -3748,8 +3752,6 @@ void CBatteryHelthDlg::CheckBatteryTransition()
     }
 }
 
-
-
 void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
 {
     // Ask user where to save
@@ -3759,18 +3761,30 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
 
     CString filePath = fileDlg.GetPathName();
 
-    // Open file
-    std::ofstream csvFile(filePath.GetString());
+    // Open file in Binary mode to strictly control the BOM writing
+    std::ofstream csvFile(filePath.GetString(), std::ios::out | std::ios::binary);
+
     if (!csvFile.is_open())
     {
-        AfxMessageBox(L"Failed to open file for writing.");
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"Failed to open file for writing.");
+        }
+        else {
+            AfxMessageBox(L"書き込み用にファイルを開けませんでした。");
+        }
         return;
     }
 
-    // Helper lambda to convert CString to CSV-safe string
+    // 1. WRITE THE BOM (Byte Order Mark) for UTF-8
+    // This tells Excel that the file contains UTF-8 characters
+    const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+    csvFile.write(reinterpret_cast<const char*>(bom), sizeof(bom));
+
+    // Helper lambda to convert CString (UTF-16) to std::string (UTF-8)
     auto toCsvField = [](const CString& str) -> std::string {
-        CT2CA pszConvertedAnsiString(str);
-        std::string s(pszConvertedAnsiString);
+        // CP_UTF8 is the key here. It converts Wide Char to UTF-8
+        CW2A pszConvertedUTF8(str, CP_UTF8);
+        std::string s(pszConvertedUTF8);
 
         // Replace line breaks with spaces
         for (auto& c : s)
@@ -3782,8 +3796,18 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         return "\"" + s + "\"";
         };
 
-    // Write CSV header with Cycle Count
-    csvFile << "Device Id, Battery Percentage,Status,Voltage (V),Temperature ,Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health,Battery ID,Battery Name,Estimated Time,Cycle Count\n";
+    // 2. PREPARE HEADERS (Use Wide Strings L"" and convert to UTF-8)
+    CString headers;
+    if (m_lang == Lang::EN) {
+        headers = L"Device ID,Battery Percentage,Battery Status,Voltage (mV),Temperature (°C),Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health (%),Manufacturer,Battery Name,Estimated Run Time (min),Cycle Count";
+    }
+    else {
+        headers = L"デバイスID,バッテリーの割合,バッテリー状態,電圧（mV）,温度（°C）,フル充電容量（mWh）,設計容量（mWh）,現在の容量（mWh）,状態（％）,メーカー,バッテリー名,推定稼働時間（分）,サイクル数";
+    }
+
+    // Write Headers (Convert the whole line to UTF-8)
+    CW2A headerUTF8(headers, CP_UTF8);
+    csvFile << headerUTF8 << "\r\n";
 
     // Get current values from controls
     CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
@@ -3802,6 +3826,7 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
     GetDlgItemText(IDC_BATT_TEMP, temperature);
     GetDlgItemText(IDC_BATT_CURRCAPACITY, currentCap);
 
+    // Write Data Row
     csvFile << toCsvField(did) << ","
         << toCsvField(battPercent) << ","
         << toCsvField(battStatus) << ","
@@ -3814,20 +3839,122 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
         << toCsvField(deviceID) << ","
         << toCsvField(battName) << ","
         << toCsvField(estTime) << ","
-        << toCsvField(cycleCount) << ","<< "\n";
+        << toCsvField(cycleCount) << "\r\n";
 
     csvFile.close();
 
-    AfxMessageBox(L"Battery data exported successfully!");
+    if (m_lang == Lang::EN) {
+        AfxMessageBox(L"Battery data exported successfully.");
+    }
+    else {
+        AfxMessageBox(L"バッテリーデータが正常にエクスポートされました。");
+    }
 }
+
+//void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
+//{
+//    // Ask user where to save
+//    CFileDialog fileDlg(FALSE, L"csv", L"BatteryData.csv", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, L"CSV Files (*.csv)|*.csv||");
+//    if (fileDlg.DoModal() != IDOK)
+//        return;
+//
+//    CString filePath = fileDlg.GetPathName();
+//
+//    // Open file
+//    std::ofstream csvFile(filePath.GetString());
+//    if (!csvFile.is_open())
+//    {
+//        if(m_lang == Lang::EN) {
+//            AfxMessageBox(L"Failed to open file for writing.");
+//        }
+//        else {
+//            AfxMessageBox(L"書き込み用にファイルを開けませんでした。");
+//		}
+//        return;
+//    }
+//
+//    // Helper lambda to convert CString to CSV-safe string
+//    auto toCsvField = [](const CString& str) -> std::string {
+//        CT2CA pszConvertedAnsiString(str);
+//        std::string s(pszConvertedAnsiString);
+//
+//        // Replace line breaks with spaces
+//        for (auto& c : s)
+//        {
+//            if (c == '\n' || c == '\r') c = ' ';
+//        }
+//
+//        // Enclose in quotes
+//        return "\"" + s + "\"";
+//        };
+//
+//    // Write CSV header with Cycle Count
+//    
+//    if(m_lang == Lang::EN) {
+//        csvFile << "Device ID,Battery Percentage,Battery Status,Voltage (mV),Temperature (°C),Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health (%),Manufacturer,Battery Name,Estimated Run Time (min),Cycle Count\n";
+//    }
+//    else {
+//        csvFile << "デバイスID,バッテリーの割合,バッテリー状態、電圧（mV）,温度（°C）,フル充電容量（mWh）,設計容量（mWh）,現在の容量（mWh）,状態（％）、メーカー,バッテリー名,推定稼働時間（分）,サイクル数\n";
+//    }
+//
+//    // Get current values from controls
+//    CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
+//
+//    GetDlgItemText(IDC_BATT_DID, did);
+//    GetDlgItemText(IDC_BATT_PERCENTAGE, battPercent);
+//    GetDlgItemText(IDC_BATT_STATUS, battStatus);
+//    GetDlgItemText(IDC_BATT_VOLTAGE, voltage);
+//    GetDlgItemText(IDC_BATT_CAPACITY, fullCap);
+//    GetDlgItemText(IDC_BATT_DCAPACITY, designCap);
+//    GetDlgItemText(IDC_BATT_HEALTH, health);
+//    GetDlgItemText(IDC_BATT_MANUFAC, deviceID);
+//    GetDlgItemText(IDC_BATT_NAME, battName);
+//    GetDlgItemText(IDC_BATT_TIME, estTime);
+//    GetDlgItemText(IDC_BATT_CYCLE, cycleCount);
+//    GetDlgItemText(IDC_BATT_TEMP, temperature);
+//    GetDlgItemText(IDC_BATT_CURRCAPACITY, currentCap);
+//
+//    csvFile << toCsvField(did) << ","
+//        << toCsvField(battPercent) << ","
+//        << toCsvField(battStatus) << ","
+//        << toCsvField(voltage) << ","
+//        << toCsvField(temperature) << ","
+//        << toCsvField(fullCap) << ","
+//        << toCsvField(designCap) << ","
+//        << toCsvField(currentCap) << ","
+//        << toCsvField(health) << ","
+//        << toCsvField(deviceID) << ","
+//        << toCsvField(battName) << ","
+//        << toCsvField(estTime) << ","
+//        << toCsvField(cycleCount) << ","<< "\n";
+//
+//    csvFile.close();
+//
+//   if(m_lang == Lang::EN) {
+//       AfxMessageBox(L"Battery data exported successfully.");
+//   }
+//   else {
+//       AfxMessageBox(L"バッテリーデータが正常にエクスポートされました。");
+//   }
+//}
 
 
 void CBatteryHelthDlg::OnBnClickedBtnHistory()
 {
     CString table;
     // Column headers
-    table = L"Start       End         Total Charge Time\n";
-    table += L"----------------------------------------\n";
+
+    if(m_lang == Lang::EN) {
+        table = L"Start       End         Total Charge Time\n";
+        table += L"----------------------------------------\n";
+    }
+    else {
+        table = L"始める       終わり         合計充電時間\n";
+        table += L"----------------------------------------\n";
+	}
+
+
+    
 
     CTime startTime;
     bool hasStart = false;
@@ -3849,7 +3976,13 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
                 CString startStr = startTime.Format(L"%H:%M:%S");
                 CString endStr = evt.timestamp.Format(L"%H:%M:%S");
                 CString totalStr;
-                totalStr.Format(L"%.2f min", totalMinutes);
+                
+                if (m_lang == Lang::EN) {
+                    totalStr.Format(L"%.2f min", totalMinutes);
+                }
+                else {
+                    totalStr.Format(L"%.2f 分", totalMinutes);
+                }
 
                 // Pad strings to fixed width
                 startStr = startStr + CString(' ', 10 - startStr.GetLength());
@@ -3867,8 +4000,19 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
     if (hasStart)
     {
         CString startStr = startTime.Format(L"%H:%M:%S");
-        CString endStr = L"null";
-        CString totalStr = L"0 min";
+
+
+        CString endStr, totalStr;
+
+        if(m_lang == Lang::EN) {
+            endStr = L"null";
+            totalStr = L"0 min";
+        }
+        else {
+            endStr = L"ヌル";
+            totalStr = L"0 分";
+        }
+
 
         startStr = startStr + CString(' ', 10 - startStr.GetLength());
         endStr = endStr + CString(' ', 10 - endStr.GetLength());
@@ -3879,10 +4023,19 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
 
 
     if (m_batteryHistory.empty())
-        table += L"No history recorded yet.";
+    {
+        if(m_lang == Lang::EN) {
+            table += L"No history recorded yet.";
+        }
+        else {
+            table += L"まだ履歴は記録されていません。\n";
+		}
+    }
 
     AfxMessageBox(table, MB_OK | MB_ICONINFORMATION);
 }
+
+
 void CBatteryHelthDlg::OnStnClickedStaticDid()
 {
     // TODO: Add your control notification handler code here
@@ -4091,13 +4244,26 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
 {
     std::vector<CBatteryHelthDlg::BatteryCapacityRecord> hist;
     if (!GetBatteryCapacityHistory(hist) || hist.empty()) {
-        AfxMessageBox(L"Could not read Battery Capacity History.");
+        
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"Could not read Battery Capacity History.");
+        }
+        else {
+            AfxMessageBox(L"バッテリー容量履歴を読み取ることができませんでした。");
+        }
+
         return;
     }
 
     // Build CSV content (header + rows)
     std::wstring csv;
-    csv += L"Period ,FullChargeCapacity,DesignCapacity,Health_%\r\n";
+    
+    if(m_lang == Lang::EN) {
+        csv += L"Period ,FullChargeCapacity,DesignCapacity,Health_%\r\n";
+    }
+    else {
+        csv = L"期間,フル充電容量,設計容量,健全性_%\r\n";
+	}
 
     for (const auto& r : hist) {
         // If you also want ISO date, you can format COleDateTime here; we’ll stick to dateText.
@@ -4113,13 +4279,24 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
     // Save to %TEMP%\battery_capacity_history_YYYYMMDD_HHMMSS.csv and open it
     CString outPath;
     if (!SaveCsvUtf8AndOpen(csv, outPath)) {
-        AfxMessageBox(L"Failed to write/open CSV file.");
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"Failed to write/open CSV file.");
+        }
+        else {
+            AfxMessageBox(L"CSV ファイルの書き込み / オープンに失敗しました。");
+            
+        }
         return;
     }
 
     // Optional toast
     CString msg;
-    msg.Format(L"CSV exported:\n%s", outPath.GetString());
+    if(m_lang == Lang::EN) {
+        msg.Format(L"CSV exported:\n%s", outPath.GetString());
+    }
+    else {
+        msg.Format(L"CSV エクスポート:\n%s", outPath.GetString());
+    }
     AfxMessageBox(msg);
 }
 
@@ -4240,6 +4417,14 @@ void CBatteryHelthDlg::OnBnClickedBtnStandby()
     // std::vector<float> full = { ... };
     // std::vector<float> design = { ... };
     // dlg.SetData(labels, full, design);
+
+    if (m_lang == Lang::EN)
+    {
+        dlg.eng_lang = true;
+    }
+    else {
+        dlg.eng_lang = false;
+    }
 
     dlg.DoModal(); // open modal window
 }
@@ -4626,7 +4811,7 @@ ULONGLONG CBatteryHelthDlg::GetProcessIdleTime(DWORD pid, HWND /*mainWindow*/)
     return (sysIdle > atLeast) ? sysIdle : atLeast;
 }
 
-// ----------------- core (report) -----------------
+//// ----------------- core (report) -----------------
 CString CBatteryHelthDlg::BuildVisibleAppsReport()
 {
     wchar_t windir[MAX_PATH] = L""; GetWindowsDirectoryW(windir, _countof(windir));
@@ -4691,13 +4876,32 @@ CString CBatteryHelthDlg::BuildVisibleAppsReport()
         CloseHandle(h);
     }
 
-    if (rows.empty()) return L"No eligible apps (visible window, non-Windows path).";
+
+    if (rows.empty()) {
+        if (m_lang == Lang::EN) {
+            return L"No eligible apps (visible window, non-Windows path).";
+        }
+        else {
+            return L"適格なアプリがありません (表示ウィンドウ、非 Windows パス)。";
+        }
+    }
 
     std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.uptimeSec > b.uptimeSec; });
 
     CString out;
-    out += L"Name                      StartTime              Uptime\r\n";
-    out += L"------------------------- ---------------------- -------------\r\n";
+    
+    if(m_lang == Lang::EN){
+        out += L"Name                      StartTime              Uptime\r\n";
+        out += L"------------------------- ---------------------- -------------\r\n";
+    }
+    else {
+        out += L"名前                      開始時間              稼働時間\r\n";
+        out += L"------------------------- ---------------------- -------------\r\n";
+    }
+
+    
+
+        
 
     for (size_t idx = 0; idx < rows.size(); ++idx) {
         const Row& r = rows[idx];
@@ -4710,11 +4914,26 @@ CString CBatteryHelthDlg::BuildVisibleAppsReport()
             name.GetString(), start.GetString(), up.GetString());
         out += line;
 
-        if (out.GetLength() > 60000) { out += L"... (truncated)\r\n"; break; }
+        if (out.GetLength() > 60000) { 
+
+            if(m_lang == Lang::EN){
+                out += L"... (truncated)\r\n"; 
+            }
+            else {
+                out += L"...（省略）\r\n";
+            }
+            
+            
+            break; 
+        }
     }
 
     return out;
 }
+
+
+
+
 
 
 
@@ -4804,6 +5023,15 @@ void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
     // TODO: Add your control notification handler code here
 
 	CRateInfoDlg dlg(this); 
+
+    if (m_lang == Lang::EN)
+    {
+        dlg.eng_lang = true;
+    }
+    else {
+        dlg.eng_lang = false;
+    }
+
 	dlg.DoModal();
 }
 
@@ -4999,11 +5227,17 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
 
 
 
-
-
 void CBatteryHelthDlg::OnBnClickedBtnSleep()
 {
     CSleepDataDlg dlg;
+
+    if(m_lang == Lang::EN){
+        dlg.eng_lang = true;
+    }
+    else {
+        dlg.eng_lang = false;
+	}
+
     dlg.DoModal(); // shows persistent log, auto-refreshing
 }
 

@@ -92,4 +92,6 @@ public:
     // Public interface for main dialog
     static void HandlePowerBroadcast(UINT nPowerEvent);
     static void HandleDisplayState(DWORD displayState);
+
+    static bool eng_lang;
 };

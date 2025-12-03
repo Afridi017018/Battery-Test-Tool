@@ -1,4 +1,4 @@
-// CSleepDataDlg.cpp - Fully Responsive Version (Newest log on top)
+﻿// CSleepDataDlg.cpp - Fully Responsive Version (Newest log on top)
 #include "pch.h"
 #include "framework.h"
 #include "resource.h"
@@ -11,6 +11,52 @@
 #define new DEBUG_NEW
 #endif
 
+
+
+
+enum LANG_INDEX
+{
+    LANG_EN = 0,
+    LANG_JP = 1
+};
+
+enum TEXT_KEY
+{
+    TK_COL_SLEEP = 0,
+    TK_COL_AWAKE,
+    TK_COL_PCT_BEFORE,
+    TK_COL_PCT_AFTER,
+    TK_UNKNOWN,
+    TK_PCT_UNKNOWN,
+    TK_COUNT
+};
+
+
+static const wchar_t* g_Texts[2][TK_COUNT] =
+{
+    // English
+    {
+        L"Sleep Time",        // TK_COL_SLEEP
+        L"Awake Time",        // TK_COL_AWAKE
+        L"% Before",          // TK_COL_PCT_BEFORE
+        L"% After",           // TK_COL_PCT_AFTER
+        L"(unknown)",         // TK_UNKNOWN
+        L"(?)"                // TK_PCT_UNKNOWN
+    },
+
+    // Japanese
+    {
+        L"睡眠時間",       // TK_COL_SLEEP
+        L"起きている時間",           // TK_COL_AWAKE
+        L"前バッテリー%",      // TK_COL_PCT_BEFORE
+        L"後バッテリー%",      // TK_COL_PCT_AFTER
+        L"(未知)",             // TK_UNKNOWN
+        L"(？)"                // TK_PCT_UNKNOWN
+    }
+};
+
+
+
 // --------- static data (persist across openings) ---------
 CSleepDataDlg::SleepSnapshot  CSleepDataDlg::s_beforeSleep{};
 std::vector<CString>          CSleepDataDlg::s_logs;
@@ -18,6 +64,7 @@ HWND                          CSleepDataDlg::s_hwndOpen = nullptr;
 ULONGLONG                     CSleepDataDlg::s_lastResumeTick = 0;
 bool                          CSleepDataDlg::s_resumeLogged = false;
 CSleepDataDlg::Cause          CSleepDataDlg::s_activeCause = CSleepDataDlg::Cause::None;
+bool                          CSleepDataDlg::eng_lang;
 
 // ---------- Fixed-width row builder ----------
 CString CSleepDataDlg::MakeRow(const CString& sleepTime,
@@ -81,6 +128,8 @@ BOOL CSleepDataDlg::OnInitDialog()
     // Start at the top (newest log visible first)
     m_scrollPosV = 0;
 
+	int lang = eng_lang ? LANG_EN : LANG_JP;    
+
     UpdateScrollBars();
     Invalidate();
 
@@ -131,6 +180,9 @@ void CSleepDataDlg::OnPaint()
 
     if (m_client.IsRectEmpty())
         return;
+    
+	int lang = eng_lang ? LANG_EN : LANG_JP;
+    
 
     // Double-buffer to avoid flicker
     CDC memDC;
@@ -149,8 +201,8 @@ void CSleepDataDlg::OnPaint()
 
     // Build header
     CString header;
-    header.Format(L"%-25s  |  %-25s  |  %-8s  |  %-8s",
-        L"Sleep Time", L"Awake Time", L"% Before", L"% After");
+    header.Format(L"%-25s | %-25s  | %-8s  | %-8s",
+        g_Texts[lang][TK_COL_SLEEP], g_Texts[lang][TK_COL_AWAKE], g_Texts[lang][TK_COL_PCT_BEFORE], g_Texts[lang][TK_COL_PCT_AFTER]);
 
     const int dashLen = (int)header.GetLength();
     CString dash;
@@ -284,12 +336,14 @@ void CSleepDataDlg::RecalcTextMetrics(CDC& dc)
 
 void CSleepDataDlg::CalculateContentWidth(CDC& dc)
 {
+	int lang = eng_lang ? LANG_EN : LANG_JP;
+
     m_contentWidth = 0;
 
     // Measure header
     CString header;
     header.Format(L"%-25s  |  %-25s  |  %-8s  |  %-8s",
-        L"Sleep Time", L"Awake Time", L"% Before", L"% After");
+        g_Texts[lang][TK_COL_SLEEP], g_Texts[lang][TK_COL_AWAKE], g_Texts[lang][TK_COL_PCT_BEFORE], g_Texts[lang][TK_COL_PCT_AFTER]);
 
     CSize sz = dc.GetTextExtent(header);
     m_contentWidth = max(m_contentWidth, sz.cx);
@@ -424,9 +478,11 @@ void CSleepDataDlg::TrackAfterResume_NoUI()
 {
     auto now = std::chrono::system_clock::now();
 
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
     CString line;
     if (!s_beforeSleep.valid) {
-        line = MakeRow(L"(unknown)", FormatSysTime(now), L"(unknown)", L"(unknown)");
+        line = MakeRow(g_Texts[lang][TK_UNKNOWN], FormatSysTime(now), g_Texts[lang][TK_UNKNOWN], g_Texts[lang][TK_UNKNOWN]);
         AppendLogStatic(line);
         return;
     }

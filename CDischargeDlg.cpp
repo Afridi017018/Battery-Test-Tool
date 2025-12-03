@@ -8,6 +8,51 @@
 #pragma comment(lib, "gdiplus.lib")
 using namespace Gdiplus;
 
+
+// Language index
+enum LANG_INDEX
+{
+    LANG_EN = 0,
+    LANG_JP = 1
+};
+
+// Text keys
+enum TEXT_KEY
+{
+    TK_TITLE = 0,
+    TK_TOO_SMALL,
+    TK_NO_DATA,
+    TK_INFO_FMT,
+    TK_Y_LABEL,
+    TK_X_LABEL,
+    TK_COUNT
+};
+
+// [language][text key]
+static const wchar_t* g_Texts[2][TK_COUNT] =
+{
+    // English
+    {
+        L"Discharge Test Result",                     // TK_TITLE
+        L"Window too small to draw chart.",           // TK_TOO_SMALL
+        L"No data to plot.",                          // TK_NO_DATA
+        L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\n", // TK_INFO_FMT
+        L"Charge (%)",                                // TK_Y_LABEL
+        L"Time (minutes)"                             // TK_X_LABEL
+    },
+    // Japanese
+    {
+        L"放電テスト結果",                              // TK_TITLE
+        L"ウィンドウが小さすぎてグラフを描画できません。",   // TK_TOO_SMALL
+        L"プロットするデータがありません。",               // TK_NO_DATA
+        L"初期値: %.0f%%\n現在値: %.0f%%\n低下量: %.0f%%\n低下率: %.2f%%/分\n", // TK_INFO_FMT
+        L"充電 （％）",                                // TK_Y_LABEL
+        L"時間（分）"                                   // TK_X_LABEL
+    }
+};
+
+
+
 BEGIN_MESSAGE_MAP(CDischargeDlg, CDialogEx)
     ON_WM_PAINT()
     ON_WM_DESTROY()
@@ -15,6 +60,9 @@ BEGIN_MESSAGE_MAP(CDischargeDlg, CDialogEx)
     ON_WM_SIZE()
     ON_WM_GETMINMAXINFO()
 END_MESSAGE_MAP()
+
+
+
 
 BOOL CDischargeDlg::OnInitDialog()
 {
@@ -53,6 +101,8 @@ void CDischargeDlg::OnPaint()
     CPaintDC dc(this);
     CRect rc; GetClientRect(&rc);
 
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
     CDC memDC; memDC.CreateCompatibleDC(&dc);
     CBitmap bmp; bmp.CreateCompatibleBitmap(&dc, rc.Width(), rc.Height());
     CBitmap* pOldBmp = memDC.SelectObject(&bmp);
@@ -79,7 +129,7 @@ void CDischargeDlg::OnPaint()
         Gdiplus::Font fTitle(L"Segoe UI", 13.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
         SolidBrush tb(Color(255, 40, 40, 40));
         StringFormat c; c.SetAlignment(StringAlignmentCenter);
-        g.DrawString(L"Discharge Test Result", -1, &fTitle,
+        g.DrawString(g_Texts[lang][TK_TITLE], -1, &fTitle,
             PointF(x + w / 2.f, margin - 18.f), &c, &tb);
     }
 
@@ -88,7 +138,7 @@ void CDischargeDlg::OnPaint()
         Gdiplus::Font f(L"Segoe UI", 10.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
         SolidBrush b(Color(255, 60, 60, 60));
         StringFormat c; c.SetAlignment(StringAlignmentCenter); c.SetLineAlignment(StringAlignmentCenter);
-        g.DrawString(L"Window too small to draw chart.", -1, &f,
+        g.DrawString(g_Texts[lang][TK_TOO_SMALL], -1, &f,
             PointF(rc.Width() / 2.f, rc.Height() / 2.f), &c, &b);
 
         g.ResetTransform(); g.ResetClip(); g.Restore(gs);
@@ -113,13 +163,13 @@ void CDischargeDlg::OnPaint()
             Gdiplus::Font fMsg(L"Segoe UI", 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
             SolidBrush brMsg(Color(255, 60, 60, 60));
             StringFormat c; c.SetAlignment(StringAlignmentCenter); c.SetLineAlignment(StringAlignmentCenter);
-            g.DrawString(L"No data to plot.", -1, &fMsg,
+            g.DrawString(g_Texts[lang][TK_NO_DATA], -1, &fMsg,
                 PointF(rc.Width() / 2.f, rc.Height() / 2.f - 26.f), &c, &brMsg);
         }
         // Multi-line info (centered, no background)
         {
             CStringW info;
-            info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\n",
+            info.Format(g_Texts[lang][TK_INFO_FMT],
                 m_initial, m_current, (m_initial - m_current), m_rate);
 
             Gdiplus::Font fInfo(L"Segoe UI", 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
@@ -205,16 +255,16 @@ void CDischargeDlg::OnPaint()
         GraphicsState sYL = g.Save();
         g.TranslateTransform(x - 65.f, y + h / 2.f);  // was -55.f → now -65.f for more padding
         g.RotateTransform(-90.f);
-        g.DrawString(L"Charge (%)", -1, &fAxis, PointF(0, 0), &center, &aBrush);
+        g.DrawString(g_Texts[lang][TK_Y_LABEL], -1, &fAxis, PointF(0, 0), &center, &aBrush);
         g.Restore(sYL);
     }
-    g.DrawString(L"Time (minutes)", -1, &fAxis,
+    g.DrawString(g_Texts[lang][TK_X_LABEL], -1, &fAxis,
         PointF(x + w / 2.f, y + h + 36.f), &center, &aBrush);
 
     // Multi-line info at top-right (NO background), with right padding
     {
         CStringW info;
-        info.Format(L"Initial: %.0f%%\nCurrent: %.0f%%\nDrop: %.0f%%\nRate: %.2f%%/min\n",
+        info.Format(g_Texts[lang][TK_INFO_FMT],
             m_initial, m_current, (m_initial - m_current), m_rate);
 
         const REAL padRight = 14.f;   // right margin
