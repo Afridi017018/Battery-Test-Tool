@@ -76,4 +76,7 @@ private:
     // Scrolling state for the panel
     int m_scrollY{ 0 };      // current vertical offset in pixels
     int m_contentH{ 0 };     // total content height measured in last paint (list area)
+
+public:
+    bool eng_lang;
 };

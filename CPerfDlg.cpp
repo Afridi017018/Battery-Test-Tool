@@ -236,11 +236,28 @@ void CPerfDlg::OnPaint()
         GraphicsState sYL = g.Save();
         g.TranslateTransform(x - 65.f, y + h / 2.f);  // was -55.f ? now -65.f for more padding
         g.RotateTransform(-90.f);
-        g.DrawString(L"Charge (%)", -1, &fAxis, PointF(0, 0), &center, &aBrush);
+       
+
+        if (eng_lang) {
+            g.DrawString(L"Charge (%)", -1, &fAxis, PointF(0, 0), &center, &aBrush);
+        }
+        else {
+            g.DrawString(L"充電 （％）", -1, &fAxis, PointF(0, 0), &center, &aBrush);
+        }
+
         g.Restore(sYL);
     }
-    g.DrawString(L"Time (minutes)", -1, &fAxis,
-        PointF(x + w / 2.f, y + h + 36.f), &center, &aBrush);
+
+
+    if (eng_lang) {
+        g.DrawString(L"Time (minutes)", -1, &fAxis, PointF(x + w / 2.f, y + h + 36.f), &center, &aBrush);
+    }
+    else {
+        g.DrawString(L"時間（分）", -1, &fAxis, PointF(x + w / 2.f, y + h + 36.f), &center, &aBrush);
+    }
+
+
+    
 
     // Multi-line info at top-right (NO background), with right padding
     {

@@ -68,6 +68,12 @@ enum TEXT_KEY
     TK_LATEST_NOT_CHG,
     TK_LATEST_NOT_DIS,
 
+    // NEW: Unknown-rate strings (appended so old indices stay valid)
+    TK_DETAIL_CHG_RATE_UNKNOWN,
+    TK_DETAIL_DISCH_RATE_UNKNOWN,
+    TK_STATUS_CHG_UNKNOWN,
+    TK_STATUS_DISCH_UNKNOWN,
+
     TK_COUNT
 };
 
@@ -103,7 +109,13 @@ static const wchar_t* g_Texts[2][TK_COUNT] =
         L"%s (last %d s)",                                              // TK_CHART_TITLE_FMT
 
         L"— W (not charging)",                                          // TK_LATEST_NOT_CHG
-        L"— W (not discharging)"                                        // TK_LATEST_NOT_DIS
+        L"— W (not discharging)",                                       // TK_LATEST_NOT_DIS
+
+        // NEW unknown strings
+        L"Charge rate: Unknown W | %lu / %lu mWh",                      // TK_DETAIL_CHG_RATE_UNKNOWN
+        L"Discharge rate: Unknown W | %lu / %lu mWh",                   // TK_DETAIL_DISCH_RATE_UNKNOWN
+        L"Charging: %.0f%% | Time to full unknown",                     // TK_STATUS_CHG_UNKNOWN
+        L"Battery: %.0f%% | Time remaining unknown"                     // TK_STATUS_DISCH_UNKNOWN
     },
 
     // Japanese
@@ -136,7 +148,13 @@ static const wchar_t* g_Texts[2][TK_COUNT] =
         L"%s (直近 %d 秒)",                                             // TK_CHART_TITLE_FMT
 
         L"— W (充電していません)",                                      // TK_LATEST_NOT_CHG
-        L"— W (放電していません)"                                       // TK_LATEST_NOT_DIS
+        L"— W (放電していません)",                                      // TK_LATEST_NOT_DIS
+
+        // NEW unknown strings (rough JP)
+        L"充電レート: 不明 W | %lu / %lu mWh",                          // TK_DETAIL_CHG_RATE_UNKNOWN
+        L"放電レート: 不明 W | %lu / %lu mWh",                          // TK_DETAIL_DISCH_RATE_UNKNOWN
+        L"充電中: %.0f%% | 満充電までの時間は不明",                     // TK_STATUS_CHG_UNKNOWN
+        L"バッテリー: %.0f%% | 残り時間は不明"                          // TK_STATUS_DISCH_UNKNOWN
     }
 };
 
@@ -148,11 +166,26 @@ static const wchar_t* g_Texts[2][TK_COUNT] =
 // ===================== BatteryTimeEstimator =====================
 bool BatteryTimeEstimator::GetBatteryState(SYSTEM_BATTERY_STATE& state)
 {
-   
+
     ZeroMemory(&state, sizeof(state));
     auto ret = CallNtPowerInformation(
         SystemBatteryState, nullptr, 0, &state, sizeof(state));
     return (ret == 0); // STATUS_SUCCESS == 0
+}
+
+// NEW: helper to detect "unknown" or clearly bogus rates
+static inline bool IsUnknownOrBogusRate(LONG rate_mW)
+{
+    // BATTERY_UNKNOWN_RATE is 0x80000000U (appears as -2147483648 in signed LONG)
+    if (rate_mW == (LONG)0x80000000) return true;
+
+    long long a = (long long)rate_mW;
+    if (a < 0) a = -a;
+
+    // Anything above 500 W for a laptop battery is nonsense
+    if (a > 500000) return true; // 500000 mW
+
+    return false;
 }
 
 static bool InitComSecurityOnce()
@@ -212,12 +245,26 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
     while (SUCCEEDED(pEnum->Next(2000, 1, &pObj, &returned)) && returned) {
         VARIANT vtC{}; VARIANT vtD{};
         if (SUCCEEDED(pObj->Get(L"ChargeRate", 0, &vtC, nullptr, nullptr))) {
-            if (vtC.vt == VT_I4)  totalCharge_mW += vtC.lVal;
-            if (vtC.vt == VT_UI4) totalCharge_mW += (LONG)vtC.ulVal;
+            if (vtC.vt == VT_I4) {
+                if (!IsUnknownOrBogusRate(vtC.lVal))
+                    totalCharge_mW += vtC.lVal;
+            }
+            if (vtC.vt == VT_UI4) {
+                LONG tmp = (LONG)vtC.ulVal;
+                if (!IsUnknownOrBogusRate(tmp))
+                    totalCharge_mW += tmp;
+            }
         }
         if (SUCCEEDED(pObj->Get(L"DischargeRate", 0, &vtD, nullptr, nullptr))) {
-            if (vtD.vt == VT_I4)  totalDischarge_mW += vtD.lVal;
-            if (vtD.vt == VT_UI4) totalDischarge_mW += (LONG)vtD.ulVal;
+            if (vtD.vt == VT_I4) {
+                if (!IsUnknownOrBogusRate(vtD.lVal))
+                    totalDischarge_mW += vtD.lVal;
+            }
+            if (vtD.vt == VT_UI4) {
+                LONG tmp = (LONG)vtD.ulVal;
+                if (!IsUnknownOrBogusRate(tmp))
+                    totalDischarge_mW += tmp;
+            }
         }
         VariantClear(&vtC);
         VariantClear(&vtD);
@@ -247,11 +294,20 @@ bool BatteryTimeEstimator::TryReadChargeRateFromWMI(LONG& signedRate_mW)
     pSvc->Release();
     pLoc->Release();
     scopeUninit();
+
+    if (IsUnknownOrBogusRate(signedRate_mW))
+        signedRate_mW = 0;
+
     return (signedRate_mW != 0);
 }
 
 void BatteryTimeEstimator::UpdateSmoothedRate(LONG currentRate_mW)
 {
+    if (IsUnknownOrBogusRate(currentRate_mW)) {
+        // ignore bogus/unknown values and keep previous smoothing
+        return;
+    }
+
     const float rateAbs = static_cast<float>(std::llabs(static_cast<long long>(currentRate_mW)));
 
     if (kUseRawRate) {
@@ -274,8 +330,13 @@ void BatteryTimeEstimator::CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BA
     info.hoursRemaining = 0.0f;
     info.hoursToFull = 0.0f;
 
+    LONG stateRate = state.Rate;
+    if (IsUnknownOrBogusRate(stateRate)) {
+        stateRate = 0;
+    }
+
     float effectiveRate_mW = (m_smoothedRate > 1.0f) ? m_smoothedRate
-        : static_cast<float>(std::llabs(static_cast<long long>(state.Rate)));
+        : static_cast<float>(std::llabs(static_cast<long long>(stateRate)));
 
     // Compute a fresh ETA if rate is usable
     bool etaComputed = false;
@@ -393,7 +454,7 @@ void BatteryTimeEstimator::CalculateTimes(BatteryTimeInfo& info, const SYSTEM_BA
 void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info, int lang)
 {
 
-	/*int lang = eng_lang ? LANG_EN : LANG_JP;*/
+    /*int lang = eng_lang ? LANG_EN : LANG_JP;*/
 
     if (info.isFullyCharged) {
         info.statusText = g_Texts[lang][TK_STATUS_FULLY_CHARGED];
@@ -401,7 +462,19 @@ void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info, int lang)
         return;
     }
 
+    // Sentinel for "unknown ETA"
+    const float UNKNOWN_ETA_SENTINEL = -9999.0f;
+
     if (info.isCharging) {
+
+        // If rate/ETA are unknown
+        if (info.hoursToFull <= UNKNOWN_ETA_SENTINEL + 1.0f) {
+            info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_UNKNOWN], info.chargePercent);
+            info.detailText.Format(g_Texts[lang][TK_DETAIL_CHG_RATE_UNKNOWN],
+                info.currentCapacity, info.maxCapacity);
+            return;
+        }
+
         if (info.hoursToFull < 0.0f) {
             info.statusText.Format(g_Texts[lang][TK_STATUS_CHG_CALC], info.chargePercent);
         }
@@ -428,6 +501,13 @@ void BatteryTimeEstimator::FormatStatusText(BatteryTimeInfo& info, int lang)
     }
 
     // Discharging
+    if (info.hoursRemaining <= UNKNOWN_ETA_SENTINEL + 1.0f) {
+        info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_UNKNOWN], info.chargePercent);
+        info.detailText.Format(g_Texts[lang][TK_DETAIL_DISCH_RATE_UNKNOWN],
+            info.currentCapacity, info.maxCapacity);
+        return;
+    }
+
     if (info.hoursRemaining < 0.0f) {
         info.statusText.Format(g_Texts[lang][TK_STATUS_DISCH_CALC], info.chargePercent);
     }
@@ -477,13 +557,36 @@ BatteryTimeInfo BatteryTimeEstimator::GetBatteryTime(int lang)
     info.designCapacity = 0;
     info.isFullyCharged = (info.chargePercent >= 99.0f && info.isOnAC);
 
+    // Clamp unknown/bogus driver rates from SystemBatteryState
+    if (IsUnknownOrBogusRate(info.currentRate_mW)) {
+        info.currentRate_mW = 0;
+    }
+
     LONG wmiRateSigned = 0;
-    if (TryReadChargeRateFromWMI(wmiRateSigned) && wmiRateSigned != 0) {
+    if (TryReadChargeRateFromWMI(wmiRateSigned) &&
+        wmiRateSigned != 0 &&
+        !IsUnknownOrBogusRate(wmiRateSigned)) {
         info.currentRate_mW = wmiRateSigned;
     }
 
-    UpdateSmoothedRate(info.currentRate_mW);
+    bool haveValidRate = (info.currentRate_mW != 0);
+
+    if (haveValidRate) {
+        UpdateSmoothedRate(info.currentRate_mW);
+    }
+    else {
+        // force smoothed rate to zero if we don't actually know power
+        m_smoothedRate = 0.0f;
+    }
+
     CalculateTimes(info, bs);
+
+    // If we don't have a valid rate at all, mark ETA as "unknown"
+    if (!haveValidRate) {
+        info.hoursToFull = -9999.0f;
+        info.hoursRemaining = -9999.0f;
+    }
+
     FormatStatusText(info, lang);
 
     return info;
@@ -513,7 +616,7 @@ BOOL CRateInfoDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
-	int lang = eng_lang ? LANG_EN : LANG_JP;
+    int lang = eng_lang ? LANG_EN : LANG_JP;
 
     GdiplusStartupInput gpsi;
     if (GdiplusStartup(&m_gdiplusToken, &gpsi, nullptr) != Ok) {
@@ -561,7 +664,7 @@ void CRateInfoDlg::PushSamples(float chargeW, float dischargeW)
 
 void CRateInfoDlg::UpdateBatteryInfo()
 {
-	int lang = eng_lang ? LANG_EN : LANG_JP;
+    int lang = eng_lang ? LANG_EN : LANG_JP;
 
     m_last = m_estimator.GetBatteryTime(lang);
 
@@ -677,7 +780,7 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
 {
     const bool showCharge = (m_last.currentRate_mW > 0) || m_last.isCharging;
 
-	int lang = eng_lang ? LANG_EN : LANG_JP;
+    int lang = eng_lang ? LANG_EN : LANG_JP;
 
     const std::vector<float>& series = showCharge ? m_samplesChargeW : m_samplesDischargeW;
     const WCHAR* chartTitle = showCharge ? g_Texts[lang][TK_CHART_TITLE_CHG] : g_Texts[lang][TK_CHART_TITLE_DIS];
@@ -783,4 +886,5 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
     SolidBrush badgeText(Color(255, 40, 40, 40));
     g.DrawString(latestTxt, -1, &fBadge,
         Gdiplus::PointF(px + pw - 110.f, py + 4.f), &badgeText);
+
 }

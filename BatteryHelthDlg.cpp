@@ -527,6 +527,8 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
     ApplyScaledFonts();
     ScaleDialog();   // uses m_baseWidth/Height as design reference
 
+
+
     return 0;
 }
  
@@ -956,7 +958,6 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 }
 
 
-
 void CBatteryHelthDlg::InitToolTips()
 {
     if (!m_toolTip.GetSafeHwnd())
@@ -969,47 +970,118 @@ void CBatteryHelthDlg::InitToolTips()
         m_toolTip.SetDelayTime(TTDT_AUTOPOP, 8000);
     }
 
-    struct Tip { UINT id; const wchar_t* text; };
-    const Tip tips[] = {
-        { IDC_BTN_CPULOAD,     L"Start CPU Load Test" },
-        { IDC_BTN_DISCHARGE,   L"Start Discharge Test" },
-        { IDC_BTN_HISTORY,     L"Charge History" },
-        { IDC_BTN_UPLOADPDF,   L"Export Report To CSV" },
-        { IDC_BATT_PERCENTAGE, L"Current battery percentage reported by Windows." },
-        { IDC_BATT_CAPACITY,   L"Full charge vs. design capacity (health estimate)." },
-        { IDC_BTN_CAPHIS,   L"Battery Charge Capacity History" },
-        //{ IDC_BTN_PREDICTION,   L"Health Prediction" },
-        { IDC_BTN_ACTIVE,   L"Active Battery Life Trend" },
-        { IDC_BTN_STANDBY,   L"Standby Battery Life Trend" },
-        { IDC_BTN_USAGE,   L"Usage History" },
-        { IDC_BTN_MANIPULATIOIN,   L"Ditect Manipulation" },
-		{ IDC_BTN_RATEINFO,   L"Charge/Discharge Rate Information" },
-        { IDC_BTN_BGAPP,   L"Long-Running Background Applications" },
-        { IDC_BTN_EN,   L"English Language" },
-        { IDC_BTN_JP,   L"Japanese Language" },
-        { IDC_BTN_SLEEP,   L"Sleep Logs" },
-
+    struct Tip
+    {
+        UINT id;
+        const wchar_t* text_en;
+        const wchar_t* text_jp;
     };
 
+    const Tip tips[] =
+    {
+        { IDC_BTN_CPULOAD,
+          L"Start CPU Load Test",
+          L"CPU負荷テストを開始します" },
+
+        { IDC_BTN_DISCHARGE,
+          L"Start Discharge Test",
+          L"放電試験を開始する" },
+
+        { IDC_BTN_HISTORY,
+          L"Charge History",
+          L"充電履歴" },
+
+        { IDC_BTN_UPLOADPDF,
+          L"Export Report To CSV",
+          L"レポートをCSVにエクスポート" },
+
+        { IDC_BATT_PERCENTAGE,
+          L"Current battery percentage reported by Windows.",
+          L"Windows によって報告された現在のバッテリー残量の割合。" },
+
+        { IDC_BATT_CAPACITY,
+          L"Full charge vs. design capacity (health estimate).",
+          L"フル充電と設計容量（健全性の推定）の比較。" },
+
+        { IDC_BTN_CAPHIS,
+          L"Battery Charge Capacity History",
+          L"バッテリー充電容量履歴" },
+
+          // { IDC_BTN_PREDICTION,
+          //   L"Health Prediction",
+          //   L"バッテリー寿命の予測" },
+
+          { IDC_BTN_ACTIVE,
+            L"Active Battery Life Trend",
+            L"アクティブなバッテリー寿命の傾向" },
+
+          { IDC_BTN_STANDBY,
+            L"Standby Battery Life Trend",
+            L"スタンバイ時のバッテリー寿命の傾向" },
+
+          { IDC_BTN_USAGE,
+            L"Usage History",
+            L"利用履歴" },
+
+          { IDC_BTN_MANIPULATIOIN,
+            L"Detect Manipulation",
+            L"改ざん検出" },
+
+          { IDC_BTN_RATEINFO,
+            L"Charge/Discharge Rate Information",
+            L"充電/放電レート情報" },
+
+          { IDC_BTN_BGAPP,
+            L"Long-Running Background Applications",
+            L"長時間実行されるバックグラウンドアプリケーション" },
+
+          { IDC_BTN_EN,
+            L"English Language",
+            L"英語" },
+
+          { IDC_BTN_JP,
+            L"Japanese Language",
+            L"日本語" },
+
+          { IDC_BTN_SLEEP,
+            L"Sleep Logs",
+            L"睡眠ログ" },
+    };
+
+    // Common tooltips based on language
     for (size_t i = 0; i < _countof(tips); ++i)
     {
         if (CWnd* p = GetDlgItem(tips[i].id))
-            m_toolTip.AddTool(p, tips[i].text);
+        {
+            const wchar_t* txt =
+                (m_lang == Lang::EN) ? tips[i].text_en : tips[i].text_jp;
+            m_toolTip.AddTool(p, txt);
+        }
     }
 
-    // Conditional tooltip: only add if test is NOT running
-    if (!m_dischargeTestRunning)
+    // Conditional tooltip for discharge button (start/stop)
+    if (CWnd* p = GetDlgItem(IDC_BTN_DISCHARGE))
     {
-        if (CWnd* p = GetDlgItem(IDC_BTN_DISCHARGE))
-            m_toolTip.AddTool(p, L"Start Discharge Test");
-    }
-    else {
-        if (CWnd* p = GetDlgItem(IDC_BTN_DISCHARGE))
-            m_toolTip.AddTool(p, L"Stop Discharge Test");
-    }
+        const wchar_t* start_en = L"Start Discharge Test";
+        const wchar_t* start_jp = L"放電試験を開始する";
+        const wchar_t* stop_en = L"Stop Discharge Test";
+        const wchar_t* stop_jp = L"停止放電テスト";
 
- 
+        const wchar_t* txt = nullptr;
+        if (!m_dischargeTestRunning)
+        {
+            txt = (m_lang == Lang::EN) ? start_en : start_jp;
+        }
+        else
+        {
+            txt = (m_lang == Lang::EN) ? stop_en : stop_jp;
+        }
+
+        m_toolTip.AddTool(p, txt);
+    }
 }
+
+
 
 
 BOOL CBatteryHelthDlg::PreTranslateMessage(MSG* pMsg)
@@ -1892,6 +1964,76 @@ CString QueryBatteryTemperature()
     return result;
 }
 
+bool CBatteryHelthDlg::HasBattery()
+{
+    IWbemLocator* pLoc = nullptr;
+    IWbemServices* pSvc = nullptr;
+    IEnumWbemClassObject* pEnum = nullptr;
+    IWbemClassObject* pObj = nullptr;
+
+    bool hasBattery = false;
+
+    HRESULT hr = CoCreateInstance(
+        CLSID_WbemLocator,
+        nullptr,
+        CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator,
+        (LPVOID*)&pLoc);
+
+    if (FAILED(hr) || !pLoc)
+        goto cleanup;
+
+    hr = pLoc->ConnectServer(
+        _bstr_t(L"ROOT\\CIMV2"), // namespace
+        nullptr,                // user
+        nullptr,                // password
+        nullptr,                // locale
+        0,                      // SECURITY FLAGS (long) ✔ FIXED
+        nullptr,                // authority
+        nullptr,                // context
+        &pSvc);
+
+    if (FAILED(hr) || !pSvc)
+        goto cleanup;
+
+    hr = CoSetProxyBlanket(
+        pSvc,
+        RPC_C_AUTHN_WINNT,
+        RPC_C_AUTHZ_NONE,
+        nullptr,
+        RPC_C_AUTHN_LEVEL_CALL,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        nullptr,
+        EOAC_NONE);
+
+    if (FAILED(hr))
+        goto cleanup;
+
+    hr = pSvc->ExecQuery(
+        bstr_t("WQL"),
+        bstr_t("SELECT * FROM Win32_Battery"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        nullptr,
+        &pEnum);
+
+    if (FAILED(hr) || !pEnum)
+        goto cleanup;
+
+    ULONG ret = 0;
+    hr = pEnum->Next(WBEM_INFINITE, 1, &pObj, &ret);
+
+    if (SUCCEEDED(hr) && ret > 0 && pObj)
+        hasBattery = true;
+
+cleanup:
+    if (pObj)  pObj->Release();
+    if (pEnum) pEnum->Release();
+    if (pSvc)  pSvc->Release();
+    if (pLoc)  pLoc->Release();
+
+    return hasBattery;
+}
+
 
 
 void CBatteryHelthDlg::GetStaticBatteryInfo()
@@ -2412,12 +2554,389 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 //    CheckBatteryTransition();
 //}
 
+//void CBatteryHelthDlg::GetBatteryInfo()
+//{
+//    // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
+//    IWbemLocator* pLoc = nullptr;
+//    IWbemServices* pSvc = nullptr;
+//
+//    HRESULT hr = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+//        IID_IWbemLocator, (LPVOID*)&pLoc);
+//    if (FAILED(hr) || !pLoc) {
+//        if (m_lang == Lang::EN) {
+//            UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
+//        }
+//        else {
+//			UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
+//        }
+//        return;
+//    }
+//
+//    hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
+//    if (FAILED(hr) || !pSvc) {
+//        if(m_lang == Lang::EN) {
+//            UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
+//        }
+//        else {
+//            UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
+//        }
+//        pLoc->Release();
+//        return;
+//    }
+//
+//    hr = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
+//        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
+//        NULL, EOAC_NONE);
+//    if (FAILED(hr)) {
+//        if (m_lang == Lang::EN) {
+//            UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
+//        }
+//        else{
+//            UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
+//        }
+//        pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    // --- Query Win32_Battery ---
+//    IEnumWbemClassObject* pEnumerator = nullptr;
+//    hr = pSvc->ExecQuery(bstr_t("WQL"),
+//        bstr_t("SELECT * FROM Win32_Battery"),
+//        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+//        NULL, &pEnumerator);
+//    if (FAILED(hr) || !pEnumerator) {
+//        if (m_lang == Lang::EN) {
+//UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+//        }
+//        else {
+//            UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
+//        }
+//        
+//        pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    IWbemClassObject* pObj = nullptr;
+//    ULONG uReturn = 0;
+//    hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
+//
+//    if (uReturn == 0 || !pObj) {
+//
+//        if(m_lang == Lang::EN) {
+//            UpdateLabel(this, IDC_BATT_DID, L"No battery found");
+//        }
+//        else {
+//            UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
+//		}
+//
+//        pEnumerator->Release(); pSvc->Release(); pLoc->Release();
+//        return;
+//    }
+//
+//    // ----------------------------
+//    // 1) Status / Percent / Time (rate-based ETA + 5s gate + percent-lock)
+//    // ----------------------------
+//    VARIANT vt{};
+//    CString statusText;
+//    if(m_lang == Lang::EN) {
+//        statusText = L"Unknown";
+//    }
+//    else {
+//        statusText = L"不明";
+//	}
+//    
+//    int batteryStatus = 0;
+//
+//    if (SUCCEEDED(pObj->Get(L"BatteryStatus", 0, &vt, 0, 0))) {
+//        batteryStatus = vt.intVal;
+//        if (m_lang == Lang::EN) {
+//            switch (vt.intVal) {
+//            case 1: statusText = L"Discharging";   break;
+//            case 2: statusText = L"Charging";      break;
+//            case 3: statusText = L"Fully Charged"; break;
+//            default: statusText = L"Unknown";      break;
+//            }
+//        }
+//        else {
+//            switch (vt.intVal) {
+//            case 1: statusText = L"放電中";   break;
+//            case 2: statusText = L"充電中";   break;
+//            case 3: statusText = L"満充電";   break;
+//            default: statusText = L"不明";    break;
+//            }
+//        }
+//
+//        VariantClear(&vt);
+//    }
+//    UpdateLabel(this, IDC_BATT_STATUS, statusText);
+//
+//    SYSTEM_POWER_STATUS sps{};
+//    if (GetSystemPowerStatus(&sps)) {
+//        // Battery % + progress
+//        CString pct;
+//        int pctNow = -1;
+//        if (sps.BatteryLifePercent != 255) {
+//            pctNow = (int)sps.BatteryLifePercent;
+//            pct.Format(L"%d%%", pctNow);
+//            m_BatteryProgress.SetPos(pctNow);
+//        }
+//        else {
+//            if (m_lang == Lang::EN)
+//            {
+//                pct = L"Unknown";
+//            }
+//            else {
+//                pct = L"不明";
+//            }
+//            m_BatteryProgress.SetPos(0);
+//        }
+//        UpdateLabel(this, IDC_BATT_PERCENTAGE, pct);
+//
+//        // Pre-fetch WMI values (ROOT\WMI)
+//        CString remCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
+//        CString fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
+//        CString chargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"ChargeRate");
+//        CString dischargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"DischargeRate");
+//
+//        auto asInt = [](const CString& s)->int {
+//            if (s.IsEmpty() || s == L"Not available") return 0;
+//            return _wtoi(s);
+//            };
+//        const int remaining_mWh = asInt(remCapStr);
+//        const int full_mWh = asInt(fullCapStr);
+//        const int charge_mW = asInt(chargeRateStr);
+//        const int discharge_mW = asInt(dischargeRateStr);
+//
+//        /*auto fmtHM = [](double hours)->CString {
+//            CString out;
+//            if (hours <= 0.0) { out = L"Calculating..."; return out; }
+//            int h = (int)hours;
+//            int m = (int)((hours - h) * 60.0);
+//            if (h > 0 || m > 0) out.Format(L"%d hr %d min", h, m);
+//            else out = L"Calculating...";
+//            return out;
+//            };*/
+//
+//
+//        auto fmtHM = [this](double hours)->CString {
+//            CString out;
+//
+//            if (hours <= 0.0) {
+//                if (m_lang == Lang::EN)
+//                    out = L"Calculating...";
+//                else
+//                    out = L"計算中...";
+//                return out;
+//            }
+//
+//            int h = (int)hours;
+//            int m = (int)((hours - h) * 60.0);
+//
+//            if (h > 0 || m > 0) {
+//                if (m_lang == Lang::EN)
+//                {
+//                    out.Format(L"%d hr %d min", h, m);
+//                }
+//                else {
+//                    out.Format(L"%d 時間 %d 分", h, m);
+//
+//                }
+//                    
+//            }
+//            else {
+//                if (m_lang == Lang::EN)
+//                    out = L"Calculating...";
+//                else
+//                    out = L"計算中...";
+//            }
+//
+//            return out;
+//            };
+//
+//
+//        // Percent-lock + 5s-gate state (function-local statics)
+//        static int        s_lastPct = -1;
+//        static int        s_lastMode = 2;
+//        static double     s_lockedEtaHours = -1.0; // numeric ETA in hours
+//        static ULONGLONG  s_readyAtMs = 0;         // when ETA may first appear after mode/first run gate
+//
+//        CString remain;      // final output (localized)
+//        double  etaHours = -1.0; // computed ETA based on rate (in hours), -1 = unknown
+//
+//        const bool onAC = (sps.ACLineStatus == 1);
+//        const bool fully = (batteryStatus == 3 || pctNow == 100);
+//
+//        int curMode = 2; // default not-lockable
+//
+//        if (onAC) {
+//            if (fully) {
+//                remain = (m_lang == Lang::EN) ? L"Fully Charged" : L"満充電";
+//                curMode = 2;
+//            }
+//            else if ((batteryStatus == 2 || pctNow < 100) && full_mWh > 0 && remaining_mWh >= 0) {
+//                const int missing_mWh = max(0, full_mWh - remaining_mWh);
+//                if (charge_mW > 0 && missing_mWh > 0) {
+//                    double hours = (double)missing_mWh / (double)charge_mW;
+//                    if (pctNow >= 80 && pctNow < 100) {
+//                        hours *= (1.0 + (pctNow - 80) / 100.0); // up to +0.20x
+//                    }
+//                    etaHours = hours;
+//                }
+//                else {
+//                    etaHours = -1.0;
+//                }
+//                curMode = 1; // charging
+//            }
+//            else {
+//                remain = (m_lang == Lang::EN) ? L"Plugged In" : L"差し込まれた";
+//                curMode = 2;
+//            }
+//        }
+//        else {
+//            // discharging
+//            if (remaining_mWh > 0 && discharge_mW > 0) {
+//                double hours = (double)remaining_mWh / (double)discharge_mW;
+//                etaHours = hours;
+//            }
+//            else {
+//                etaHours = -1.0;
+//            }
+//            curMode = 0; // discharging
+//        }
+//
+//        // === 5s gate + percent-locked display (using numeric ETA) ===
+//        ULONGLONG nowMs = GetTickCount64();
+//        bool      lockable = ((curMode == 0 || curMode == 1) && pctNow >= 0);
+//        bool      modeChanged = (curMode != s_lastMode);
+//
+//        if (lockable) {
+//            // Start (or restart) 5s gate on first entry or mode change
+//            if (modeChanged || s_lastMode == 2 || s_readyAtMs == 0) {
+//                s_readyAtMs = nowMs + 5000;  // gate opens after 5s
+//                s_lockedEtaHours = -1.0;
+//                s_lastPct = -1;            // force capture after gate
+//            }
+//
+//            if (nowMs < s_readyAtMs) {
+//                // Gate not yet open -> show placeholder (localized)
+//                remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+//                s_lastMode = curMode;
+//            }
+//            else {
+//                // Gate open -> apply percent-lock on numeric ETA
+//                if (s_lastPct < 0 || modeChanged || pctNow != s_lastPct) {
+//                    s_lockedEtaHours = etaHours;  // may be -1.0 if unknown; that's fine
+//                    s_lastPct = pctNow;
+//                    s_lastMode = curMode;
+//                }
+//
+//                double displayHours = (s_lockedEtaHours >= 0.0) ? s_lockedEtaHours : etaHours;
+//
+//                if (displayHours > 0.0) {
+//                    remain = fmtHM(displayHours); // <-- formatted *now* with current m_lang
+//                }
+//                else {
+//                    remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+//                }
+//            }
+//        }
+//        else {
+//            // Not lockable states: reset gate + lock, use existing remain or fallback
+//            s_lastMode = 2;
+//            s_readyAtMs = 0;
+//            s_lockedEtaHours = -1.0;
+//            s_lastPct = pctNow;
+//
+//            if (remain.IsEmpty()) {
+//                remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+//            }
+//        }
+//
+//        UpdateLabel(this, IDC_BATT_TIME, remain);
+//
+//
+//        // ----- Current (Remaining) Capacity -----
+//        CString currCapOut;
+//        if (remaining_mWh > 0) currCapOut.Format(L"%d mWh", remaining_mWh);
+//        else {
+//            if(m_lang == Lang::EN) {
+//                currCapOut = L"Unknown";
+//            }
+//            else {
+//                currCapOut = L"不明";
+//            }
+//        };
+//        UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapOut);
+//    }
+//    else {
+//        if(m_lang == Lang::EN) {
+//            UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
+//            UpdateLabel(this, IDC_BATT_TIME, L"Unknown");
+//        }
+//        else {
+//            UpdateLabel(this, IDC_BATT_PERCENTAGE, L"不明");
+//            UpdateLabel(this, IDC_BATT_TIME, L"不明");
+//        }
+//        
+//    }
+//
+//    // --------------------------
+//    // 7) Voltage
+//    // --------------------------
+//    {
+//        CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
+//        if (voltageStr != L"Not available") {
+//            double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
+//            CString out; out.Format(L"%.2f V", volts);
+//            UpdateLabel(this, IDC_BATT_VOLTAGE, out);
+//        }
+//        else {
+//            if(m_lang == Lang::EN) {
+//                UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
+//            }
+//            else {
+//                UpdateLabel(this, IDC_BATT_VOLTAGE, L"不明");
+//            }
+//        }
+//    }
+//
+//    // --------------------------
+//    // 10) Temperature (if avail)
+//    // --------------------------
+//    {
+//        CString t = QueryBatteryTemperature(); // your helper
+//        if (t == L"Not available") {
+//            if(m_lang == Lang::EN) {
+//                t = L"Unknown";
+//            }
+//            else {
+//                t = L"不明";
+//			}
+//        };
+//        UpdateLabel(this, IDC_BATT_TEMP, t);
+//    }
+//
+//    // cleanup
+//    pObj->Release();
+//    pEnumerator->Release();
+//    pSvc->Release();
+//    pLoc->Release();
+//
+//    // your post-actions
+//    UpdateDischargeButtonStatus();
+//    CheckBatteryTransition();
+//
+//
+//}
+
+
+
+
 void CBatteryHelthDlg::GetBatteryInfo()
 {
     // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
     IWbemLocator* pLoc = nullptr;
     IWbemServices* pSvc = nullptr;
-
     HRESULT hr = CoCreateInstance(CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
         IID_IWbemLocator, (LPVOID*)&pLoc);
     if (FAILED(hr) || !pLoc) {
@@ -2425,14 +2944,13 @@ void CBatteryHelthDlg::GetBatteryInfo()
             UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
         }
         else {
-			UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
+            UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
         }
         return;
     }
-
     hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
     if (FAILED(hr) || !pSvc) {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
         }
         else {
@@ -2441,7 +2959,6 @@ void CBatteryHelthDlg::GetBatteryInfo()
         pLoc->Release();
         return;
     }
-
     hr = CoSetProxyBlanket(pSvc, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL,
         RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
         NULL, EOAC_NONE);
@@ -2449,13 +2966,12 @@ void CBatteryHelthDlg::GetBatteryInfo()
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
         }
-        else{
+        else {
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
         pSvc->Release(); pLoc->Release();
         return;
     }
-
     // --- Query Win32_Battery ---
     IEnumWbemClassObject* pEnumerator = nullptr;
     hr = pSvc->ExecQuery(bstr_t("WQL"),
@@ -2464,47 +2980,41 @@ void CBatteryHelthDlg::GetBatteryInfo()
         NULL, &pEnumerator);
     if (FAILED(hr) || !pEnumerator) {
         if (m_lang == Lang::EN) {
-UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+            UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
         }
-        
+
         pSvc->Release(); pLoc->Release();
         return;
     }
-
     IWbemClassObject* pObj = nullptr;
     ULONG uReturn = 0;
     hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
-
     if (uReturn == 0 || !pObj) {
-
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"No battery found");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
-		}
-
+        }
         pEnumerator->Release(); pSvc->Release(); pLoc->Release();
         return;
     }
-
     // ----------------------------
     // 1) Status / Percent / Time (rate-based ETA + 5s gate + percent-lock)
     // ----------------------------
     VARIANT vt{};
     CString statusText;
-    if(m_lang == Lang::EN) {
+    if (m_lang == Lang::EN) {
         statusText = L"Unknown";
     }
     else {
         statusText = L"不明";
-	}
-    
-    int batteryStatus = 0;
+    }
 
+    int batteryStatus = 0;
     if (SUCCEEDED(pObj->Get(L"BatteryStatus", 0, &vt, 0, 0))) {
         batteryStatus = vt.intVal;
         if (m_lang == Lang::EN) {
@@ -2523,11 +3033,9 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
             default: statusText = L"不明";    break;
             }
         }
-
         VariantClear(&vt);
     }
     UpdateLabel(this, IDC_BATT_STATUS, statusText);
-
     SYSTEM_POWER_STATUS sps{};
     if (GetSystemPowerStatus(&sps)) {
         // Battery % + progress
@@ -2549,13 +3057,11 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
             m_BatteryProgress.SetPos(0);
         }
         UpdateLabel(this, IDC_BATT_PERCENTAGE, pct);
-
         // Pre-fetch WMI values (ROOT\WMI)
         CString remCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"RemainingCapacity");
         CString fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
         CString chargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"ChargeRate");
         CString dischargeRateStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"DischargeRate");
-
         auto asInt = [](const CString& s)->int {
             if (s.IsEmpty() || s == L"Not available") return 0;
             return _wtoi(s);
@@ -2565,20 +3071,8 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         const int charge_mW = asInt(chargeRateStr);
         const int discharge_mW = asInt(dischargeRateStr);
 
-        /*auto fmtHM = [](double hours)->CString {
-            CString out;
-            if (hours <= 0.0) { out = L"Calculating..."; return out; }
-            int h = (int)hours;
-            int m = (int)((hours - h) * 60.0);
-            if (h > 0 || m > 0) out.Format(L"%d hr %d min", h, m);
-            else out = L"Calculating...";
-            return out;
-            };*/
-
-
         auto fmtHM = [this](double hours)->CString {
             CString out;
-
             if (hours <= 0.0) {
                 if (m_lang == Lang::EN)
                     out = L"Calculating...";
@@ -2586,10 +3080,8 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
                     out = L"計算中...";
                 return out;
             }
-
             int h = (int)hours;
             int m = (int)((hours - h) * 60.0);
-
             if (h > 0 || m > 0) {
                 if (m_lang == Lang::EN)
                 {
@@ -2597,9 +3089,7 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
                 }
                 else {
                     out.Format(L"%d 時間 %d 分", h, m);
-
                 }
-                    
             }
             else {
                 if (m_lang == Lang::EN)
@@ -2607,24 +3097,20 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
                 else
                     out = L"計算中...";
             }
-
             return out;
             };
-
 
         // Percent-lock + 5s-gate state (function-local statics)
         static int        s_lastPct = -1;
         static int        s_lastMode = 2;
-        static double     s_lockedEtaHours = -1.0; // numeric ETA in hours
-        static ULONGLONG  s_readyAtMs = 0;         // when ETA may first appear after mode/first run gate
+        static double     s_lockedEtaHours = -1.0;
+        static ULONGLONG  s_readyAtMs = 0;
 
-        CString remain;      // final output (localized)
-        double  etaHours = -1.0; // computed ETA based on rate (in hours), -1 = unknown
-
+        CString remain;
+        double  etaHours = -1.0;
         const bool onAC = (sps.ACLineStatus == 1);
         const bool fully = (batteryStatus == 3 || pctNow == 100);
-
-        int curMode = 2; // default not-lockable
+        int curMode = 2;
 
         if (onAC) {
             if (fully) {
@@ -2633,17 +3119,51 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
             }
             else if ((batteryStatus == 2 || pctNow < 100) && full_mWh > 0 && remaining_mWh >= 0) {
                 const int missing_mWh = max(0, full_mWh - remaining_mWh);
+
+                // Primary: Try charge rate
                 if (charge_mW > 0 && missing_mWh > 0) {
                     double hours = (double)missing_mWh / (double)charge_mW;
                     if (pctNow >= 80 && pctNow < 100) {
-                        hours *= (1.0 + (pctNow - 80) / 100.0); // up to +0.20x
+                        hours *= (1.0 + (pctNow - 80) / 100.0);
                     }
                     etaHours = hours;
+                }
+                // Fallback 1: Use capacity percentage with historical average
+                else if (pctNow > 0 && pctNow < 100 && full_mWh > 0) {
+                    // Estimate based on percentage remaining to charge
+                    // Assume average charging takes ~2-3 hours for 0-100%
+                    double pctRemaining = (100.0 - pctNow) / 100.0;
+                    etaHours = pctRemaining * 2.5; // rough estimate
+                }
+                // Fallback 2: Try to get EstimatedRunTime from Win32_Battery
+                else if (pctNow > 0 && pctNow < 100) {
+                    // Get EstimatedRunTime from Win32_Battery (when charging, some systems provide charge time)
+                    VARIANT vtEstTime{};
+                    if (SUCCEEDED(pObj->Get(L"EstimatedRunTime", 0, &vtEstTime, 0, 0))) {
+                        UINT estMinutes = vtEstTime.uintVal;
+                        VariantClear(&vtEstTime);
+
+                        // EstimatedRunTime is in minutes
+                        // Value 71582788 means unknown/unavailable
+                        if (estMinutes != 71582788 && estMinutes > 0 && estMinutes < 10000) {
+                            etaHours = estMinutes / 60.0;
+                        }
+                        else {
+                            // Last resort: simple percentage-based estimate
+                            double pctRemaining = (100.0 - pctNow) / 100.0;
+                            etaHours = pctRemaining * 2.5;
+                        }
+                    }
+                    else {
+                        // Fallback to percentage estimate
+                        double pctRemaining = (100.0 - pctNow) / 100.0;
+                        etaHours = pctRemaining * 2.5;
+                    }
                 }
                 else {
                     etaHours = -1.0;
                 }
-                curMode = 1; // charging
+                curMode = 1;
             }
             else {
                 remain = (m_lang == Lang::EN) ? L"Plugged In" : L"差し込まれた";
@@ -2651,83 +3171,86 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
             }
         }
         else {
-            // discharging
+            // Discharging
+            // Primary: Try discharge rate
             if (remaining_mWh > 0 && discharge_mW > 0) {
                 double hours = (double)remaining_mWh / (double)discharge_mW;
                 etaHours = hours;
             }
+            // Fallback 1: Use capacity percentage
+            else if (pctNow > 0 && full_mWh > 0 && remaining_mWh > 0) {
+                // Estimate based on current percentage
+                // Assume average discharge takes ~4-8 hours for 100-0%
+                double pctRemaining = pctNow / 100.0;
+                etaHours = pctRemaining * 6.0; // rough estimate
+            }
+            // Fallback 2: Try Win API estimated time
+            else if (sps.BatteryLifeTime != (DWORD)-1 && sps.BatteryLifeTime > 0) {
+                // BatteryLifeTime is in seconds, represents time remaining
+                etaHours = sps.BatteryLifeTime / 3600.0;
+            }
             else {
                 etaHours = -1.0;
             }
-            curMode = 0; // discharging
+            curMode = 0;
         }
 
-        // === 5s gate + percent-locked display (using numeric ETA) ===
+        // === 5s gate + percent-locked display ===
         ULONGLONG nowMs = GetTickCount64();
         bool      lockable = ((curMode == 0 || curMode == 1) && pctNow >= 0);
         bool      modeChanged = (curMode != s_lastMode);
 
         if (lockable) {
-            // Start (or restart) 5s gate on first entry or mode change
             if (modeChanged || s_lastMode == 2 || s_readyAtMs == 0) {
-                s_readyAtMs = nowMs + 5000;  // gate opens after 5s
+                s_readyAtMs = nowMs + 5000;
                 s_lockedEtaHours = -1.0;
-                s_lastPct = -1;            // force capture after gate
+                s_lastPct = -1;
             }
-
             if (nowMs < s_readyAtMs) {
-                // Gate not yet open -> show placeholder (localized)
                 remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
                 s_lastMode = curMode;
             }
             else {
-                // Gate open -> apply percent-lock on numeric ETA
                 if (s_lastPct < 0 || modeChanged || pctNow != s_lastPct) {
-                    s_lockedEtaHours = etaHours;  // may be -1.0 if unknown; that's fine
+                    s_lockedEtaHours = etaHours;
                     s_lastPct = pctNow;
                     s_lastMode = curMode;
                 }
-
                 double displayHours = (s_lockedEtaHours >= 0.0) ? s_lockedEtaHours : etaHours;
-
                 if (displayHours > 0.0) {
-                    remain = fmtHM(displayHours); // <-- formatted *now* with current m_lang
+                    remain = fmtHM(displayHours);
                 }
                 else {
-                    remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+                    remain = (m_lang == Lang::EN) ? L"Unknown" : L"不明";
                 }
             }
         }
         else {
-            // Not lockable states: reset gate + lock, use existing remain or fallback
             s_lastMode = 2;
             s_readyAtMs = 0;
             s_lockedEtaHours = -1.0;
             s_lastPct = pctNow;
-
             if (remain.IsEmpty()) {
                 remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
             }
         }
-
         UpdateLabel(this, IDC_BATT_TIME, remain);
-
 
         // ----- Current (Remaining) Capacity -----
         CString currCapOut;
         if (remaining_mWh > 0) currCapOut.Format(L"%d mWh", remaining_mWh);
         else {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 currCapOut = L"Unknown";
             }
             else {
                 currCapOut = L"不明";
             }
-        };
+        }
         UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapOut);
     }
     else {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_PERCENTAGE, L"Unknown");
             UpdateLabel(this, IDC_BATT_TIME, L"Unknown");
         }
@@ -2735,7 +3258,6 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
             UpdateLabel(this, IDC_BATT_PERCENTAGE, L"不明");
             UpdateLabel(this, IDC_BATT_TIME, L"不明");
         }
-        
     }
 
     // --------------------------
@@ -2744,12 +3266,12 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
     {
         CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
         if (voltageStr != L"Not available") {
-            double volts = _wtoi(voltageStr) / 1000.0; // mV -> V
+            double volts = _wtoi(voltageStr) / 1000.0;
             CString out; out.Format(L"%.2f V", volts);
             UpdateLabel(this, IDC_BATT_VOLTAGE, out);
         }
         else {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
             }
             else {
@@ -2762,15 +3284,15 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
     // 10) Temperature (if avail)
     // --------------------------
     {
-        CString t = QueryBatteryTemperature(); // your helper
+        CString t = QueryBatteryTemperature();
         if (t == L"Not available") {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 t = L"Unknown";
             }
             else {
                 t = L"不明";
-			}
-        };
+            }
+        }
         UpdateLabel(this, IDC_BATT_TEMP, t);
     }
 
@@ -2780,17 +3302,9 @@ UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
     pSvc->Release();
     pLoc->Release();
 
-    // your post-actions
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
-
-
 }
-
-
-
-
-
 
 
 void CBatteryHelthDlg::UpdateDischargeButtonStatus()
@@ -2856,6 +3370,18 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
+
+    if(HasBattery() == false) {
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+        
+        return;
+	}
+
 
     SYSTEM_POWER_STATUS sps;
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
@@ -3403,6 +3929,18 @@ void RunCPULoadRemaining(
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
+    if(HasBattery() == false) {
+        
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected. CPU Load Test requires a battery.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。CPU負荷テストにはバッテリーが必要です。");
+        }
+        
+        return;
+	}
+
     UpdateLabel(this,IDC_BATT_DISCHARGR, L"");
 
     // Stop if running
@@ -3754,6 +4292,18 @@ void CBatteryHelthDlg::CheckBatteryTransition()
 
 void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     // Ask user where to save
     CFileDialog fileDlg(FALSE, L"csv", L"BatteryData.csv", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, L"CSV Files (*.csv)|*.csv||");
     if (fileDlg.DoModal() != IDOK)
@@ -3851,132 +4401,57 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
     }
 }
 
-//void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
-//{
-//    // Ask user where to save
-//    CFileDialog fileDlg(FALSE, L"csv", L"BatteryData.csv", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, L"CSV Files (*.csv)|*.csv||");
-//    if (fileDlg.DoModal() != IDOK)
-//        return;
-//
-//    CString filePath = fileDlg.GetPathName();
-//
-//    // Open file
-//    std::ofstream csvFile(filePath.GetString());
-//    if (!csvFile.is_open())
-//    {
-//        if(m_lang == Lang::EN) {
-//            AfxMessageBox(L"Failed to open file for writing.");
-//        }
-//        else {
-//            AfxMessageBox(L"書き込み用にファイルを開けませんでした。");
-//		}
-//        return;
-//    }
-//
-//    // Helper lambda to convert CString to CSV-safe string
-//    auto toCsvField = [](const CString& str) -> std::string {
-//        CT2CA pszConvertedAnsiString(str);
-//        std::string s(pszConvertedAnsiString);
-//
-//        // Replace line breaks with spaces
-//        for (auto& c : s)
-//        {
-//            if (c == '\n' || c == '\r') c = ' ';
-//        }
-//
-//        // Enclose in quotes
-//        return "\"" + s + "\"";
-//        };
-//
-//    // Write CSV header with Cycle Count
-//    
-//    if(m_lang == Lang::EN) {
-//        csvFile << "Device ID,Battery Percentage,Battery Status,Voltage (mV),Temperature (°C),Full Charge Capacity (mWh),Design Capacity (mWh),Current Capacity (mWh),Health (%),Manufacturer,Battery Name,Estimated Run Time (min),Cycle Count\n";
-//    }
-//    else {
-//        csvFile << "デバイスID,バッテリーの割合,バッテリー状態、電圧（mV）,温度（°C）,フル充電容量（mWh）,設計容量（mWh）,現在の容量（mWh）,状態（％）、メーカー,バッテリー名,推定稼働時間（分）,サイクル数\n";
-//    }
-//
-//    // Get current values from controls
-//    CString did, battPercent, battStatus, voltage, fullCap, designCap, health, deviceID, battName, estTime, cycleCount, temperature, currentCap;
-//
-//    GetDlgItemText(IDC_BATT_DID, did);
-//    GetDlgItemText(IDC_BATT_PERCENTAGE, battPercent);
-//    GetDlgItemText(IDC_BATT_STATUS, battStatus);
-//    GetDlgItemText(IDC_BATT_VOLTAGE, voltage);
-//    GetDlgItemText(IDC_BATT_CAPACITY, fullCap);
-//    GetDlgItemText(IDC_BATT_DCAPACITY, designCap);
-//    GetDlgItemText(IDC_BATT_HEALTH, health);
-//    GetDlgItemText(IDC_BATT_MANUFAC, deviceID);
-//    GetDlgItemText(IDC_BATT_NAME, battName);
-//    GetDlgItemText(IDC_BATT_TIME, estTime);
-//    GetDlgItemText(IDC_BATT_CYCLE, cycleCount);
-//    GetDlgItemText(IDC_BATT_TEMP, temperature);
-//    GetDlgItemText(IDC_BATT_CURRCAPACITY, currentCap);
-//
-//    csvFile << toCsvField(did) << ","
-//        << toCsvField(battPercent) << ","
-//        << toCsvField(battStatus) << ","
-//        << toCsvField(voltage) << ","
-//        << toCsvField(temperature) << ","
-//        << toCsvField(fullCap) << ","
-//        << toCsvField(designCap) << ","
-//        << toCsvField(currentCap) << ","
-//        << toCsvField(health) << ","
-//        << toCsvField(deviceID) << ","
-//        << toCsvField(battName) << ","
-//        << toCsvField(estTime) << ","
-//        << toCsvField(cycleCount) << ","<< "\n";
-//
-//    csvFile.close();
-//
-//   if(m_lang == Lang::EN) {
-//       AfxMessageBox(L"Battery data exported successfully.");
-//   }
-//   else {
-//       AfxMessageBox(L"バッテリーデータが正常にエクスポートされました。");
-//   }
-//}
+
 
 
 void CBatteryHelthDlg::OnBnClickedBtnHistory()
 {
-    CString table;
-    // Column headers
 
-    if(m_lang == Lang::EN) {
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
+    CString table;
+    CString okButtonText;
+
+    // Column headers
+    if (m_lang == Lang::EN) {
         table = L"Start       End         Total Charge Time\n";
         table += L"----------------------------------------\n";
+        okButtonText = L"OK";
     }
     else {
         table = L"始める       終わり         合計充電時間\n";
         table += L"----------------------------------------\n";
-	}
-
-
-    
+        okButtonText = L"オーケー"; 
+    }
 
     CTime startTime;
     bool hasStart = false;
-
     for (const auto& evt : m_batteryHistory)
     {
-        if (evt.charging) // Charging started
+        if (evt.charging)
         {
             startTime = evt.timestamp;
             hasStart = true;
         }
-        else // Discharging started
+        else
         {
             if (hasStart)
             {
                 CTimeSpan total = evt.timestamp - startTime;
                 double totalMinutes = total.GetTotalSeconds() / 60.0;
-
                 CString startStr = startTime.Format(L"%H:%M:%S");
                 CString endStr = evt.timestamp.Format(L"%H:%M:%S");
                 CString totalStr;
-                
+
                 if (m_lang == Lang::EN) {
                     totalStr.Format(L"%.2f min", totalMinutes);
                 }
@@ -3984,27 +4459,20 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
                     totalStr.Format(L"%.2f 分", totalMinutes);
                 }
 
-                // Pad strings to fixed width
                 startStr = startStr + CString(' ', 10 - startStr.GetLength());
                 endStr = endStr + CString(' ', 10 - endStr.GetLength());
                 totalStr = totalStr + CString(' ', 12 - totalStr.GetLength());
-
                 table += startStr + endStr + totalStr + L"\n";
-
                 hasStart = false;
             }
         }
     }
 
-    // Case where charging started but not yet ended
     if (hasStart)
     {
         CString startStr = startTime.Format(L"%H:%M:%S");
-
-
         CString endStr, totalStr;
-
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             endStr = L"null";
             totalStr = L"0 min";
         }
@@ -4012,27 +4480,44 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
             endStr = L"ヌル";
             totalStr = L"0 分";
         }
-
-
         startStr = startStr + CString(' ', 10 - startStr.GetLength());
         endStr = endStr + CString(' ', 10 - endStr.GetLength());
         totalStr = totalStr + CString(' ', 12 - totalStr.GetLength());
-
         table += startStr + endStr + totalStr + L"\n";
     }
 
-
     if (m_batteryHistory.empty())
     {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             table += L"No history recorded yet.";
         }
         else {
             table += L"まだ履歴は記録されていません。\n";
-		}
+        }
     }
 
-    AfxMessageBox(table, MB_OK | MB_ICONINFORMATION);
+    // Use TaskDialog for custom button text
+    CString title = (m_lang == Lang::EN) ? L"Battery History" : L"バッテリー履歴";
+
+    TASKDIALOGCONFIG config = { 0 };
+    config.cbSize = sizeof(config);
+    config.hwndParent = m_hWnd;
+    config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
+    config.dwCommonButtons = TDCBF_OK_BUTTON;
+    config.pszWindowTitle = title;
+    config.pszContent = table;
+    config.pszMainIcon = TD_INFORMATION_ICON;
+
+    // Custom button (not using common button to have full control)
+    TASKDIALOG_BUTTON buttons[] = {
+        { IDOK, okButtonText }
+    };
+    config.pButtons = buttons;
+    config.cButtons = 1;
+    config.dwCommonButtons = 0; // Don't use common buttons
+
+    int nButton;
+    TaskDialogIndirect(&config, &nButton, NULL, NULL);
 }
 
 
@@ -4242,6 +4727,18 @@ static bool SaveCsvUtf8AndOpen(const std::wstring& csv, CString& outPath)
 
 void CBatteryHelthDlg::OnBnClickedBtnCaphis()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     std::vector<CBatteryHelthDlg::BatteryCapacityRecord> hist;
     if (!GetBatteryCapacityHistory(hist) || hist.empty()) {
         
@@ -4390,6 +4887,18 @@ static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDat
 
 void CBatteryHelthDlg::OnBnClickedBtnActive()
 {
+    if(HasBattery() == false)
+    {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+        return;
+	}
+
+
     CTrendDlg dlg(this);
 
     // Optional: pass custom data instead of defaults
@@ -4410,6 +4919,18 @@ void CBatteryHelthDlg::OnBnClickedBtnActive()
 
 void CBatteryHelthDlg::OnBnClickedBtnStandby()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     StandByDlg dlg(this);
 
     // Optional: pass custom data instead of defaults
@@ -4665,15 +5186,40 @@ bool GetUsageHistory(std::vector<UsageHistoryRow>& outRows)
 
 void CBatteryHelthDlg::OnBnClickedBtnUsage()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     std::vector<UsageHistoryRow> rows;
     if (!GetUsageHistory(rows) || rows.empty()) {
-        AfxMessageBox(L"Could not read Usage History from the battery report.");
+        
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"Could not read Usage History from the battery report.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーレポートから使用履歴を読み取ることができませんでした。");
+		}
         return;
     }
 
     std::wstring csv;
-    csv += L",Battery Duration,Battery Duration,AC Duration,AC Duration,\r\n";
-    csv += L"Period,Battery Active (hrs),Battery Standby (hrs),AC Active (hrs),AC Standby (hrs)\r\n";
+    
+    if(m_lang == Lang::EN) {
+        csv += L",Battery Duration,Battery Duration,AC Duration,AC Duration,\r\n";
+        csv += L"Period,Battery Active (hrs),Battery Standby (hrs),AC Active (hrs),AC Standby (hrs)\r\n";
+    }
+    else {
+        csv += L",バッテリー持続時間,バッテリー持続時間,AC持続時間,AC持続時間,\r\n";
+        csv += L"バッテリー持続時間,バッテリーアクティブ（時間）,バッテリースタンバイ（時間）,ACアクティブ（時間）,ACスタンバイ（時間）\r\n";
+    }
 
     // Rows (skip the summary headers like "BATTERY DURATION" / "AC DURATION")
     for (const auto& r : rows) {
@@ -4696,18 +5242,53 @@ void CBatteryHelthDlg::OnBnClickedBtnUsage()
 
     CString outPath;
     if (!SaveCsvUtf8AndOpen(csv, outPath)) {
-        AfxMessageBox(L"Failed to write/open CSV file.");
+        
+        if(m_lang == Lang::EN) {
+            AfxMessageBox(L"Failed to write/open CSV file.");
+        }
+        else {
+            AfxMessageBox(L"英語CSVファイルの書き込み / オープンに失敗しました。");
+            
+		}
+
         return;
     }
 
     CString msg;
-    msg.Format(L"Usage history (Battery & AC) exported:\n%s", outPath.GetString());
+    if(m_lang == Lang::EN) {
+        msg.Format(L"CSV exported:\n%s", outPath.GetString());
+    }
+    else {
+        msg.Format(L"使用履歴（バッテリーとAC）がエクスポートされました:\n%s", outPath.GetString());
+    }
     AfxMessageBox(msg);
 }
 
+
 void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
 	CManipulationDlg dlg(this);
+
+    if (m_lang == Lang::EN)
+    {
+        dlg.eng_lang = true;
+    }
+    else {
+        dlg.eng_lang = false;
+    }
+
 	dlg.DoModal(); 
  
 }
@@ -4715,9 +5296,20 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 
 
 
-
 void CBatteryHelthDlg::OnBnClickedBtnBgapp()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     // TODO: Add your control notification handler code here
     AfxMessageBox(BuildVisibleAppsReport(), MB_ICONINFORMATION | MB_OK);
 }
@@ -4933,7 +5525,18 @@ CString CBatteryHelthDlg::BuildVisibleAppsReport()
 
 
 
+void CBatteryHelthDlg::CloseBalloon()
+{
+    if (!m_trayAdded) return;
 
+    NOTIFYICONDATAW nid = m_nid;
+    nid.uFlags |= NIF_INFO;
+    nid.szInfoTitle[0] = L'\0';
+    nid.szInfo[0] = L'\0';
+    nid.dwInfoFlags = NIIF_NONE;
+
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+}
 
 
 
@@ -5003,7 +5606,10 @@ void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
     }
 
     // Only notify if we found an IDLE app
-    if (!best) return;
+    if (!best) {
+   
+        return;
+    }
 
     // Require at least 15 minutes of uptime
     if (best->uptimeSec < MIN_UPTIME_SEC) return;
@@ -5011,15 +5617,48 @@ void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
     CString up = FormatTimespan(best->uptimeSec);
     CString idleStr = FormatTimespan(best->idleTimeSec);
 
-    CString title; title.Format(L"Idle long-running app: %s", best->name.c_str());
-    CString body;  body.Format(L"%s has been running for %s.\nStatus: IDLE",
+    // Close any existing balloon before showing a new one
+        CloseBalloon();
+
+    CString title;
+    CString body;
+
+    if(m_lang == Lang::EN) {
+         title.Format(L"Idle long-running app: %s", best->name.c_str());
+         body.Format(L"%s has been running for %s.\nStatus: IDLE",
+            best->name.c_str(), up.GetString());
+        ShowBalloon(title, body, NIIF_INFO);
+        return;
+	}
+    else {
+        title.Format(L"アイドル状態の長時間実行アプリ: %s", best->name.c_str());
+        body.Format(L"%s は %s の間実行されています。\nステータス: IDLE",
+            best->name.c_str(), up.GetString());
+        ShowBalloon(title, body, NIIF_INFO);
+        return;
+    }
+
+    /* title.Format(L"Idle long-running app: %s", best->name.c_str());
+      body.Format(L"%s has been running for %s.\nStatus: IDLE",
         best->name.c_str(), up.GetString());
 
-    ShowBalloon(title, body, NIIF_INFO);
+    ShowBalloon(title, body, NIIF_INFO);*/
 }
 
 void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     // TODO: Add your control notification handler code here
 
 	CRateInfoDlg dlg(this); 
@@ -5146,10 +5785,14 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
 
         SetDlgItemTextW(IDC_STATIC_ABT, _T("Advance Battery Info"));
 
+        ///////Data and History Section/////////////////////
+        SetDlgItemTextW(IDC_STATIC_DH, _T("Data and History"));
 
 
+        CloseBalloon();
+        CheckAndNotifyTopLongRunning();
 
-        
+		InitToolTips();
         Invalidate();
 
         GetBatteryInfo();
@@ -5214,9 +5857,17 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
         SetDlgItemTextW(IDC_STATIC_ABT, _T("事前のバッテリー情報"));
 
 
+		///////Data and History Section/////////////////////
+        SetDlgItemTextW(IDC_STATIC_DH, _T("データと歴史"));
+
+
         GetBatteryInfo();
         GetStaticBatteryInfo();
 
+        CloseBalloon();
+        CheckAndNotifyTopLongRunning();
+
+        InitToolTips();
         Invalidate();
     
    /*     UpdateWindow();*/
@@ -5229,6 +5880,18 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
 
 void CBatteryHelthDlg::OnBnClickedBtnSleep()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     CSleepDataDlg dlg;
 
     if(m_lang == Lang::EN){

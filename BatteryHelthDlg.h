@@ -62,7 +62,7 @@ public:
 	int m_initialBatteryPercent = -1;        // Battery % at start of test
 	bool m_dischargeTestRunning = false;     // Is the discharge test active?
 	UINT_PTR m_dischargeTimerID = 3;         // Timer ID for discharge test
-	int m_dischargeDurationMinutes = 0;     // Duration of discharge test (minutes)
+	int m_dischargeDurationMinutes = 5;     // Duration of discharge test (minutes)
 	int m_elapsedMinutes = 0;
 	bool m_dischargeClick = false;
 	int m_elapsedSeconds = 0;
@@ -340,6 +340,11 @@ public:
 	afx_msg void OnBnClickedBtnEn();
 	afx_msg void OnBnClickedBtnJp();
 	afx_msg void OnBnClickedBtnSleep();
+
+	void CloseBalloon();
+
+	bool HasBattery();
+
 };
 
 

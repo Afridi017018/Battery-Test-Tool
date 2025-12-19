@@ -47,11 +47,11 @@ static const wchar_t* g_Texts[2][TK_COUNT] =
     // Japanese
     {
         L"睡眠時間",       // TK_COL_SLEEP
-        L"起きている時間",           // TK_COL_AWAKE
-        L"前バッテリー%",      // TK_COL_PCT_BEFORE
-        L"後バッテリー%",      // TK_COL_PCT_AFTER
-        L"(未知)",             // TK_UNKNOWN
-        L"(？)"                // TK_PCT_UNKNOWN
+        L"起床時間",       // TK_COL_AWAKE (shorter)
+        L"前%",            // TK_COL_PCT_BEFORE (shorter to keep column width tight)
+        L"後%",            // TK_COL_PCT_AFTER  (shorter to keep column width tight)
+        L"(未知)",         // TK_UNKNOWN
+        L"(?)"             // TK_PCT_UNKNOWN (ASCII to match data rows)
     }
 };
 
@@ -128,7 +128,7 @@ BOOL CSleepDataDlg::OnInitDialog()
     // Start at the top (newest log visible first)
     m_scrollPosV = 0;
 
-	int lang = eng_lang ? LANG_EN : LANG_JP;    
+    int lang = eng_lang ? LANG_EN : LANG_JP;
 
     UpdateScrollBars();
     Invalidate();
@@ -180,9 +180,9 @@ void CSleepDataDlg::OnPaint()
 
     if (m_client.IsRectEmpty())
         return;
-    
-	int lang = eng_lang ? LANG_EN : LANG_JP;
-    
+
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
 
     // Double-buffer to avoid flicker
     CDC memDC;
@@ -336,7 +336,7 @@ void CSleepDataDlg::RecalcTextMetrics(CDC& dc)
 
 void CSleepDataDlg::CalculateContentWidth(CDC& dc)
 {
-	int lang = eng_lang ? LANG_EN : LANG_JP;
+    int lang = eng_lang ? LANG_EN : LANG_JP;
 
     m_contentWidth = 0;
 
@@ -532,44 +532,6 @@ void CSleepDataDlg::AppendLog_UI(const CString& line)
     UpdateScrollBars();
     Invalidate();
 }
-
-// ========================== Public static entries ==========================
-//void CSleepDataDlg::HandlePowerBroadcast(UINT nPowerEvent)
-//{
-//    switch (nPowerEvent)
-//    {
-//    case PBT_APMSUSPEND:
-//        s_activeCause = Cause::Real;
-//        TrackBeforeSleep_NoUI();
-//        s_resumeLogged = false;
-//        s_lastResumeTick = 0;
-//        break;
-//
-//    case PBT_APMRESUMECRITICAL:
-//        [[fallthrough]];
-//    case PBT_APMRESUMEAUTOMATIC:
-//        [[fallthrough]];
-//    case PBT_APMRESUMESUSPEND:
-//    {
-//        if (s_activeCause == Cause::Real) {
-//            const ULONGLONG now = ::GetTickCount64();
-//            const bool shouldLog =
-//                !s_resumeLogged || (s_lastResumeTick == 0) || (now - s_lastResumeTick > 1500ULL);
-//
-//            if (shouldLog) {
-//                TrackAfterResume_NoUI();
-//                s_resumeLogged = true;
-//                s_lastResumeTick = now;
-//                s_activeCause = Cause::None;
-//            }
-//        }
-//        break;
-//    }
-//
-//    default:
-//        break;
-//    }
-//}
 
 
 

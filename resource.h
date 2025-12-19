@@ -31,6 +31,7 @@
 #define IDB_PNG13                       187
 #define IDI_ICON                        194
 #define IDR_ICON                        194
+#define IDR_ACCELERATOR2                195
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -91,8 +92,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        195
-#define _APS_NEXT_COMMAND_VALUE         32773
+#define _APS_NEXT_RESOURCE_VALUE        196
+#define _APS_NEXT_COMMAND_VALUE         32774
 #define _APS_NEXT_CONTROL_VALUE         1072
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

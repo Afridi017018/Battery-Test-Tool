@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "framework.h"
 #include "resource.h"
 #include "CManipulationDlg.h"
@@ -16,6 +16,176 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+
+// ===================== Language support (EN / JP) =====================
+
+
+
+enum LANG_INDEX
+{
+    LANG_EN = 0,
+    LANG_JP = 1
+};
+
+enum M_TEXT_KEY
+{
+    MTK_STATUS_GENUINE = 0,
+    MTK_STATUS_SUSPICIOUS,
+    MTK_STATUS_LIKELY_MANIP,
+
+    MTK_PARSE_ERROR,
+    MTK_GENPARSE_ERROR,
+
+    // Row labels
+    MTK_ROW_SUDDEN_JUMP,
+    MTK_ROW_CAP_EXCEEDS,
+    MTK_ROW_CYCLE_MISMATCH,
+    MTK_ROW_HEALTH_FOR_AGE,
+    MTK_ROW_ERRATIC,
+    MTK_ROW_SERIAL,
+    MTK_ROW_UNREAL_DISCHARGE,
+    MTK_ROW_UNREAL_CHARGE,
+    MTK_ROW_FULLTIME,
+    MTK_ROW_FULLCAP_ANOM,
+
+    // Row hints
+    MTK_HINT_SUDDEN_JUMP,
+    MTK_HINT_CAP_EXCEEDS,
+    MTK_HINT_CYCLE_MISMATCH,
+    MTK_HINT_HEALTH_FOR_AGE,
+    MTK_HINT_ERRATIC,
+    MTK_HINT_SERIAL,
+    MTK_HINT_UNREAL_DISCHARGE,
+    MTK_HINT_UNREAL_CHARGE,
+    MTK_HINT_FULLTIME,
+    MTK_HINT_FULLCAP_ANOM,
+
+    // Detail format strings
+    MTK_DETAIL_SUDDEN_JUMP,
+    MTK_DETAIL_CAP_EXCEEDS,
+    MTK_DETAIL_CYCLE_MISMATCH,
+    MTK_DETAIL_HEALTH_FOR_AGE,
+    MTK_DETAIL_ERRATIC,
+    MTK_DETAIL_SERIAL,
+    MTK_DETAIL_UNREAL_DISCHARGE,
+    MTK_DETAIL_UNREAL_CHARGE,
+    MTK_DETAIL_FULLTIME,
+    MTK_DETAIL_FULLCAP_ANOM,
+
+    MTK_COUNT
+};
+
+
+
+
+
+static const wchar_t* g_Texts[2][MTK_COUNT] =
+{
+    // ==================== English ====================
+    {
+        L"Genuine",                         // MTK_STATUS_GENUINE
+        L"Suspicious",                      // MTK_STATUS_SUSPICIOUS
+        L"Likely Manipulated",              // MTK_STATUS_LIKELY_MANIP
+
+        L"[BMD][Parse] File read failed or empty.", // MTK_PARSE_ERROR
+
+        // MTK_GENPARSE_ERROR
+        L"Failed to generate/parse powercfg battery report.\n"
+        L"- Ensure you're on Windows with a battery\n"
+        L"- Try running 'powercfg /batteryreport' in CMD\n"
+        L"- If it needs elevation, run the app as admin",
+
+    // Row labels
+    L"Sudden capacity jump",            // MTK_ROW_SUDDEN_JUMP
+    L"Capacity exceeds design",         // MTK_ROW_CAP_EXCEEDS
+    L"Cycle vs health mismatch",        // MTK_ROW_CYCLE_MISMATCH
+    L"Unrealistic battery health for age",   // MTK_ROW_HEALTH_FOR_AGE
+    L"Erratic health pattern",          // MTK_ROW_ERRATIC
+    L"Suspicious serial number",        // MTK_ROW_SERIAL
+    L"Unrealistic discharge speed",     // MTK_ROW_UNREAL_DISCHARGE
+    L"Unrealistic charge speed",        // MTK_ROW_UNREAL_CHARGE
+    L"Impossible full charge time",     // MTK_ROW_FULLTIME
+    L"Sudden full capacity anomaly",    // MTK_ROW_FULLCAP_ANOM
+
+    // Row hints
+    L"Big one-step rise in health/capacity",     // MTK_HINT_SUDDEN_JUMP
+    L"Full > design by >5%",                     // MTK_HINT_CAP_EXCEEDS
+    L"Health too good for cycle count",          // MTK_HINT_CYCLE_MISMATCH
+    L"Very high health after many months",       // MTK_HINT_HEALTH_FOR_AGE
+    L"Multiple upward jumps >3%",                // MTK_HINT_ERRATIC
+    L"Placeholder/format mismatch",              // MTK_HINT_SERIAL
+    L">100 W discharge",                         // MTK_HINT_UNREAL_DISCHARGE
+    L">150 W charge",                            // MTK_HINT_UNREAL_CHARGE
+    L"0–100% in <30 min",                        // MTK_HINT_FULLTIME
+    L"±12% jump in full mWh",                    // MTK_HINT_FULLCAP_ANOM
+
+    // Detail format strings
+    L"Capacity %.0f → %.0f mWh or health %.1f%% → %.1f%%",           // MTK_DETAIL_SUDDEN_JUMP
+    L"Full %.0f mWh > design %.0f mWh (+%.1f%%)",                    // MTK_DETAIL_CAP_EXCEEDS
+    L"Health %.1f%% too good for cycle %d (expected ≤ %.1f%%)",      // MTK_DETAIL_CYCLE_MISMATCH
+    L"%.1f%% after %d months",                                        // MTK_DETAIL_HEALTH_FOR_AGE
+    L"%d upward jumps > %.1f%%",                                      // MTK_DETAIL_ERRATIC
+    L"Serial \"%s\" looks placeholder/invalid",                       // MTK_DETAIL_SERIAL
+    L"Discharge rate %.1f W exceeds %.1f W",                          // MTK_DETAIL_UNREAL_DISCHARGE
+    L"Charge rate %.1f W exceeds %.1f W",                             // MTK_DETAIL_UNREAL_CHARGE
+    L"0–100%% in %.1f min (too fast)",                                // MTK_DETAIL_FULLTIME
+    L"Full capacity jump %.1f%% (%llu → %llu mWh)"                    // MTK_DETAIL_FULLCAP_ANOM
+},
+
+// ==================== Japanese ====================
+{
+    L"正常",                               // MTK_STATUS_GENUINE
+    L"不審",                               // MTK_STATUS_SUSPICIOUS
+    L"改ざんの可能性が高い",               // MTK_STATUS_LIKELY_MANIP
+
+    L"[BMD][解析] ファイルの読み込みに失敗したか、空のファイルです。", // MTK_PARSE_ERROR
+
+    // MTK_GENPARSE_ERROR
+    L"powercfg のバッテリーレポートの生成/解析に失敗しました。\n"
+    L"- バッテリー搭載の Windows 環境で実行していることを確認してください\n"
+    L"- コマンド プロンプトで 'powercfg /batteryreport' を実行してみてください\n"
+    L"- 管理者権限が必要な場合は、このアプリを管理者として実行してください",
+
+    // Row labels
+    L"容量が急に変化",                       // MTK_ROW_SUDDEN_JUMP
+    L"容量が設計を超えています",                 // MTK_ROW_CAP_EXCEEDS
+    L"サイクル数とヘルスの不一致",           // MTK_ROW_CYCLE_MISMATCH
+    L"経年に対して不自然なバッテリーヘルス", // MTK_ROW_HEALTH_FOR_AGE
+    L"不規則な健康パターン",                   // MTK_ROW_ERRATIC
+    L"シリアル番号が不審",                   // MTK_ROW_SERIAL
+    L"非現実的な排出速度",                   // MTK_ROW_UNREAL_DISCHARGE
+    L"非現実的な充電速度",                   // MTK_ROW_UNREAL_CHARGE
+    L"不可能なフル充電時間",                 // MTK_ROW_FULLTIME
+    L"突然のバッテリー容量異常",           // MTK_ROW_FULLCAP_ANOM
+
+    // Row hints
+    L"ヘルス/容量が一度に大きく増える場合",             // MTK_HINT_SUDDEN_JUMP
+    L"フル充電容量 > 設計容量 > 5%",               // MTK_HINT_CAP_EXCEEDS
+    L"サイクル数に対してヘルスが良すぎる",             // MTK_HINT_CYCLE_MISMATCH
+    L"長期間使用後なのにヘルスが非常に高い",           // MTK_HINT_HEALTH_FOR_AGE
+    L"3%を超える複数回の上方ジャンプ",               // MTK_HINT_ERRATIC
+    L"プレースホルダ/形式の不一致",                  // MTK_HINT_SERIAL
+    L"100W を超える放電",                              // MTK_HINT_UNREAL_DISCHARGE
+    L"150W を超える充電",                              // MTK_HINT_UNREAL_CHARGE
+    L"0〜100% が 30 分未満で充電される",               // MTK_HINT_FULLTIME
+    L"満充電容量が ±12% 以上一度に変化",                // MTK_HINT_FULLCAP_ANOM
+
+    // Detail format strings
+    L"容量 %.0f → %.0f mWh またはヘルス %.1f%% → %.1f%%",           // MTK_DETAIL_SUDDEN_JUMP
+    L"フル %.0f mWh > 設計 %.0f mWh (+%.1f%%)",                      // MTK_DETAIL_CAP_EXCEEDS
+    L"ヘルス %.1f%% はサイクル数 %d に対して良すぎる (期待値 ≤ %.1f%%)", // MTK_DETAIL_CYCLE_MISMATCH
+    L"%d ヶ月後に %.1f%%",                                            // MTK_DETAIL_HEALTH_FOR_AGE
+    L"%.1f%% を超える上昇が %d 回",                                   // MTK_DETAIL_ERRATIC
+    L"シリアル番号 \"%s\" はプレースホルダ/無効な可能性",            // MTK_DETAIL_SERIAL
+    L"放電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_DISCHARGE
+    L"充電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_CHARGE
+    L"0〜100%% が %.1f 分で完了 (速すぎる)",                         // MTK_DETAIL_FULLTIME
+    L"満充電容量が %.1f%% 変化 (%llu → %llu mWh)"                    // MTK_DETAIL_FULLCAP_ANOM
+}
+};
+
+
 
 // ===================== Robust helpers (encoding, powercfg, text) =====================
 
@@ -124,7 +294,7 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
 
     auto m2 = *it;
     CStringW s2; s2.Format(L"%s-%s", m2.str(2).c_str(), m2.str(3).c_str());
-    CStringW lab; lab.Format(L"%s�%s", s1.GetString(), s2.GetString());
+    CStringW lab; lab.Format(L"%s–%s", s1.GetString(), s2.GetString());
     return lab;
 }
 
@@ -141,7 +311,7 @@ namespace BMD_Internal {
         int suspiciousSerial = 5;
         // NEW:
         int unrealisticRate = 20;     // charge/discharge/time-to-full
-        int suddenFullCapJump = 20;   // sudden � jump in full capacity
+        int suddenFullCapJump = 20;   // sudden ± jump in full capacity
     };
 
     struct Thresholds {
@@ -159,7 +329,7 @@ namespace BMD_Internal {
         double maxDischargeWatt = 100.0;   // >100 W discharge => suspect
         double maxChargeWatt = 150.0;      // >150 W charge    => suspect
         double minFullChargeMins = 30.0;   // 0?100% <30 min   => suspect
-        double fullCapacityJumpPct = 12.0; // sudden �12% change in full capacity
+        double fullCapacityJumpPct = 12.0; // sudden ±12% change in full capacity
     };
 
     static Weights    g_weights;
@@ -272,14 +442,14 @@ namespace BMD_Internal {
 
     // --------------------- Robust HTML parse + powercfg ---------------------
 
-    bool ParseBatteryReportHtml(const CString& htmlPath, BMD_BatteryInfo& outInfo)
+    bool ParseBatteryReportHtml(const CString& htmlPath, BMD_BatteryInfo& outInfo, int lang)
     {
         outInfo = BMD_BatteryInfo();
 
         // Read with auto-encoding + strip tags ? tolerant buffer
         CString raw = ReadTextAutoEncoding(htmlPath);
         if (raw.IsEmpty()) {
-            AfxMessageBox(L"[BMD][Parse] File read failed or empty.", MB_ICONERROR | MB_TOPMOST);
+            AfxMessageBox(g_Texts[lang][MTK_PARSE_ERROR], MB_ICONERROR | MB_TOPMOST);
             return false;
         }
 
@@ -363,7 +533,7 @@ namespace BMD_Internal {
         {
             double mins = 0.0;
             std::vector<CString> cues = {
-                L"time to full charge", L"to full charge", L"0 to 100", L"0�100", L"0?100", L"full charge in"
+                L"time to full charge", L"to full charge", L"0 to 100", L"0–100", L"0?100", L"full charge in"
             };
             if (ExtractMinutesAfterCue_CStr(plain, cues, mins)) {
                 outInfo.lastChargeMinutes = mins;
@@ -373,7 +543,7 @@ namespace BMD_Internal {
         return outInfo.designCapacity_mWh > 0 && !outInfo.samples.empty();
     }
 
-    bool GenerateAndParseBatteryReport(BMD_BatteryInfo& outInfo, CString* outHtmlPath)
+    bool GenerateAndParseBatteryReport(BMD_BatteryInfo& outInfo, CString* outHtmlPath, int lang)
     {
         TCHAR tempPath[MAX_PATH]{};
         if (!GetTempPath(MAX_PATH, tempPath)) return false;
@@ -386,17 +556,19 @@ namespace BMD_Internal {
         if (!RunPowerCfgBatteryReport(outPath))
             return false;
 
-        bool ok = ParseBatteryReportHtml(outPath, outInfo);
+        bool ok = ParseBatteryReportHtml(outPath, outInfo, lang);
         if (ok && outHtmlPath) *outHtmlPath = outPath;
         return ok;
     }
 
     // --------------------- Detectors + scoring ---------------------
 
-    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info)
+    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info, int lang)
     {
         const auto& W = GetWeights();
         const auto& T = GetThresholds();
+
+
 
         BMD_DetectionResult R;
         std::vector<BMD_Flag> flags;
@@ -404,7 +576,7 @@ namespace BMD_Internal {
 
         if (info.samples.empty() || info.designCapacity_mWh == 0) {
             R.score = 0;
-            R.status = L"Genuine";
+            R.status = g_Texts[lang][MTK_STATUS_GENUINE];
             return R;
         }
 
@@ -422,9 +594,10 @@ namespace BMD_Internal {
             if ((oldF > 0 && newF >= oldF * T.jumpFullChargeRatio) ||
                 (hNew - hOld) >= T.jumpHealthPct)
             {
-                CString detail; detail.Format(L"Capacity %.0f ? %.0f mWh or health %.1f%% ? %.1f%%",
+                CString detail;
+                detail.Format(g_Texts[lang][MTK_DETAIL_SUDDEN_JUMP],
                     oldF, newF, hOld, hNew);
-                AddFlag(flags, L"Sudden capacity jump", detail, W.suddenCapacityJump);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_SUDDEN_JUMP], detail, W.suddenCapacityJump);
                 score += W.suddenCapacityJump;
                 break;
             }
@@ -434,8 +607,8 @@ namespace BMD_Internal {
         if (design > 0.0) {
             double overPct = (latestF / design - 1.0) * 100.0;
             if (overPct > T.exceedDesignPct) {
-                CString d; d.Format(L"Full %.0f mWh > design %.0f mWh (+%.1f%%)", latestF, design, overPct);
-                AddFlag(flags, L"Capacity exceeds design", d, W.capacityExceedsDesign);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_CAP_EXCEEDS], latestF, design, overPct);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_CAP_EXCEEDS], d, W.capacityExceedsDesign);
                 score += W.capacityExceedsDesign;
             }
         }
@@ -444,9 +617,9 @@ namespace BMD_Internal {
         if (info.cycleCount >= 0) {
             double expected = max(100.0 - (double)info.cycleCount / T.cyclesPer1pctLoss, T.minFloorHealth);
             if (latestHealth >= expected + T.cycleSlackPct) {
-                CString d; d.Format(L"Health %.1f%% too good for cycle %d (expected ? %.1f%%)",
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_CYCLE_MISMATCH],
                     latestHealth, info.cycleCount, expected + T.cycleSlackPct);
-                AddFlag(flags, L"Cycle vs health mismatch", d, W.unrealisticCycleCount);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_CYCLE_MISMATCH], d, W.unrealisticCycleCount);
                 score += W.unrealisticCycleCount;
             }
         }
@@ -464,8 +637,8 @@ namespace BMD_Internal {
                 if (a && b && b >= a) months = b - a;
             }
             if (months >= T.monthsForHighHealthCheck && latestHealth >= T.healthTooGoodAfterMonths) {
-                CString d; d.Format(L"%.1f%% after %d months", latestHealth, months);
-                AddFlag(flags, L"Unrealistic battery health for age", d, W.healthTooGoodForAge);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_HEALTH_FOR_AGE], latestHealth, months);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE], d, W.healthTooGoodForAge);
                 score += W.healthTooGoodForAge;
             }
         }
@@ -477,13 +650,13 @@ namespace BMD_Internal {
                 if ((s[i].healthPercent - s[i - 1].healthPercent) > T.upwardJumpPct) ++upJumps;
             }
             if (upJumps >= T.upwardJumpCountToFlag) {
-                CString d; d.Format(L"%d upward jumps > %.1f%%", upJumps, T.upwardJumpPct);
-                AddFlag(flags, L"Erratic health pattern", d, W.erraticHealthPattern);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_ERRATIC], upJumps, T.upwardJumpPct);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_ERRATIC], d, W.erraticHealthPattern);
                 score += W.erraticHealthPattern;
             }
         }
 
-        // (Removed old #6 Design Capacity Mismatch � maker table deleted)
+        // (Removed old #6 Design Capacity Mismatch – maker table deleted)
 
         // 6) Suspicious Serial Number (generic only)
         if (!info.serialNumber.empty()) {
@@ -497,8 +670,8 @@ namespace BMD_Internal {
             if (srlLower.find(L"reset") != std::wstring::npos) suspicious = true;
 
             if (suspicious) {
-                CString d; d.Format(L"Serial \"%s\" looks placeholder/invalid", srl.c_str());
-                AddFlag(flags, L"Suspicious serial number", d, W.suspiciousSerial);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_SERIAL], srl.c_str());
+                AddFlag(flags, g_Texts[lang][MTK_ROW_SERIAL], d, W.suspiciousSerial);
                 score += W.suspiciousSerial;
             }
         }
@@ -507,36 +680,36 @@ namespace BMD_Internal {
         if (info.currentRate_mW > 0) {
             double watts = info.currentRate_mW / 1000.0; // mW ? W
             if (watts > T.maxDischargeWatt) {
-                CString d; d.Format(L"Discharge rate %.1f W exceeds %.1f W", watts, T.maxDischargeWatt);
-                AddFlag(flags, L"Unrealistic discharge speed", d, W.unrealisticRate);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_DISCHARGE], watts, T.maxDischargeWatt);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE], d, W.unrealisticRate);
                 score += W.unrealisticRate;
             }
             if (watts > T.maxChargeWatt) {
-                CString d; d.Format(L"Charge rate %.1f W exceeds %.1f W", watts, T.maxChargeWatt);
-                AddFlag(flags, L"Unrealistic charge speed", d, W.unrealisticRate);
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_CHARGE], watts, T.maxChargeWatt);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_CHARGE], d, W.unrealisticRate);
                 score += W.unrealisticRate;
             }
         }
 
         // 8) Impossible fast full charge (0?100% in < threshold minutes)
         if (info.lastChargeMinutes > 0.0 && info.lastChargeMinutes < T.minFullChargeMins) {
-            CString d; d.Format(L"0?100%% in %.1f min (too fast)", info.lastChargeMinutes);
-            AddFlag(flags, L"Impossible full charge time", d, W.unrealisticRate);
+            CString d; d.Format(g_Texts[lang][MTK_DETAIL_FULLTIME], info.lastChargeMinutes);
+            AddFlag(flags, g_Texts[lang][MTK_ROW_FULLTIME], d, W.unrealisticRate);
             score += W.unrealisticRate;
         }
 
-        // 9) Sudden big drop or big increase in full charge capacity (� threshold)
+        // 9) Sudden big drop or big increase in full charge capacity (± threshold)
         for (size_t i = 1; i < s.size(); ++i) {
             double prev = (double)s[i - 1].fullCharge_mWh;
             double now = (double)s[i].fullCharge_mWh;
             if (prev <= 0) continue;
             double deltaPct = (now - prev) * 100.0 / prev;
             if (fabs(deltaPct) >= T.fullCapacityJumpPct) {
-                CString d; d.Format(L"Full capacity jump %.1f%% (%llu ? %llu mWh)",
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_FULLCAP_ANOM],
                     deltaPct,
                     (unsigned long long)prev,
                     (unsigned long long)now);
-                AddFlag(flags, L"Sudden full capacity anomaly", d, W.suddenFullCapJump);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_FULLCAP_ANOM], d, W.suddenFullCapJump);
                 score += W.suddenFullCapJump;
                 break;
             }
@@ -545,9 +718,9 @@ namespace BMD_Internal {
         if (score > 100) score = 100;
         std::sort(flags.begin(), flags.end(), [](const BMD_Flag& a, const BMD_Flag& b) { return a.points > b.points; });
         R.score = score;
-        if (score <= 39) R.status = L"Genuine";
-        else if (score <= 69) R.status = L"Suspicious";
-        else R.status = L"Likely Manipulated";
+        if (score <= 39) R.status = g_Texts[lang][MTK_STATUS_GENUINE];
+        else if (score <= 69) R.status = g_Texts[lang][MTK_STATUS_SUSPICIOUS];
+        else R.status = g_Texts[lang][MTK_STATUS_LIKELY_MANIP];
         R.flags = std::move(flags);
         return R;
     }
@@ -580,7 +753,7 @@ namespace BMD_Internal {
 
     // --------------------- Measurement + Drawing (scroll-aware) ---------------------
 
-    static int MeasureAndDrawPanel(CDC* pDC, const CRect& rc, const BMD_DetectionResult& r, int scrollY, bool doDraw)
+    static int MeasureAndDrawPanel(CDC* pDC, const CRect& rc, const BMD_DetectionResult& r, int scrollY, bool doDraw, int lang)
     {
         if (!pDC) return 0;
 
@@ -638,16 +811,16 @@ namespace BMD_Internal {
         // Full criteria list (always show)
         struct Row { const wchar_t* name; const wchar_t* hint; };
         const Row rows[] = {
-            { L"Sudden capacity jump",            L"Big one-step rise in health/capacity" },
-            { L"Capacity exceeds design",         L"Full > design by >5%" },
-            { L"Cycle vs health mismatch",        L"Health too good for cycle count" },
-            { L"Unrealistic battery health for age", L"Very high health after many months" },
-            { L"Erratic health pattern",          L"Multiple upward jumps >3%" },
-            { L"Suspicious serial number",        L"Placeholder/format mismatch" },
-            { L"Unrealistic discharge speed",     L">100 W discharge" },
-            { L"Unrealistic charge speed",        L">150 W charge" },
-            { L"Impossible full charge time",     L"0?100% in <30 min" },
-            { L"Sudden full capacity anomaly",    L"�12% jump in full mWh" },
+            { g_Texts[lang][MTK_ROW_SUDDEN_JUMP],            g_Texts[lang][MTK_HINT_SUDDEN_JUMP] },
+            { g_Texts[lang][MTK_ROW_CAP_EXCEEDS],         g_Texts[lang][MTK_HINT_CAP_EXCEEDS] },
+            { g_Texts[lang][MTK_ROW_CYCLE_MISMATCH],        g_Texts[lang][MTK_HINT_CYCLE_MISMATCH] },
+            { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE], g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE] },
+            { g_Texts[lang][MTK_ROW_ERRATIC],          g_Texts[lang][MTK_HINT_ERRATIC] },
+            { g_Texts[lang][MTK_ROW_SERIAL],        g_Texts[lang][MTK_HINT_SERIAL] },
+            { g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],     g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE] },
+            { g_Texts[lang][MTK_ROW_UNREAL_CHARGE],        g_Texts[lang][MTK_HINT_UNREAL_CHARGE] },
+            { g_Texts[lang][MTK_ROW_FULLTIME],     g_Texts[lang][MTK_HINT_FULLTIME] },
+            { g_Texts[lang][MTK_ROW_FULLCAP_ANOM],    g_Texts[lang][MTK_HINT_FULLCAP_ANOM] },
         };
 
         // Colors
@@ -679,7 +852,7 @@ namespace BMD_Internal {
             if (matched) {
                 const auto& f = hitMap[rdef.name];
                 if (!f.detail.IsEmpty()) {
-                    toDraw += L" � ";
+                    toDraw += L" — ";
                     toDraw += f.detail;
                 }
             }
@@ -770,7 +943,7 @@ namespace BMD_Internal {
             if (matched) {
                 const auto& f = hitMap[rdef.name];
                 if (!f.detail.IsEmpty()) {
-                    toDraw += L" � ";
+                    toDraw += L" — ";
                     toDraw += f.detail;
                 }
             }
@@ -856,6 +1029,8 @@ void CManipulationDlg::OnPaint()
 {
     CPaintDC dcPaint(this);
 
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
     // Double buffer the whole client area to avoid flicker
     CRect rcClient; GetClientRect(&rcClient);
     CMemDC mem(dcPaint, rcClient);
@@ -865,7 +1040,7 @@ void CManipulationDlg::OnPaint()
     CRect panel(rcClient.left + 6, rcClient.top + 6, rcClient.right - 6, rcClient.bottom - 6);
 
     // Measure first (doDraw=false) to update content height, then draw with current scroll
-    int fullH = MeasureAndDrawPanel(pDC, panel, m_bmdResult, m_scrollY, /*doDraw=*/true);
+    int fullH = MeasureAndDrawPanel(pDC, panel, m_bmdResult, m_scrollY, /*doDraw=*/true, lang);
     m_contentH = fullH; // store measured height for scrolling
 
     UpdateVScrollBar();
@@ -952,14 +1127,14 @@ void CManipulationDlg::RunBatteryManipulationCheck()
 {
     BMD_BatteryInfo info;
     CString htmlPath;
-    if (!GenerateAndParseBatteryReport(info, &htmlPath)) {
-        AfxMessageBox(L"Failed to generate/parse powercfg battery report.\n"
-            L"- Ensure you're on Windows with a battery\n"
-            L"- Try running 'powercfg /batteryreport' in CMD\n"
-            L"- If it needs elevation, run the app as admin",
+
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
+    if (!GenerateAndParseBatteryReport(info, &htmlPath, lang)) {
+        AfxMessageBox(g_Texts[lang][MTK_GENPARSE_ERROR],
             MB_ICONERROR | MB_TOPMOST);
         m_bmdResult = BMD_DetectionResult{};
-        m_bmdResult.status = L"Genuine";
+        m_bmdResult.status = g_Texts[lang][MTK_STATUS_GENUINE];
         m_scrollY = 0;
         m_contentH = 0;
         UpdateVScrollBar();
@@ -967,7 +1142,7 @@ void CManipulationDlg::RunBatteryManipulationCheck()
     }
 
     m_lastReportPath = htmlPath;
-    m_bmdResult = RunManipulationChecks(info);
+    m_bmdResult = RunManipulationChecks(info, lang);
 
     // Reset scroll to top on new result
     m_scrollY = 0;

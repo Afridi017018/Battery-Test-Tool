@@ -593,7 +593,7 @@ void CTrendDlg::OnPaint()
                 centerX.SetLineAlignment(Gdiplus::StringAlignmentNear);
 
                 // place it inside the reserved label lane
-                g.DrawString(L"Period", -1, &fAxisX,
+                g.DrawString(g_Texts[lang][TK_AXIS_PERIOD], -1, &fAxisX,
                     Gdiplus::PointF(x1 + w1 / 2.f, y1 + h1 + labelLaneTop - 18.f),
                     &centerX, &axisText);
             }
