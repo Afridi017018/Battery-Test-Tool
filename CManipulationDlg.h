@@ -13,6 +13,7 @@ struct BMD_Sample
     std::wstring dateISO;        
     uint64_t     fullCharge_mWh{ 0 };
     float        healthPercent{ 0.f }; 
+    uint64_t     designCapacity_mWh{ 0 };
 };
 
 struct BMD_BatteryInfo
@@ -79,4 +80,6 @@ private:
 
 public:
     bool eng_lang;
+
+    CString cycles;
 };

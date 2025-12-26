@@ -345,6 +345,7 @@ public:
 
 	bool HasBattery();
 
+
 };
 
 

@@ -44,8 +44,10 @@ enum M_TEXT_KEY
     MTK_ROW_HEALTH_FOR_AGE,
     MTK_ROW_ERRATIC,
     MTK_ROW_SERIAL,
-    MTK_ROW_UNREAL_DISCHARGE,
-    MTK_ROW_UNREAL_CHARGE,
+   /* MTK_ROW_UNREAL_DISCHARGE,
+    MTK_ROW_UNREAL_CHARGE,*/
+    MTK_ROW_CAP_TIME_IMPLAUSIBLE, // NEW RULE 7
+    MTK_ROW_DESIGN_CAP_CHANGED,     // RULE 8 (NEW)
     MTK_ROW_FULLTIME,
     MTK_ROW_FULLCAP_ANOM,
 
@@ -56,8 +58,12 @@ enum M_TEXT_KEY
     MTK_HINT_HEALTH_FOR_AGE,
     MTK_HINT_ERRATIC,
     MTK_HINT_SERIAL,
-    MTK_HINT_UNREAL_DISCHARGE,
-    MTK_HINT_UNREAL_CHARGE,
+    //MTK_HINT_UNREAL_DISCHARGE,
+    //MTK_HINT_UNREAL_CHARGE,
+
+    MTK_HINT_CAP_TIME_IMPLAUSIBLE, // NEW rule 7
+    MTK_HINT_DESIGN_CAP_CHANGED,    //  RULE 8
+
     MTK_HINT_FULLTIME,
     MTK_HINT_FULLCAP_ANOM,
 
@@ -68,8 +74,13 @@ enum M_TEXT_KEY
     MTK_DETAIL_HEALTH_FOR_AGE,
     MTK_DETAIL_ERRATIC,
     MTK_DETAIL_SERIAL,
-    MTK_DETAIL_UNREAL_DISCHARGE,
-    MTK_DETAIL_UNREAL_CHARGE,
+    //MTK_DETAIL_UNREAL_DISCHARGE,
+    //MTK_DETAIL_UNREAL_CHARGE,
+
+    MTK_DETAIL_CAP_TIME_IMPLAUSIBLE, // NEW rule 7
+
+    MTK_DETAIL_DESIGN_CAP_CHANGED,   //  RULE 8
+
     MTK_DETAIL_FULLTIME,
     MTK_DETAIL_FULLCAP_ANOM,
 
@@ -103,8 +114,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"Unrealistic battery health for age",   // MTK_ROW_HEALTH_FOR_AGE
     L"Erratic health pattern",          // MTK_ROW_ERRATIC
     L"Suspicious serial number",        // MTK_ROW_SERIAL
-    L"Unrealistic discharge speed",     // MTK_ROW_UNREAL_DISCHARGE
-    L"Unrealistic charge speed",        // MTK_ROW_UNREAL_CHARGE
+    //L"Unrealistic discharge speed",     // MTK_ROW_UNREAL_DISCHARGE
+    //L"Unrealistic charge speed",        // MTK_ROW_UNREAL_CHARGE
+
+    L"Capacity change too fast over time",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
+
+    L"Design capacity changed over time",      // MTK_ROW_DESIGN_CAP_CHANGED
+
     L"Impossible full charge time",     // MTK_ROW_FULLTIME
     L"Sudden full capacity anomaly",    // MTK_ROW_FULLCAP_ANOM
 
@@ -115,8 +131,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"Very high health after many months",       // MTK_HINT_HEALTH_FOR_AGE
     L"Multiple upward jumps >3%",                // MTK_HINT_ERRATIC
     L"Placeholder/format mismatch",              // MTK_HINT_SERIAL
-    L">100 W discharge",                         // MTK_HINT_UNREAL_DISCHARGE
-    L">150 W charge",                            // MTK_HINT_UNREAL_CHARGE
+    //L">100 W discharge",                         // MTK_HINT_UNREAL_DISCHARGE
+    //L">150 W charge",                            // MTK_HINT_UNREAL_CHARGE
+
+    L"Capacity changes faster than physically possible", // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
+
+    L"Design capacity should never change",    // MTK_HINT_DESIGN_CAP_CHANGED
+
     L"0–100% in <30 min",                        // MTK_HINT_FULLTIME
     L"±12% jump in full mWh",                    // MTK_HINT_FULLCAP_ANOM
 
@@ -127,8 +148,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"%.1f%% after %d months",                                        // MTK_DETAIL_HEALTH_FOR_AGE
     L"%d upward jumps > %.1f%%",                                      // MTK_DETAIL_ERRATIC
     L"Serial \"%s\" looks placeholder/invalid",                       // MTK_DETAIL_SERIAL
-    L"Discharge rate %.1f W exceeds %.1f W",                          // MTK_DETAIL_UNREAL_DISCHARGE
-    L"Charge rate %.1f W exceeds %.1f W",                             // MTK_DETAIL_UNREAL_CHARGE
+    //L"Discharge rate %.1f W exceeds %.1f W",                          // MTK_DETAIL_UNREAL_DISCHARGE
+    //L"Charge rate %.1f W exceeds %.1f W",                             // MTK_DETAIL_UNREAL_CHARGE
+
+    L"Capacity changed %.1f%% over %.1f months (%.1f%% per month)",   // NEW rule 7 - MTK_DETAIL_CAP_TIME_IMPLAUSIBLE
+
+    L"Design capacity changed from %llu to %llu mWh", // MTK_DETAIL_DESIGN_CAP_CHANGED
+
     L"0–100%% in %.1f min (too fast)",                                // MTK_DETAIL_FULLTIME
     L"Full capacity jump %.1f%% (%llu → %llu mWh)"                    // MTK_DETAIL_FULLCAP_ANOM
 },
@@ -154,8 +180,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"経年に対して不自然なバッテリーヘルス", // MTK_ROW_HEALTH_FOR_AGE
     L"不規則な健康パターン",                   // MTK_ROW_ERRATIC
     L"シリアル番号が不審",                   // MTK_ROW_SERIAL
-    L"非現実的な排出速度",                   // MTK_ROW_UNREAL_DISCHARGE
-    L"非現実的な充電速度",                   // MTK_ROW_UNREAL_CHARGE
+    //L"非現実的な排出速度",                   // MTK_ROW_UNREAL_DISCHARGE
+    //L"非現実的な充電速度",                   // MTK_ROW_UNREAL_CHARGE
+
+    L"時間の経過とともに容量が非常に速く変化する",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
+
+    L"設計容量が時間とともに変化しています",   // MTK_ROW_DESIGN_CAP_CHANGED
+
     L"不可能なフル充電時間",                 // MTK_ROW_FULLTIME
     L"突然のバッテリー容量異常",           // MTK_ROW_FULLCAP_ANOM
 
@@ -166,8 +197,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"長期間使用後なのにヘルスが非常に高い",           // MTK_HINT_HEALTH_FOR_AGE
     L"3%を超える複数回の上方ジャンプ",               // MTK_HINT_ERRATIC
     L"プレースホルダ/形式の不一致",                  // MTK_HINT_SERIAL
-    L"100W を超える放電",                              // MTK_HINT_UNREAL_DISCHARGE
-    L"150W を超える充電",                              // MTK_HINT_UNREAL_CHARGE
+    //L"100W を超える放電",                         // MTK_HINT_UNREAL_DISCHARGE
+    //L"150W を超える充電",                         // MTK_HINT_UNREAL_CHARGE
+
+    L"容量は %.1f か月で %.1f%% 変化しました (月あたり %.1f%%)",    // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
+
+    L"設計容量は通常変化しません",             // MTK_HINT_DESIGN_CAP_CHANGED
+
     L"0〜100% が 30 分未満で充電される",               // MTK_HINT_FULLTIME
     L"満充電容量が ±12% 以上一度に変化",                // MTK_HINT_FULLCAP_ANOM
 
@@ -178,8 +214,13 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"%d ヶ月後に %.1f%%",                                            // MTK_DETAIL_HEALTH_FOR_AGE
     L"%.1f%% を超える上昇が %d 回",                                   // MTK_DETAIL_ERRATIC
     L"シリアル番号 \"%s\" はプレースホルダ/無効な可能性",            // MTK_DETAIL_SERIAL
-    L"放電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_DISCHARGE
-    L"充電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_CHARGE
+    //L"放電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_DISCHARGE
+    //L"充電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_CHARGE
+
+    L"容量は %.1f か月で %.1f%% 変化しました (月あたり %.1f%%)"          // NEW rule 7 - MTK_DETAIL_CAP_TIME_IMPLAUSIBLE
+
+    L"設計容量が %llu mWh から %llu mWh に変化しました"              // MTK_DETAIL_DESIGN_CAP_CHANGED
+
     L"0〜100%% が %.1f 分で完了 (速すぎる)",                         // MTK_DETAIL_FULLTIME
     L"満充電容量が %.1f%% 変化 (%llu → %llu mWh)"                    // MTK_DETAIL_FULLCAP_ANOM
 }
@@ -310,7 +351,11 @@ namespace BMD_Internal {
         int erraticHealthPattern = 15;
         int suspiciousSerial = 5;
         // NEW:
-        int unrealisticRate = 20;     // charge/discharge/time-to-full
+        //int unrealisticRate = 20;     // charge/discharge/time-to-full
+
+        int capacityTimeImplausible = 20; // NEW RULE 7
+        int designCapacityChanged = 40; // RULE 8 (STRONG SIGNAL)
+
         int suddenFullCapJump = 20;   // sudden ± jump in full capacity
     };
 
@@ -326,8 +371,11 @@ namespace BMD_Internal {
         double upwardJumpPct = 3.0;        // count jumps > +3%
         int    upwardJumpCountToFlag = 2;
         // NEW (rate/time/jump)
-        double maxDischargeWatt = 100.0;   // >100 W discharge => suspect
-        double maxChargeWatt = 150.0;      // >150 W charge    => suspect
+        //double maxDischargeWatt = 100.0;   // >100 W discharge => suspect
+        //double maxChargeWatt = 150.0;      // >150 W charge    => suspect
+
+        double maxCapacityChangePctPerMonth = 4.0; // NEW RULE 7
+
         double minFullChargeMins = 30.0;   // 0?100% <30 min   => suspect
         double fullCapacityJumpPct = 12.0; // sudden ±12% change in full capacity
     };
@@ -505,6 +553,7 @@ namespace BMD_Internal {
                 BMD_Sample s;
                 s.dateISO = d;
                 s.fullCharge_mWh = (uint64_t)fv;
+                s.designCapacity_mWh = (uint64_t)dv;
                 if (outInfo.designCapacity_mWh == 0 && dv > 0) outInfo.designCapacity_mWh = (uint64_t)dv;
                 outInfo.samples.push_back(s);
             }
@@ -563,7 +612,7 @@ namespace BMD_Internal {
 
     // --------------------- Detectors + scoring ---------------------
 
-    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info, int lang)
+    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info, int lang, CString cycles)
     {
         const auto& W = GetWeights();
         const auto& T = GetThresholds();
@@ -585,12 +634,17 @@ namespace BMD_Internal {
         const double latestF = (double)s.back().fullCharge_mWh;
         const double latestHealth = (double)((design > 0) ? (latestF * 100.0 / design) : 0.0);
 
+
+     
+
         // 1) Sudden Capacity Jump (health or full ratio)
         for (size_t i = 1; i < s.size(); ++i) {
             double oldF = (double)s[i - 1].fullCharge_mWh;
             double newF = (double)s[i].fullCharge_mWh;
             double hOld = s[i - 1].healthPercent;
             double hNew = s[i].healthPercent;
+
+            
             if ((oldF > 0 && newF >= oldF * T.jumpFullChargeRatio) ||
                 (hNew - hOld) >= T.jumpHealthPct)
             {
@@ -603,9 +657,14 @@ namespace BMD_Internal {
             }
         }
 
+
+     
+
         // 2) Capacity Exceeds Design
         if (design > 0.0) {
             double overPct = (latestF / design - 1.0) * 100.0;
+
+
             if (overPct > T.exceedDesignPct) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_CAP_EXCEEDS], latestF, design, overPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_CAP_EXCEEDS], d, W.capacityExceedsDesign);
@@ -613,16 +672,19 @@ namespace BMD_Internal {
             }
         }
 
+
         // 3) Unrealistic Cycle Count vs Health
-        if (info.cycleCount >= 0) {
-            double expected = max(100.0 - (double)info.cycleCount / T.cyclesPer1pctLoss, T.minFloorHealth);
+
+        if ((float)_wtof(cycles) >= 0) {
+            double expected = max(100.0 - (double)(float)_wtof(cycles) / T.cyclesPer1pctLoss, T.minFloorHealth);
             if (latestHealth >= expected + T.cycleSlackPct) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_CYCLE_MISMATCH],
-                    latestHealth, info.cycleCount, expected + T.cycleSlackPct);
+                    latestHealth, (float)_wtof(cycles), expected + T.cycleSlackPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_CYCLE_MISMATCH], d, W.unrealisticCycleCount);
                 score += W.unrealisticCycleCount;
             }
         }
+
 
         // 4) Health Too Good for Age (months span)
         {
@@ -630,6 +692,9 @@ namespace BMD_Internal {
                 int y = 0, m = 0; if (swscanf_s(iso.c_str(), L"%4d-%2d", &y, &m) != 2) return 0;
                 return y * 12 + m;
                 };
+
+
+            
             int months = 0;
             if (s.size() >= 2) {
                 int a = ym(s.front().dateISO);
@@ -642,6 +707,7 @@ namespace BMD_Internal {
                 score += W.healthTooGoodForAge;
             }
         }
+
 
         // 5) Erratic Health Pattern (multiple upward jumps)
         {
@@ -659,6 +725,7 @@ namespace BMD_Internal {
         // (Removed old #6 Design Capacity Mismatch – maker table deleted)
 
         // 6) Suspicious Serial Number (generic only)
+
         if (!info.serialNumber.empty()) {
             std::wstring srl = info.serialNumber;
             auto isAllSame = [&](wchar_t c) {
@@ -675,33 +742,149 @@ namespace BMD_Internal {
                 score += W.suspiciousSerial;
             }
         }
+        
+        
+        
 
-        // 7) Charge/Discharge Rate Anomaly (from report)
-        if (info.currentRate_mW > 0) {
-            double watts = info.currentRate_mW / 1000.0; // mW ? W
-            if (watts > T.maxDischargeWatt) {
-                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_DISCHARGE], watts, T.maxDischargeWatt);
-                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE], d, W.unrealisticRate);
-                score += W.unrealisticRate;
-            }
-            if (watts > T.maxChargeWatt) {
-                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_CHARGE], watts, T.maxChargeWatt);
-                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_CHARGE], d, W.unrealisticRate);
-                score += W.unrealisticRate;
-            }
-        }
 
-        // 8) Impossible fast full charge (0?100% in < threshold minutes)
-        if (info.lastChargeMinutes > 0.0 && info.lastChargeMinutes < T.minFullChargeMins) {
-            CString d; d.Format(g_Texts[lang][MTK_DETAIL_FULLTIME], info.lastChargeMinutes);
-            AddFlag(flags, g_Texts[lang][MTK_ROW_FULLTIME], d, W.unrealisticRate);
-            score += W.unrealisticRate;
+
+// 7) Capacity vs Time Implausibility (NEW)
+{
+    auto ym = [](const std::wstring& iso) {
+        int y = 0, m = 0;
+        if (swscanf_s(iso.c_str(), L"%4d-%2d", &y, &m) != 2)
+            return 0;
+        return y * 12 + m;
+        };
+
+    for (size_t i = 1; i < s.size(); ++i) {
+
+        int m1 = ym(s[i - 1].dateISO);
+        int m2 = ym(s[i].dateISO);
+        if (!m1 || !m2 || m2 <= m1)
+            continue;
+
+        double months = (double)(m2 - m1);
+        double prev = (double)s[i - 1].fullCharge_mWh;
+        double now = (double)s[i].fullCharge_mWh;
+        if (prev <= 0)
+            continue;
+
+        double pctChange = fabs(now - prev) * 100.0 / prev;
+        double pctPerMonth = pctChange / months;
+
+        if (pctPerMonth > T.maxCapacityChangePctPerMonth) {
+
+            CString d;
+            d.Format(
+                g_Texts[lang][MTK_DETAIL_CAP_TIME_IMPLAUSIBLE],
+                pctChange,
+                months,
+                pctPerMonth
+            );
+
+            AddFlag(
+                flags,
+                g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE],
+                d,
+                W.capacityTimeImplausible
+            );
+
+            score += W.capacityTimeImplausible;
+            break;
         }
+    }
+}
+
+
+
+        //// 7) Charge/Discharge Rate Anomaly (from report)
+        //if (info.currentRate_mW > 0) {
+
+        //    
+
+        //    double watts = info.currentRate_mW / 1000.0; // mW ? W
+        //    if (watts > T.maxDischargeWatt) {
+        //        CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_DISCHARGE], watts, T.maxDischargeWatt);
+        //        AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE], d, W.unrealisticRate);
+        //        score += W.unrealisticRate;
+        //    }
+        //    if (watts > T.maxChargeWatt) {
+        //        CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_CHARGE], watts, T.maxChargeWatt);
+        //        AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_CHARGE], d, W.unrealisticRate);
+        //        score += W.unrealisticRate;
+        //    }
+        //}
+
+
+
+
+// 8) Design Capacity Changed Over Time (NO threshold)
+{
+    uint64_t oldestDesign = 0;
+    uint64_t latestDesign = 0;
+
+    for (const auto& smp : s) {
+
+        if (smp.designCapacity_mWh > 0) {
+
+            if (oldestDesign == 0)
+                oldestDesign = smp.designCapacity_mWh;
+
+            latestDesign = smp.designCapacity_mWh;
+        }
+    }
+
+   /* CString dbg;
+    dbg.Format(L"[BMD] design=%.0f currentRate_mW=%llu\n",
+        design,
+        oldestDesign);
+
+    OutputDebugString(dbg);*/
+
+    // If both exist and differ → flag immediately
+    if (oldestDesign > 0 &&
+        latestDesign > 0 &&
+        oldestDesign != latestDesign)
+    {
+        CString d;
+        d.Format(
+            g_Texts[lang][MTK_DETAIL_DESIGN_CAP_CHANGED],
+            (unsigned long long)oldestDesign,
+            (unsigned long long)latestDesign
+        );
+
+        AddFlag(
+            flags,
+            g_Texts[lang][MTK_ROW_DESIGN_CAP_CHANGED],
+            d,
+            W.designCapacityChanged
+        );
+
+        score += W.designCapacityChanged;
+    }
+}
+
+
+        //// 8) Impossible fast full charge (0?100% in < threshold minutes)
+        //if (info.lastChargeMinutes > 0.0 && info.lastChargeMinutes < T.minFullChargeMins) {
+        //    CString d; d.Format(g_Texts[lang][MTK_DETAIL_FULLTIME], info.lastChargeMinutes);
+        //    AddFlag(flags, g_Texts[lang][MTK_ROW_FULLTIME], d, W.unrealisticRate);
+        //    score += W.unrealisticRate;
+        //}
 
         // 9) Sudden big drop or big increase in full charge capacity (± threshold)
         for (size_t i = 1; i < s.size(); ++i) {
             double prev = (double)s[i - 1].fullCharge_mWh;
             double now = (double)s[i].fullCharge_mWh;
+
+            /*CString dbg;
+            dbg.Format(L"[BMD] design=%0.1f currentRate_mW=%0.1f\n",
+                prev,
+                now);
+
+            OutputDebugString(dbg);*/
+
             if (prev <= 0) continue;
             double deltaPct = (now - prev) * 100.0 / prev;
             if (fabs(deltaPct) >= T.fullCapacityJumpPct) {
@@ -817,9 +1000,16 @@ namespace BMD_Internal {
             { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE], g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE] },
             { g_Texts[lang][MTK_ROW_ERRATIC],          g_Texts[lang][MTK_HINT_ERRATIC] },
             { g_Texts[lang][MTK_ROW_SERIAL],        g_Texts[lang][MTK_HINT_SERIAL] },
-            { g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],     g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE] },
-            { g_Texts[lang][MTK_ROW_UNREAL_CHARGE],        g_Texts[lang][MTK_HINT_UNREAL_CHARGE] },
-            { g_Texts[lang][MTK_ROW_FULLTIME],     g_Texts[lang][MTK_HINT_FULLTIME] },
+            //{ g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],     g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE] },
+            //{ g_Texts[lang][MTK_ROW_UNREAL_CHARGE],        g_Texts[lang][MTK_HINT_UNREAL_CHARGE] },
+
+              // NEW RULE #7 (replaces charge/discharge rate)
+              { g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE], g_Texts[lang][MTK_HINT_CAP_TIME_IMPLAUSIBLE] },
+
+              //  RULE 8
+    { g_Texts[lang][MTK_ROW_DESIGN_CAP_CHANGED], g_Texts[lang][MTK_HINT_DESIGN_CAP_CHANGED] },
+
+          /*  { g_Texts[lang][MTK_ROW_FULLTIME],     g_Texts[lang][MTK_HINT_FULLTIME] },*/
             { g_Texts[lang][MTK_ROW_FULLCAP_ANOM],    g_Texts[lang][MTK_HINT_FULLCAP_ANOM] },
         };
 
@@ -1141,8 +1331,9 @@ void CManipulationDlg::RunBatteryManipulationCheck()
         return;
     }
 
+
     m_lastReportPath = htmlPath;
-    m_bmdResult = RunManipulationChecks(info, lang);
+    m_bmdResult = RunManipulationChecks(info, lang, cycles);
 
     // Reset scroll to top on new result
     m_scrollY = 0;

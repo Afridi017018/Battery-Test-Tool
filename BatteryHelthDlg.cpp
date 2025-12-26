@@ -1988,7 +1988,7 @@ bool CBatteryHelthDlg::HasBattery()
         nullptr,                // user
         nullptr,                // password
         nullptr,                // locale
-        0,                      // SECURITY FLAGS (long) ✔ FIXED
+        0,                      // SECURITY FLAGS (long) 
         nullptr,                // authority
         nullptr,                // context
         &pSvc);
@@ -5280,6 +5280,8 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
     }
 
 	CManipulationDlg dlg(this);
+
+    dlg.cycles = QueryBatteryCycleCount();
 
     if (m_lang == Lang::EN)
     {
