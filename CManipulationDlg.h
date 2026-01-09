@@ -82,4 +82,6 @@ public:
     bool eng_lang;
 
     CString cycles;
+
+	HICON m_hIcon;
 };

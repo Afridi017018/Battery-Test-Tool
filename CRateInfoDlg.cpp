@@ -626,6 +626,20 @@ BOOL CRateInfoDlg::OnInitDialog()
     UpdateBatteryInfo();
     StartBatteryMonitoring();
 
+    // Load and set icon
+    m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
+    SetIcon(m_hIcon, TRUE);   // Large icon
+    SetIcon(m_hIcon, FALSE);  // Small icon
+
+    if (eng_lang)
+    {
+        SetWindowTextW(L"Charge/Discharge Rate Information");
+    }
+    else
+    {
+        SetWindowTextW(L"充電/放電レート情報");
+    }
+
     return TRUE;
 }
 

@@ -276,6 +276,20 @@ BOOL CTrendDlg::OnInitDialog() {
     RunPowerCfgBatteryReport(reportPath); // best effort
     LoadFromBatteryReport(reportPath);    // populate m_periods/m_full/m_design
 
+    // Load and set icon
+    m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
+    SetIcon(m_hIcon, TRUE);   // Large icon
+    SetIcon(m_hIcon, FALSE);  // Small icon
+
+    if (eng_lang)
+    {
+        SetWindowTextW(L"Active Battery Life Trend");
+    }
+    else
+    {
+        SetWindowTextW(L"アクティブなバッテリー寿命の傾向");
+    }
+
     return TRUE;
 }
 

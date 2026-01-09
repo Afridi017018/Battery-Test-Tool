@@ -42,4 +42,6 @@ public:
 
 	bool eng_lang;
 
+	HICON m_hIcon;
+
 };

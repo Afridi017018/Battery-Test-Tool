@@ -119,4 +119,6 @@ public:
     bool eng_lang;
 
     int getLang();
+
+	HICON m_hIcon;
 };

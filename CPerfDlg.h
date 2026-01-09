@@ -50,4 +50,5 @@ private:
     std::vector<float> m_perc;  // %, same length as m_times
 public:
     bool eng_lang;
+    HICON m_hIcon;
 };

@@ -40,6 +40,8 @@ public:
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	bool eng_lang;
 
+	HICON m_hIcon;
+
 };
 
 

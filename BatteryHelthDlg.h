@@ -345,6 +345,13 @@ public:
 
 	bool HasBattery();
 
+	// Battery notification tracking
+	int m_lastBatteryNotifyPercent = -1;
+
+	void CheckBatteryDecreaseNotify();
+
+	int m_lastSleepPromptPercent = -1;
+
 
 };
 

@@ -133,6 +133,21 @@ BOOL CSleepDataDlg::OnInitDialog()
     UpdateScrollBars();
     Invalidate();
 
+    // Load and set icon
+    m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
+    SetIcon(m_hIcon, TRUE);   // Large icon
+    SetIcon(m_hIcon, FALSE);  // Small icon
+
+
+    if (eng_lang)
+    {
+        SetWindowTextW(L"Sleep Logs");
+    }
+    else
+    {
+        SetWindowTextW(L"睡眠ログ");
+    }
+
     return TRUE;
 }
 

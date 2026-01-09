@@ -68,6 +68,11 @@
 #pragma comment(lib, "Version.lib")
 
 
+#include <PowrProf.h>
+#pragma comment(lib, "PowrProf.lib")
+
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -527,8 +532,6 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
     ApplyScaledFonts();
     ScaleDialog();   // uses m_baseWidth/Height as design reference
 
-
-
     return 0;
 }
  
@@ -665,7 +668,6 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     pCtl->Invalidate(TRUE); // TRUE = erase background
     pCtl->UpdateWindow();
 }
-
 
 
 
@@ -952,6 +954,11 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         m_hWnd,
         &GUID_CONSOLE_DISPLAY_STATE,
         DEVICE_NOTIFY_WINDOW_HANDLE);
+
+
+    m_lastBatteryNotifyPercent = -1;
+
+    m_lastSleepPromptPercent = -1;
 
 
     return TRUE;
@@ -2934,6 +2941,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
 void CBatteryHelthDlg::GetBatteryInfo()
 {
+
     // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
     IWbemLocator* pLoc = nullptr;
     IWbemServices* pSvc = nullptr;
@@ -3234,6 +3242,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
                 remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
             }
         }
+
         UpdateLabel(this, IDC_BATT_TIME, remain);
 
         // ----- Current (Remaining) Capacity -----
@@ -3296,7 +3305,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
         UpdateLabel(this, IDC_BATT_TEMP, t);
     }
 
-    // cleanup
+    // cleanup/
     pObj->Release();
     pEnumerator->Release();
     pSvc->Release();
@@ -3305,6 +3314,153 @@ void CBatteryHelthDlg::GetBatteryInfo()
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 }
+
+
+
+int GetBatteryPercent()
+{
+    SYSTEM_POWER_STATUS sps{};
+    if (!GetSystemPowerStatus(&sps))
+        return -1;
+
+    if (sps.BatteryLifePercent == 255)
+        return -1; // unknown
+
+    return sps.BatteryLifePercent;
+}
+
+
+void CBatteryHelthDlg::CheckBatteryDecreaseNotify()
+{
+    int currentPercent = GetBatteryPercent();
+    if (currentPercent < 0)
+        return;
+
+    SYSTEM_POWER_STATUS sps{};
+    if (GetSystemPowerStatus(&sps)) {
+        if (sps.ACLineStatus == 1) { // Charging
+            m_lastBatteryNotifyPercent = -1;   // RESET milestone memory
+            return;
+        }
+    }
+
+    // First run → initialize baseline
+    if (m_lastBatteryNotifyPercent < 0) {
+        m_lastBatteryNotifyPercent = currentPercent;
+        return;
+    }
+
+    // Battery must be decreasing
+    if (currentPercent >= m_lastBatteryNotifyPercent)
+        return;
+
+    bool shouldNotify = false;
+
+    // -------- Phase 1: Above 15% → every 10% --------
+    if (currentPercent > 15) {
+        int lastBucket = m_lastBatteryNotifyPercent / 10;
+        int currentBucket = currentPercent / 10;
+        if (currentPercent % 10 == 0 &&
+            currentPercent < m_lastBatteryNotifyPercent) {
+            shouldNotify = true;
+        }
+    }
+    // -------- Phase 2: 15% and below → every 2% --------
+    else {
+        shouldNotify = true;
+        int diff = m_lastBatteryNotifyPercent - currentPercent;
+        if (diff >= 2) {
+            shouldNotify = true;
+        }
+    }
+
+    if (!shouldNotify)
+        return;
+
+    // ---------------- Tray Notification ----------------
+    CString title, body;
+    if (m_lang == Lang::EN) {
+        title = L"Battery level decreased";
+        body.Format(L"Battery level is now %d%%.", currentPercent);
+        if (currentPercent <= 15)
+            body.Append(L"\nLow battery warning!");
+    }
+    else {
+        title = L"バッテリー残量が減少しました";
+        body.Format(L"現在のバッテリー残量は %d%% です。", currentPercent);
+        if (currentPercent <= 15)
+            body.Append(L"\n低バッテリー警告！");
+    }
+
+    CloseBalloon();
+    ShowBalloon(title, body, NIIF_WARNING);
+
+    // ---------------- LOW BATTERY SLEEP PROMPT (ONLY ONCE PER %) ----------------
+    if (currentPercent <= 15 && currentPercent > m_lastSleepPromptPercent) {
+        m_lastSleepPromptPercent = currentPercent; // lock immediately
+
+        CString msg, btnYes, btnNo, btnCancel, dialogTitle;
+        if (m_lang == Lang::EN) {
+            msg.Format(
+                L"Battery level is %d%%.\n\n"
+                L"Do you want to put the laptop to Sleep mode now?",
+                currentPercent
+            );
+            btnYes = L"Yes";
+            btnNo = L"No";
+            btnCancel = L"Cancel";
+            dialogTitle = L"Battery Warning";
+        }
+        else {
+            msg.Format(
+                L"バッテリー残量は %d%% です。\n\n"
+                L"今すぐスリープモードにしますか？",
+                currentPercent
+            );
+            btnYes = L"はい";
+            btnNo = L"いいえ";
+            btnCancel = L"キャンセル";
+            dialogTitle = L"バッテリー警告";
+        }
+
+        // Use TaskDialogIndirect for custom button text
+        TASKDIALOGCONFIG config = { 0 };
+        config.cbSize = sizeof(config);
+        config.hwndParent = m_hWnd;
+        config.dwFlags = TDF_USE_COMMAND_LINKS;
+        config.dwCommonButtons = 0; // No common buttons
+        config.pszWindowTitle = dialogTitle;
+        config.pszMainIcon = TD_WARNING_ICON;
+        config.pszMainInstruction = msg;
+
+        // Define custom buttons
+        TASKDIALOG_BUTTON buttons[3];
+        buttons[0].nButtonID = IDYES;
+        buttons[0].pszButtonText = btnYes;
+        buttons[1].nButtonID = IDNO;
+        buttons[1].pszButtonText = btnNo;
+        buttons[2].nButtonID = IDCANCEL;
+        buttons[2].pszButtonText = btnCancel;
+
+        config.pButtons = buttons;
+        config.cButtons = 3;
+        config.nDefaultButton = IDYES;
+
+        int nButton = 0;
+        TaskDialogIndirect(&config, &nButton, NULL, NULL);
+
+        if (nButton == IDYES) {
+            SetSuspendState(FALSE, FALSE, FALSE);
+        }
+        // NO / CANCEL → do nothing
+    }
+
+    // Update last notified value
+    m_lastBatteryNotifyPercent = currentPercent;
+}
+
+
+
 
 
 void CBatteryHelthDlg::UpdateDischargeButtonStatus()
@@ -3498,8 +3654,6 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
    
 
-
-
     // Start discharge test
     m_initialBatteryPercent = sps.BatteryLifePercent;
 
@@ -3538,8 +3692,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     {
        if (nIDEvent == 2) {
             GetBatteryInfo();
-	   }
 
+            CheckBatteryDecreaseNotify();
+
+	   }
 
         if (nIDEvent == 1) {
             CPoint mouse; GetCursorPos(&mouse);
@@ -4497,7 +4653,7 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
     }
 
     // Use TaskDialog for custom button text
-    CString title = (m_lang == Lang::EN) ? L"Battery History" : L"バッテリー履歴";
+    CString title = (m_lang == Lang::EN) ? L"Charge History" : L"充電履歴";
 
     TASKDIALOGCONFIG config = { 0 };
     config.cbSize = sizeof(config);
@@ -5300,21 +5456,47 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 
 void CBatteryHelthDlg::OnBnClickedBtnBgapp()
 {
-
-    if (HasBattery() == false) {
-        if (m_lang == Lang::EN) {
-            AfxMessageBox(L"No battery detected.");
+    if (HasBattery() == false)
+    {
+        if (m_lang == Lang::EN)
+        {
+            MessageBox(
+                L"No battery detected.",
+                L"Battery Health Monitor",
+                MB_ICONWARNING | MB_OK
+            );
         }
-        else {
-            AfxMessageBox(L"バッテリーが検出されません。");
+        else
+        {
+            MessageBox(
+                L"バッテリーが検出されません。",
+                L"バッテリー状態",
+                MB_ICONWARNING | MB_OK
+            );
         }
 
         return;
     }
 
-    // TODO: Add your control notification handler code here
-    AfxMessageBox(BuildVisibleAppsReport(), MB_ICONINFORMATION | MB_OK);
+    // Show background apps report
+    if (m_lang == Lang::EN)
+    {
+        MessageBox(
+            BuildVisibleAppsReport(),
+            L"Long-Running Background Applications",
+            MB_ICONINFORMATION | MB_OK
+        );
+    }
+    else
+    {
+        MessageBox(
+            BuildVisibleAppsReport(),
+            L"長時間実行されるバックグラウンドアプリケーション",
+            MB_ICONINFORMATION | MB_OK
+        );
+    }
 }
+
 
 
 
@@ -5745,6 +5927,8 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         // TODO: apply English strings / resources here if needed
 
 
+        SetWindowText(L"Battery Test Tool");
+
         ///////Empty-----------------
 
         SetDlgItemTextW(IDC_STATIC_HEADER, L"");
@@ -5766,7 +5950,7 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
 		Invalidate();
 
 		//--------------------------------------
-        SetDlgItemTextW(IDC_STATIC_HEADER, L"Battery Health & Performance Monitor");
+        SetDlgItemTextW(IDC_STATIC_HEADER, L"Battery Health and Performance Monitor");
         SetDlgItemTextW(IDC_STATIC_BBI, _T("Basic Battery Info"));
 
         SetDlgItemTextW(IDC_STATIC_STATUS, _T("Status"));
@@ -5814,6 +5998,8 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
        /* UpdateLanguageTexts();*/
         RedrawToggleButtons();
         // TODO: apply Japanese strings / resources here if needed
+
+        SetWindowText(L"バッテリーテストツール");
 
         ///////Empty-----------------
 

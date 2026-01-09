@@ -90,7 +90,6 @@ enum M_TEXT_KEY
 
 
 
-
 static const wchar_t* g_Texts[2][MTK_COUNT] =
 {
     // ==================== English ====================
@@ -1203,6 +1202,21 @@ BOOL CManipulationDlg::OnInitDialog()
 
     RunBatteryManipulationCheck(); // auto-run
     Invalidate(); // paint panel
+
+    // Load and set icon
+    m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
+    SetIcon(m_hIcon, TRUE);   // Large icon
+    SetIcon(m_hIcon, FALSE);  // Small icon
+
+    if (eng_lang)
+    {
+        SetWindowTextW(L"Detect Manipulation");
+    }
+    else
+    {
+        SetWindowTextW(L"改ざん検出");
+    }
+
     return TRUE;
 }
 

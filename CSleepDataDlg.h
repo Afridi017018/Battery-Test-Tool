@@ -94,4 +94,6 @@ public:
     static void HandleDisplayState(DWORD displayState);
 
     static bool eng_lang;
+
+	HICON m_hIcon;
 };

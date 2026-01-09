@@ -22,6 +22,22 @@ BOOL CPerfDlg::OnInitDialog()
     CDialogEx::OnInitDialog();
     GdiplusStartupInput in;
     GdiplusStartup(&m_gdiplusToken, &in, nullptr);
+
+
+    // Load and set icon
+    m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
+    SetIcon(m_hIcon, TRUE);   // Large icon
+    SetIcon(m_hIcon, FALSE);  // Small icon
+
+    if(eng_lang)
+    {
+        SetWindowTextW(L"CPU Load Test");
+    }
+    else
+    {
+        SetWindowTextW(L"CPU負荷テスト");
+	}
+
     return TRUE;
 }
 
