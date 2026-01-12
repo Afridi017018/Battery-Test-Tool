@@ -32,6 +32,8 @@
 #define IDI_ICON                        194
 #define IDR_ICON                        194
 #define IDR_ACCELERATOR2                195
+#define IDR_ACCELERATOR3                196
+#define IDB_PNG14                       197
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -71,6 +73,7 @@
 #define IDC_BTN_CAPHIS                  1044
 #define IDC_BATT_DID                    1045
 #define IDC_BTN_PREDICTION              1046
+#define IDC_BTN_BREPORT                 1048
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
 #define IDC_BTN_ACTIVE                  1057
@@ -92,8 +95,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        196
-#define _APS_NEXT_COMMAND_VALUE         32774
+#define _APS_NEXT_RESOURCE_VALUE        198
+#define _APS_NEXT_COMMAND_VALUE         32775
 #define _APS_NEXT_CONTROL_VALUE         1072
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

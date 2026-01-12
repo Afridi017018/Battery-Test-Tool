@@ -67,6 +67,8 @@
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "Version.lib")
 
+#include <ShlObj.h>
+#include <shellapi.h>
 
 #include <PowrProf.h>
 #pragma comment(lib, "PowrProf.lib")
@@ -182,6 +184,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_SLEEP, &CBatteryHelthDlg::OnBnClickedBtnSleep)
 
     ON_WM_POWERBROADCAST()   // main dialog is the single logger
+    ON_BN_CLICKED(IDC_BTN_BREPORT, &CBatteryHelthDlg::OnBnClickedBtnBreport)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -493,7 +496,7 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT
     };
 
     for (auto id : ids)
@@ -880,7 +883,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT
     };
 
     for (auto id : ids)
@@ -1053,6 +1056,11 @@ void CBatteryHelthDlg::InitToolTips()
           { IDC_BTN_SLEEP,
             L"Sleep Logs",
             L"睡眠ログ" },
+            {
+                IDC_BTN_BREPORT,
+                L"Battery Report",
+                L"バッテリーレポート"
+            }
     };
 
     // Common tooltips based on language
@@ -4791,7 +4799,7 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
         || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE 
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
 		|| pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP 
-        || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP
+        || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP || pWnd->GetDlgCtrlID() == IDC_BTN_BREPORT
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
@@ -5031,7 +5039,6 @@ static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDat
     outDate = fit.t0 + COleDateTimeSpan(tDays, 0, 0, 0);
     return true;
 }
-
 
 
 //void CBatteryHelthDlg::OnBnClickedBtnPrediction()
@@ -6129,4 +6136,65 @@ UINT CBatteryHelthDlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData)
     CSleepDataDlg::HandlePowerBroadcast(nPowerEvent);
 
     return TRUE; // handled
+}
+void CBatteryHelthDlg::OnBnClickedBtnBreport()
+{
+    CString reportPath;
+
+    // Get Documents folder
+    PWSTR pszPath = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &pszPath))) {
+        reportPath.Format(L"%s\\battery-report.html", pszPath);
+        CoTaskMemFree(pszPath);
+    }
+    else {
+        AfxMessageBox(L"Failed to locate Documents folder.");
+        return;
+    }
+
+    // Build command
+    CString command;
+    command.Format(
+        L"powercfg /batteryreport /output \"%s\"",
+        reportPath.GetString()
+    );
+
+    // Execute command (hidden window)
+    STARTUPINFO si = { sizeof(si) };
+    PROCESS_INFORMATION pi = {};
+
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    if (!CreateProcess(
+        NULL,
+        command.GetBuffer(),
+        NULL,
+        NULL,
+        FALSE,
+        CREATE_NO_WINDOW,
+        NULL,
+        NULL,
+        &si,
+        &pi
+    )) {
+        AfxMessageBox(L"Failed to generate battery report.");
+        return;
+    }
+
+    // Wait for completion
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    // Open the report in default browser
+    ShellExecute(
+        NULL,
+        L"open",
+        reportPath,
+        NULL,
+        NULL,
+        SW_SHOWNORMAL
+    );
 }

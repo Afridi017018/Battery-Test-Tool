@@ -227,5 +227,8 @@
     <Image Include="..\..\..\OneDrive\Desktop\all_logo\sleep.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\report-icon.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

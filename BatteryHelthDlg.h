@@ -173,7 +173,7 @@ public:
 			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
 			IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
 			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN, IDC_BTN_RATEINFO,
-			IDC_BTN_BGAPP,IDC_BTN_SLEEP
+			IDC_BTN_BGAPP,IDC_BTN_SLEEP, IDC_BTN_BREPORT
 		};
 
 		// Per-button hover state, keyed by control ID
@@ -194,6 +194,7 @@ public:
 		     { IDC_BTN_RATEINFO, IDB_PNG11 },	
 			{IDC_BTN_BGAPP, IDB_PNG12},
 			{IDC_BTN_SLEEP, IDB_PNG13},
+			{IDC_BTN_BREPORT, IDB_PNG14}
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
@@ -353,6 +354,7 @@ public:
 	int m_lastSleepPromptPercent = -1;
 
 
+	afx_msg void OnBnClickedBtnBreport();
 };
 
 
