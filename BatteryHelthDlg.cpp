@@ -6100,24 +6100,6 @@ void CBatteryHelthDlg::OnBnClickedBtnSleep()
 }
 
 
-//// ====== Single power-broadcast sink(sleep-awake feture) ======
-//UINT CBatteryHelthDlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData)
-//{
-//    // 1) Handle display on/off/dim (screen-only case -> create a single row like sleep)
-//    if (nPowerEvent == PBT_POWERSETTINGCHANGE) {
-//        auto* ps = reinterpret_cast<POWERBROADCAST_SETTING*>(nEventData);
-//        if (ps && ps->PowerSetting == GUID_CONSOLE_DISPLAY_STATE && ps->DataLength >= sizeof(DWORD)) {
-//            DWORD state = *reinterpret_cast<DWORD*>(ps->Data); // 0=Off,1=On,2=Dim
-//            CSleepDataDlg::HandleDisplayState(state);
-//            return TRUE;
-//        }
-//    }
-//
-//    // 2) Normal sleep/hibernate tracking (suspend/resume) with de-dup
-//    CSleepDataDlg::HandlePowerBroadcast(nPowerEvent);
-//    return TRUE; // handled
-//}
-
 
 // ====== Single power-broadcast sink(sleep-awake feature) ======
 UINT CBatteryHelthDlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData)
@@ -6137,8 +6119,21 @@ UINT CBatteryHelthDlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData)
 
     return TRUE; // handled
 }
+
 void CBatteryHelthDlg::OnBnClickedBtnBreport()
 {
+
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"No battery detected.");
+        }
+        else {
+            AfxMessageBox(L"バッテリーが検出されません。");
+        }
+
+        return;
+    }
+
     CString reportPath;
 
     // Get Documents folder

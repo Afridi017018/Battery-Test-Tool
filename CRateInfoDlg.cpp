@@ -790,15 +790,18 @@ void CRateInfoDlg::DrawBatteryCard(Graphics& g, float x, float y, float w, float
 
 static inline bool isNaNf(float v) { return std::isnan(v) != 0; }
 
+
 void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, float h)
 {
     const bool showCharge = (m_last.currentRate_mW > 0) || m_last.isCharging;
-
     int lang = eng_lang ? LANG_EN : LANG_JP;
 
     const std::vector<float>& series = showCharge ? m_samplesChargeW : m_samplesDischargeW;
-    const WCHAR* chartTitle = showCharge ? g_Texts[lang][TK_CHART_TITLE_CHG] : g_Texts[lang][TK_CHART_TITLE_DIS];
+    const WCHAR* chartTitle = showCharge
+        ? g_Texts[lang][TK_CHART_TITLE_CHG]
+        : g_Texts[lang][TK_CHART_TITLE_DIS];
 
+    // Background
     SolidBrush bg(Color(255, 252, 252, 252));
     g.FillRectangle(&bg, x, y, w, h);
 
@@ -806,37 +809,53 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
     g.DrawRectangle(&border, x, y, w, h);
 
     const float padL = 46.f, padR = 12.f, padT = 40.f, padB = 24.f;
-    const float px = x + padL, py = y + padT, pw = w - padL - padR, ph = h - padT - padB;
+    const float px = x + padL;
+    const float py = y + padT;
+    const float pw = w - padL - padR;
+    const float ph = h - padT - padB;
 
+    // Fonts
     Gdiplus::FontFamily fam(L"Segoe UI");
-    Gdiplus::Font fTitle(&fam, 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
-    Gdiplus::Font fAxis(&fam, 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
+    Gdiplus::Font fTitle(&fam, 11.f, FontStyleBold, UnitPoint);
+    Gdiplus::Font fAxis(&fam, 9.f, FontStyleRegular, UnitPoint);
+    Gdiplus::Font fBadge(&fam, 11.f, FontStyleBold, UnitPoint);
+
     SolidBrush textDark(Color(255, 40, 40, 40));
     SolidBrush textMid(Color(255, 110, 110, 110));
+    SolidBrush overlayText(Color(180, 80, 80, 80));
 
-    CString title; title.Format(g_Texts[lang][TK_CHART_TITLE_FMT], chartTitle, kWindowSeconds);
-    g.DrawString(title, -1, &fTitle, Gdiplus::PointF(x + 12.f, y + 6.f), &textDark);
+    // Title
+    CString title;
+    title.Format(g_Texts[lang][TK_CHART_TITLE_FMT], chartTitle, kWindowSeconds);
+    g.DrawString(title, -1, &fTitle, PointF(x + 12.f, y + 6.f), &textDark);
 
+    // Find max value
     float maxW = 1.0f;
     const int N = kWindowSeconds;
     for (int i = 0; i < N; ++i) {
         float v = series[i];
-        if (!isNaNf(v)) maxW = std::max(maxW, v);
+        if (!isNaNf(v))
+            maxW = std::max(maxW, v);
     }
+
     maxW *= 1.15f;
     maxW = std::max(1.0f, std::ceil(maxW * 2.0f) / 2.0f);
 
+    // Grid + Y labels
     Pen grid(Color(255, 230, 230, 230), 1.0f);
     const int gridLines = 5;
+
     for (int i = 0; i <= gridLines; ++i) {
         float yy = py + ph * (1.0f - (float)i / gridLines);
         g.DrawLine(&grid, px, yy, px + pw, yy);
 
         float val = maxW * (float)i / gridLines;
-        CString lbl; lbl.Format(L"%.1f W", val);
-        g.DrawString(lbl, -1, &fAxis, Gdiplus::PointF(x + 6.f, yy - 9.f), &textMid);
+        CString lbl;
+        lbl.Format(L"%.1f W", val);
+        g.DrawString(lbl, -1, &fAxis, PointF(x + 6.f, yy - 9.f), &textMid);
     }
 
+    // X labels
     {
         const int step = N / 4;
         CString l0, l1, l2, l3, l4;
@@ -847,21 +866,24 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
         l4.Format(L"%ds", N);
 
         const float yLab = py + ph + 4.f;
-        g.DrawString(l0, -1, &fAxis, Gdiplus::PointF(px - 6.f, yLab), &textMid);
-        g.DrawString(l1, -1, &fAxis, Gdiplus::PointF(px + pw * 0.25f - 12.f, yLab), &textMid);
-        g.DrawString(l2, -1, &fAxis, Gdiplus::PointF(px + pw * 0.50f - 12.f, yLab), &textMid);
-        g.DrawString(l3, -1, &fAxis, Gdiplus::PointF(px + pw * 0.75f - 12.f, yLab), &textMid);
-        g.DrawString(l4, -1, &fAxis, Gdiplus::PointF(px + pw - 22.f, yLab), &textMid);
+        g.DrawString(l0, -1, &fAxis, PointF(px - 6.f, yLab), &textMid);
+        g.DrawString(l1, -1, &fAxis, PointF(px + pw * 0.25f - 12.f, yLab), &textMid);
+        g.DrawString(l2, -1, &fAxis, PointF(px + pw * 0.50f - 12.f, yLab), &textMid);
+        g.DrawString(l3, -1, &fAxis, PointF(px + pw * 0.75f - 12.f, yLab), &textMid);
+        g.DrawString(l4, -1, &fAxis, PointF(px + pw - 22.f, yLab), &textMid);
     }
 
+    // Axes
     Pen axis(Color(255, 180, 180, 180), 1.2f);
     g.DrawLine(&axis, px, py, px, py + ph);
     g.DrawLine(&axis, px, py + ph, px + pw, py + ph);
 
+    // Mapping helpers
     auto idxToSample = [&](int k)->float {
         int base = m_filled ? m_cursor : 0;
         int realIdx = m_filled ? ((base + k) % N) : k;
-        if (!m_filled && k >= m_cursor) return kMissing;
+        if (!m_filled && k >= m_cursor)
+            return kMissing;
         return series[realIdx];
         };
 
@@ -871,34 +893,178 @@ void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, fl
 
     auto mapY = [&](float watts)->float {
         float t = (maxW <= 0.0f) ? 0.0f : (watts / maxW);
-        if (t < 0.0f) t = 0.0f; if (t > 1.0f) t = 1.0f;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
         return py + ph * (1.0f - t);
         };
 
-    Pen linePen(showCharge ? Color(255, 0, 180, 0) : Color(255, 0, 122, 204), 2.0f);
+    // Line
+    Pen linePen(showCharge
+        ? Color(255, 0, 180, 0)
+        : Color(255, 0, 122, 204), 2.0f);
 
     bool hasPrev = false;
     PointF prev{};
     for (int k = 0; k < N; ++k) {
         float sample = idxToSample(k);
-        if (isNaNf(sample)) { hasPrev = false; continue; }
+        if (isNaNf(sample)) {
+            hasPrev = false;
+            continue;
+        }
         PointF cur(mapX(k), mapY(sample));
-        if (hasPrev) g.DrawLine(&linePen, prev, cur);
-        prev = cur; hasPrev = true;
+        if (hasPrev)
+            g.DrawLine(&linePen, prev, cur);
+        prev = cur;
+        hasPrev = true;
     }
 
+    // Latest value
     float latest = kMissing;
     if (m_filled || m_cursor > 0) {
         int newestIdx = (m_cursor + N - 1) % N;
         latest = series[newestIdx];
     }
+
     CString latestTxt;
-    if (isNaNf(latest)) latestTxt = showCharge ? g_Texts[lang][TK_LATEST_NOT_CHG] : g_Texts[lang][TK_LATEST_NOT_DIS];
-    else latestTxt.Format(L"%.2f W", latest);
 
-    Gdiplus::Font fBadge(&fam, 9.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
-    SolidBrush badgeText(Color(255, 40, 40, 40));
-    g.DrawString(latestTxt, -1, &fBadge,
-        Gdiplus::PointF(px + pw - 110.f, py + 4.f), &badgeText);
+    if (isNaNf(latest)) {
+        latestTxt = showCharge
+            ? g_Texts[lang][TK_LATEST_NOT_CHG]
+            : g_Texts[lang][TK_LATEST_NOT_DIS];
 
+        // Centered overlay text
+        RectF rc;
+        g.MeasureString(latestTxt, -1, &fBadge, PointF(0, 0), &rc);
+
+        float cx = px + (pw - rc.Width) * 0.5f;
+        float cy = py + (ph - rc.Height) * 0.5f;
+
+        g.DrawString(latestTxt, -1, &fBadge, PointF(cx, cy), &overlayText);
+    }
+    else {
+        latestTxt.Format(L"%.2f W", latest);
+
+        // Top-right badge
+        g.DrawString(
+            latestTxt,
+            -1,
+            &fBadge,
+            PointF(px + pw - 110.f, py + 4.f),
+            &textDark
+        );
+    }
 }
+
+
+//void CRateInfoDlg::DrawLivePowerChart(Graphics& g, float x, float y, float w, float h)
+//{
+//    const bool showCharge = (m_last.currentRate_mW > 0) || m_last.isCharging;
+//
+//    int lang = eng_lang ? LANG_EN : LANG_JP;
+//
+//    const std::vector<float>& series = showCharge ? m_samplesChargeW : m_samplesDischargeW;
+//    const WCHAR* chartTitle = showCharge ? g_Texts[lang][TK_CHART_TITLE_CHG] : g_Texts[lang][TK_CHART_TITLE_DIS];
+//
+//    SolidBrush bg(Color(255, 252, 252, 252));
+//    g.FillRectangle(&bg, x, y, w, h);
+//
+//    Pen border(Color(255, 210, 210, 210), 1.5f);
+//    g.DrawRectangle(&border, x, y, w, h);
+//
+//    const float padL = 46.f, padR = 12.f, padT = 40.f, padB = 24.f;
+//    const float px = x + padL, py = y + padT, pw = w - padL - padR, ph = h - padT - padB;
+//
+//    Gdiplus::FontFamily fam(L"Segoe UI");
+//    Gdiplus::Font fTitle(&fam, 11.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
+//    Gdiplus::Font fAxis(&fam, 9.f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
+//    SolidBrush textDark(Color(255, 40, 40, 40));
+//    SolidBrush textMid(Color(255, 110, 110, 110));
+//
+//    CString title; title.Format(g_Texts[lang][TK_CHART_TITLE_FMT], chartTitle, kWindowSeconds);
+//    g.DrawString(title, -1, &fTitle, Gdiplus::PointF(x + 12.f, y + 6.f), &textDark);
+//
+//    float maxW = 1.0f;
+//    const int N = kWindowSeconds;
+//    for (int i = 0; i < N; ++i) {
+//        float v = series[i];
+//        if (!isNaNf(v)) maxW = std::max(maxW, v);
+//    }
+//    maxW *= 1.15f;
+//    maxW = std::max(1.0f, std::ceil(maxW * 2.0f) / 2.0f);
+//
+//    Pen grid(Color(255, 230, 230, 230), 1.0f);
+//    const int gridLines = 5;
+//    for (int i = 0; i <= gridLines; ++i) {
+//        float yy = py + ph * (1.0f - (float)i / gridLines);
+//        g.DrawLine(&grid, px, yy, px + pw, yy);
+//
+//        float val = maxW * (float)i / gridLines;
+//        CString lbl; lbl.Format(L"%.1f W", val);
+//        g.DrawString(lbl, -1, &fAxis, Gdiplus::PointF(x + 6.f, yy - 9.f), &textMid);
+//    }
+//
+//    {
+//        const int step = N / 4;
+//        CString l0, l1, l2, l3, l4;
+//        l0.Format(L"%ds", 0);
+//        l1.Format(L"%ds", step);
+//        l2.Format(L"%ds", 2 * step);
+//        l3.Format(L"%ds", 3 * step);
+//        l4.Format(L"%ds", N);
+//
+//        const float yLab = py + ph + 4.f;
+//        g.DrawString(l0, -1, &fAxis, Gdiplus::PointF(px - 6.f, yLab), &textMid);
+//        g.DrawString(l1, -1, &fAxis, Gdiplus::PointF(px + pw * 0.25f - 12.f, yLab), &textMid);
+//        g.DrawString(l2, -1, &fAxis, Gdiplus::PointF(px + pw * 0.50f - 12.f, yLab), &textMid);
+//        g.DrawString(l3, -1, &fAxis, Gdiplus::PointF(px + pw * 0.75f - 12.f, yLab), &textMid);
+//        g.DrawString(l4, -1, &fAxis, Gdiplus::PointF(px + pw - 22.f, yLab), &textMid);
+//    }
+//
+//    Pen axis(Color(255, 180, 180, 180), 1.2f);
+//    g.DrawLine(&axis, px, py, px, py + ph);
+//    g.DrawLine(&axis, px, py + ph, px + pw, py + ph);
+//
+//    auto idxToSample = [&](int k)->float {
+//        int base = m_filled ? m_cursor : 0;
+//        int realIdx = m_filled ? ((base + k) % N) : k;
+//        if (!m_filled && k >= m_cursor) return kMissing;
+//        return series[realIdx];
+//        };
+//
+//    auto mapX = [&](int k)->float {
+//        return px + (float)k * (pw / (float)(N - 1));
+//        };
+//
+//    auto mapY = [&](float watts)->float {
+//        float t = (maxW <= 0.0f) ? 0.0f : (watts / maxW);
+//        if (t < 0.0f) t = 0.0f; if (t > 1.0f) t = 1.0f;
+//        return py + ph * (1.0f - t);
+//        };
+//
+//    Pen linePen(showCharge ? Color(255, 0, 180, 0) : Color(255, 0, 122, 204), 2.0f);
+//
+//    bool hasPrev = false;
+//    PointF prev{};
+//    for (int k = 0; k < N; ++k) {
+//        float sample = idxToSample(k);
+//        if (isNaNf(sample)) { hasPrev = false; continue; }
+//        PointF cur(mapX(k), mapY(sample));
+//        if (hasPrev) g.DrawLine(&linePen, prev, cur);
+//        prev = cur; hasPrev = true;
+//    }
+//
+//    float latest = kMissing;
+//    if (m_filled || m_cursor > 0) {
+//        int newestIdx = (m_cursor + N - 1) % N;
+//        latest = series[newestIdx];
+//    }
+//    CString latestTxt;
+//    if (isNaNf(latest)) latestTxt = showCharge ? g_Texts[lang][TK_LATEST_NOT_CHG] : g_Texts[lang][TK_LATEST_NOT_DIS];
+//    else latestTxt.Format(L"%.2f W", latest);
+//
+//    Gdiplus::Font fBadge(&fam, 9.f, Gdiplus::FontStyleBold, Gdiplus::UnitPoint);
+//    SolidBrush badgeText(Color(255, 40, 40, 40));
+//    g.DrawString(latestTxt, -1, &fBadge,
+//        Gdiplus::PointF(px + pw - 110.f, py + 4.f), &badgeText);
+//
+//}
