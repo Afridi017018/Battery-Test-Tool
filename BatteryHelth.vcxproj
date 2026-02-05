@@ -257,6 +257,7 @@
     <Image Include="..\..\..\OneDrive\Desktop\es.png" />
     <Image Include="..\..\..\OneDrive\Desktop\ExportCsv.png" />
     <Image Include="..\..\..\OneDrive\Desktop\Manipulation.png" />
+    <Image Include="..\..\..\OneDrive\Desktop\manip_ss.png" />
     <Image Include="..\..\..\OneDrive\Desktop\prediction.png" />
     <Image Include="..\..\..\OneDrive\Desktop\rate2.png" />
     <Image Include="..\..\..\OneDrive\Desktop\report-icon.png" />

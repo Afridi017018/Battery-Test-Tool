@@ -230,5 +230,8 @@
     <Image Include="..\..\..\OneDrive\Desktop\report-icon.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\..\..\OneDrive\Desktop\manip_ss.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -23,7 +23,6 @@
 #define IDD_PREDICTION_DIALOG           170
 #define IDB_PNG9                        172
 #define IDD_MANIPULATION                173
-#define IDB_PNG10                       175
 #define IDD_RATEINFO                    176
 #define IDB_PNG11                       182
 #define IDB_PNG12                       183
@@ -34,6 +33,7 @@
 #define IDR_ACCELERATOR2                195
 #define IDR_ACCELERATOR3                196
 #define IDB_PNG14                       197
+#define IDB_PNG10                       200
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -95,7 +95,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        198
+#define _APS_NEXT_RESOURCE_VALUE        201
 #define _APS_NEXT_COMMAND_VALUE         32775
 #define _APS_NEXT_CONTROL_VALUE         1072
 #define _APS_NEXT_SYMED_VALUE           101
