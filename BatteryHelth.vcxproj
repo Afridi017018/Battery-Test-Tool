@@ -266,8 +266,23 @@
     <Image Include="..\..\..\OneDrive\Desktop\standby.png" />
     <Image Include="..\..\..\OneDrive\Desktop\standing-up-man-icon-png.png" />
     <Image Include="..\..\..\OneDrive\Desktop\usageHistory.png" />
+    <Image Include="res\active.png" />
+    <Image Include="res\BatterHistory.png" />
+    <Image Include="res\batteryHealthIcon.ico" />
     <Image Include="res\BatteryHelth.ico" />
+    <Image Include="res\caphis.png" />
+    <Image Include="res\cdr.png" />
+    <Image Include="res\cpuload1.png" />
+    <Image Include="res\discharge1.png" />
+    <Image Include="res\es.png" />
+    <Image Include="res\ExportCsv.png" />
     <Image Include="res\icon1.ico" />
+    <Image Include="res\manip_ss.png" />
+    <Image Include="res\prediction.png" />
+    <Image Include="res\report-icon.png" />
+    <Image Include="res\sleep.png" />
+    <Image Include="res\standing-up-man-icon-png.png" />
+    <Image Include="res\usageHistory.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

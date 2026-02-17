@@ -233,5 +233,50 @@
     <Image Include="..\..\..\OneDrive\Desktop\manip_ss.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="res\cpuload1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\manip_ss.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\cdr.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\es.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\sleep.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\report-icon.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\discharge1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\BatterHistory.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\ExportCsv.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\caphis.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\prediction.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\active.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\standing-up-man-icon-png.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\usageHistory.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\batteryHealthIcon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

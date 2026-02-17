@@ -162,7 +162,6 @@ static const wchar_t* g_Texts[2][TK_COUNT] =
 
 
 
-
 // ===================== BatteryTimeEstimator =====================
 bool BatteryTimeEstimator::GetBatteryState(SYSTEM_BATTERY_STATE& state)
 {

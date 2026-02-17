@@ -73,6 +73,7 @@
 #define IDC_BTN_CAPHIS                  1044
 #define IDC_BATT_DID                    1045
 #define IDC_BTN_PREDICTION              1046
+#define IDC_BTN_DISCHARGE2              1046
 #define IDC_BTN_BREPORT                 1048
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
