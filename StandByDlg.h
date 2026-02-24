@@ -44,4 +44,11 @@ public:
 
 	HICON m_hIcon;
 
+    std::vector<float> m_fullCapacity;
+    std::vector<float> m_designCapacity;
+
+    bool LoadBatteryCapacityHistory(const CString& filePath);
+
+    int designCapValue;
+
 };

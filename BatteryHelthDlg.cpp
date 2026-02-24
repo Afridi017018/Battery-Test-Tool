@@ -57,6 +57,8 @@
 
 #include"CSleepDataDlg.h"
 
+#include "CCPUProgressDlg.h"
+
 
 #include <string>
 #include <algorithm>
@@ -67,12 +69,25 @@
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "Version.lib")
 
+#include <winioctl.h>     // For CTL_CODE, METHOD_BUFFERED, FILE_READ_ACCESS
+#include <batclass.h>     // For IOCTL_BATTERY_QUERY_INFORMATION
+#include <devguid.h>      // For GUID_DEVCLASS_BATTERY
+#include <setupapi.h>     // For SetupDi APIs
+
+#pragma comment(lib, "setupapi.lib")
+
 #include <ShlObj.h>
 #include <shellapi.h>
+
+#include <batclass.h>
+#include <devguid.h>
+#include <setupapi.h>
+#pragma comment(lib, "setupapi.lib")
 
 #include <PowrProf.h>
 #pragma comment(lib, "PowrProf.lib")
 
+#include "CDischargeProgressDlg.h"
 
 
 #ifdef _DEBUG
@@ -496,7 +511,10 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT, 
+        IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
+IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
+IDC_STATIC_CAPHIS
     };
 
     for (auto id : ids)
@@ -883,7 +901,10 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
 		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT
+		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
+        IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
+IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
+IDC_STATIC_CAPHIS
     };
 
     for (auto id : ids)
@@ -1943,7 +1964,7 @@ CString QueryBatteryTemperature()
 
             if (SUCCEEDED(hres))
             {
-                // Try Win32_TemperatureProbe for system temperature sensors
+                // Win32_TemperatureProbe for system temperature sensors
                 hres = pSvc->ExecQuery(bstr_t("WQL"),
                     bstr_t("SELECT * FROM Win32_TemperatureProbe WHERE Description LIKE '%Battery%' OR Name LIKE '%Battery%'"),
                     WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
@@ -2049,6 +2070,53 @@ cleanup:
     return hasBattery;
 }
 
+
+
+int GetDesignCapacityFromPortableBattery(IWbemServices* pServices)
+{
+    if (!pServices)
+        return 0;
+
+    CComPtr<IEnumWbemClassObject> pEnumerator;
+    HRESULT hr = pServices->ExecQuery(
+        bstr_t("WQL"),
+        bstr_t("SELECT DesignCapacity FROM Win32_PortableBattery"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &pEnumerator
+    );
+
+    if (FAILED(hr) || !pEnumerator)
+        return 0;
+
+    CComPtr<IWbemClassObject> pObject;
+    ULONG uObjectCount = 0;
+
+    while (pEnumerator)
+    {
+        hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObject, &uObjectCount);
+        if (FAILED(hr) || uObjectCount == 0)
+            break;
+
+        VARIANT vDesignCapacity;
+        VariantInit(&vDesignCapacity);
+
+        if (SUCCEEDED(pObject->Get(L"DesignCapacity", 0, &vDesignCapacity, 0, 0)))
+        {
+            if (vDesignCapacity.vt == VT_I4)
+            {
+                int value = vDesignCapacity.intVal;
+                VariantClear(&vDesignCapacity);
+                return value;
+            }
+        }
+
+        VariantClear(&vDesignCapacity);
+        pObject.Release();
+    }
+
+    return 0;
+}
 
 
 void CBatteryHelthDlg::GetStaticBatteryInfo()
@@ -2205,19 +2273,162 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             int d1 = first.design_mWh;
             int d2 = last.design_mWh;
             if (d1 > 0 || d2 > 0) {
+
+                CString msg;
+
                 designCapHist_mWh = max(d1, d2);
                 designCapHistPretty.Format(L"%d mWh", designCapHist_mWh);
             }
         }
     }
 
-    // Choose which Design Capacity to DISPLAY
-    if (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) {
-        UpdateLabel(this, IDC_BATT_DCAPACITY, designCapStr);            // WMI preferred
+    //// Choose which Design Capacity to DISPLAY
+    //if (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) {
+    //    AfxMessageBox(L"This is 1st");
+    //    CString msg;
+    //    msg.Format(L"%d", designCapHist_mWh);
+    //    AfxMessageBox(msg);
+    //    UpdateLabel(this, IDC_BATT_DCAPACITY, designCapStr);            // WMI preferred
+    //}
+    //else if (designCapHist_mWh > 0) {
+    //    AfxMessageBox(L"This is 2nd");
+    //    CString msg;
+    //    msg.Format(L"%d", designCapHist_mWh);
+    //    AfxMessageBox(msg);
+    //    UpdateLabel(this, IDC_BATT_DCAPACITY, designCapHistPretty);      // history fallback
+    //}
+
+
+
+    if (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh)
+    {
+        // Use WMI
+        UpdateLabel(this, IDC_BATT_DCAPACITY, designCapStr);
+
+        designCapValue = designCapWmi_mWh;
     }
-    else if (designCapHist_mWh > 0) {
-        UpdateLabel(this, IDC_BATT_DCAPACITY, designCapHistPretty);      // history fallback
+    //else if (designCapWmi_mWh > 0 && fullCap_mWh == designCapWmi_mWh)
+    //{
+    //    // WMI equals Full → use PortableBattery API
+    //    
+
+    //    IWbemServices* pServices = nullptr;
+
+    //    int portableDesignCap = GetDesignCapacityFromPortableBattery(pServices);
+
+    //    CString msg;
+    //    msg.Format(L"%d mWh", portableDesignCap);
+    //    AfxMessageBox(msg);
+
+    //    if (portableDesignCap > 0)
+    //    {
+    //        
+    //        UpdateLabel(this, IDC_BATT_DCAPACITY, msg);
+    //    }
+    //    //else
+    //    //{
+    //    //    UpdateLabel(this, IDC_BATT_DCAPACITY, designCapStr);
+    //    //}
+    //}
+
+
+
+    else if (designCapWmi_mWh > 0 && fullCap_mWh == designCapWmi_mWh)
+    {
+        // WMI equals Full → use Win32_PortableBattery for real design capacity
+
+        int portableDesignCap = 0;
+
+        // 1. Create a fresh WbemLocator
+        CComPtr<IWbemLocator> pLocator;
+        HRESULT hr = CoCreateInstance(
+            CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER,
+            IID_IWbemLocator, (LPVOID*)&pLocator
+        );
+
+        if (SUCCEEDED(hr) && pLocator)
+        {
+            // 2. Connect to ROOT\CIMV2
+            CComPtr<IWbemServices> pServices;
+            hr = pLocator->ConnectServer(
+                _bstr_t(L"ROOT\\CIMV2"),
+                NULL, NULL, 0, NULL, 0, 0, &pServices
+            );
+
+            if (SUCCEEDED(hr) && pServices)
+            {
+                // 3. Set proxy blanket
+                hr = CoSetProxyBlanket(
+                    pServices,
+                    RPC_C_AUTHN_WINNT,
+                    RPC_C_AUTHZ_NONE,
+                    NULL,
+                    RPC_C_AUTHN_LEVEL_CALL,
+                    RPC_C_IMP_LEVEL_IMPERSONATE,
+                    NULL,
+                    EOAC_NONE
+                );
+
+                if (SUCCEEDED(hr))
+                {
+                    // 4. Query Win32_PortableBattery for DesignCapacity
+                    CComPtr<IEnumWbemClassObject> pEnum;
+                    hr = pServices->ExecQuery(
+                        bstr_t("WQL"),
+                        bstr_t("SELECT DesignCapacity FROM Win32_PortableBattery"),
+                        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                        NULL, &pEnum
+                    );
+
+                    if (SUCCEEDED(hr) && pEnum)
+                    {
+                        CComPtr<IWbemClassObject> pObj;
+                        ULONG uCount = 0;
+
+                        while (true)
+                        {
+                            hr = pEnum->Next(WBEM_INFINITE, 1, &pObj, &uCount);
+                            if (FAILED(hr) || uCount == 0) break;
+
+                            if (pObj)
+                            {
+                                VARIANT vCap;
+                                VariantInit(&vCap);
+
+                                hr = pObj->Get(L"DesignCapacity", 0, &vCap, 0, 0);
+                                if (SUCCEEDED(hr) && vCap.vt == VT_I4)
+                                {
+                                    portableDesignCap = vCap.intVal; // in mWh
+                                }
+
+                                VariantClear(&vCap);
+                                pObj.Release();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        CString rsg;
+        rsg.Format(L"%d mWh", portableDesignCap);
+        AfxMessageBox(rsg);
+        // 5. Use the retrieved value
+        if (portableDesignCap > 0)
+        {
+            designCapHist_mWh = portableDesignCap;
+            designCapHistPretty.Format(L"%d mWh", portableDesignCap);
+            UpdateLabel(this, IDC_BATT_DCAPACITY, designCapHistPretty);
+
+            designCapValue = portableDesignCap;
+        }
+        else
+        {
+            designCapValue = -1;
+            // Fallback: nothing useful from PortableBattery, show WMI value
+            UpdateLabel(this, IDC_BATT_DCAPACITY, L"Unknown");
+        }
     }
+
     else {
         if(m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"");
@@ -2229,7 +2440,6 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 		}
     }
 
- 
 
     // --------------------------
     // 6) Battery Health (%)
@@ -3529,6 +3739,28 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 }
 
 
+void CBatteryHelthDlg::StopDischargeTest()
+{
+	//AfxMessageBox(L"1112222Please unplug the charger to stop the discharge test.", MB_OK | MB_ICONWARNING);
+    //if (!m_dischargeTestRunning)
+    //    return;
+
+    KillTimer(m_dischargeTimerID);
+    m_dischargeTestRunning = false;
+
+    if (m_pDischargeDlg)
+        m_pDischargeDlg->ShowWindow(SW_HIDE);
+
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+
+    if (m_lang == Lang::EN)
+        SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
+    else
+        SetDlgItemText(IDC_BTN_DISCHARGE, L"放電テスト開始");
+}
+
+
+
 
 
 
@@ -3565,6 +3797,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     {
         if(m_lang == Lang::EN) {
             AfxMessageBox(L"Please unplug the charger to start the discharge test.", MB_OK | MB_ICONWARNING);
+
         }
         else {
             AfxMessageBox(L"放電テストを開始するには充電器を抜いてください。", MB_OK | MB_ICONWARNING);
@@ -3686,6 +3919,16 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
     SetTimer(m_dischargeTimerID, 1000, NULL); // 1-second interval
 
+    if (!m_pDischargeDlg)
+    {
+        m_pDischargeDlg = new CDischargeProgressDlg(this);
+        m_pDischargeDlg->Create(IDD_DISCHARGE_PROGRESS_DLG, this);
+    }
+
+    m_pDischargeDlg->CenterWindow();
+    m_pDischargeDlg->ShowWindow(SW_SHOW);
+
+
     //CString imsg;
     //imsg.Format(L"\n\nDischarge Test Running...\nTime Elapsed: %d min\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
     //    0, m_initialBatteryPercent, m_initialBatteryPercent, 0, 0.0);
@@ -3726,6 +3969,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
 
     }
+
     else if (nIDEvent == m_dischargeTimerID && m_dischargeTestRunning)
     { 
         m_elapsedSeconds++; // count seconds
@@ -3756,12 +4000,35 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
 			}
 
+            //// Create dialog if needed
+            //if (!m_pDischargeDlg)
+            //{
+            //    m_pDischargeDlg = new CDischargeProgressDlg(this);
+            //    m_pDischargeDlg->Create(IDD_DISCHARGE_PROGRESS_DLG, this);
+            //}
+
+            //// Center it
+            //m_pDischargeDlg->CenterWindow();
+
+            //// Show dialog
+            //m_pDischargeDlg->ShowWindow(SW_SHOW);
+
+
 
             /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
-            UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
+            
+            
+     /*       UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
 
-            m_discharge_progress.SetPos(progressPercent);
+            m_discharge_progress.SetPos(progressPercent);*/
 
+            if (m_pDischargeDlg)
+            {
+                m_pDischargeDlg->UpdateProgress(
+                    (int)progressPercent,
+                    msg
+                );
+            }
 
 
 
@@ -3777,9 +4044,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 					AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
                 }
 
-                
+                StopDischargeTest();
                 GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 				m_discharge_progress.ShowWindow(SW_HIDE);
+                
             }
 
             else if (sps.SystemStatusFlag & 1) // Battery saver ON
@@ -3893,9 +4161,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             if(m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
             }
-            else {
+            else { 
+                UpdateLabel(this, IDC_BATT_DISCHARGR, L"バッテリー残量を読み取ることができません。");
             }
-            UpdateLabel(this, IDC_BATT_DISCHARGR, L"バッテリー残量を読み取ることができません。");
+           
 
         }
     }
@@ -3926,15 +4195,30 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         
 
 
-        /*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
-        UpdateLabel(this, IDC_BATT_CPULOAD, msg);
+        ///*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
+        //UpdateLabel(this, IDC_BATT_CPULOAD, msg);
 
-        m_CPU_Progress.SetPos(percentDone);
+        //m_CPU_Progress.SetPos(percentDone);
+
+            if (m_pCpuDlg)
+            {
+                m_pCpuDlg->UpdateProgress(
+                    (int)percentDone,
+                    msg
+                );
+            }
+
+
 
 
         // Stop if requested
         if (m_stopCpuLoad.load())
         {
+
+            if (m_pCpuDlg)
+                m_pCpuDlg->ShowWindow(SW_HIDE);
+
+
             m_cpuLoadTestRunning = false;
             KillTimer(m_cpuLoadTimerID);
 
@@ -4165,13 +4449,13 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
     /* SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Running...");*/
 
-    //en2jp
-    if(m_lang == Lang::EN) {
-        UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Running...");
-    }
-    else {
-        UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU 負荷テストを実行中...");
-	}
+ //   //en2jp
+ //   if(m_lang == Lang::EN) {
+ //       UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Running...");
+ //   }
+ //   else {
+ //       UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU 負荷テストを実行中...");
+	//}
 
     
 
@@ -4181,6 +4465,18 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
     m_cpuLoadElapsed = 0;
     SetTimer(m_cpuLoadTimerID, 1000, NULL);
+
+
+    if (!m_pCpuDlg)
+    {
+        m_pCpuDlg = new CCPUProgressDlg(this);
+        m_pCpuDlg->Create(IDD_CPULOAD_PROGRESS_DLG, this);
+    }
+
+    m_pCpuDlg->CenterWindow();
+    m_pCpuDlg->ShowWindow(SW_SHOW);
+
+
 
     // Launch CPU load threads
     std::thread([this]()
@@ -4349,6 +4645,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
     }
 
+   
+     
+
 
     m_CPU_Progress.ShowWindow(SW_HIDE);
 
@@ -4408,6 +4707,21 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
         else {
             dlg.eng_lang = false;
         }
+
+
+        m_pCpuDlg->ShowWindow(SW_HIDE);
+
+       
+        CString msg;
+
+        msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", 0);
+             if (m_pCpuDlg)
+            {
+                m_pCpuDlg->UpdateProgress(
+                    (int)0,
+                    msg
+                );
+            }
 
         dlg.SetData(initial, current, rate, gflops, tt, yy);
         dlg.DoModal();
@@ -5049,7 +5363,10 @@ static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDat
 //}
 
 void CBatteryHelthDlg::OnBnClickedBtnActive()
-{
+{ 
+
+    
+
     if(HasBattery() == false)
     {
         if (m_lang == Lang::EN) {
@@ -5077,6 +5394,9 @@ void CBatteryHelthDlg::OnBnClickedBtnActive()
     else{
         dlg.eng_lang = false;
     }
+
+    dlg.designCapValue = designCapValue;
+
     dlg.DoModal(); // open modal window
 }
 
@@ -5109,6 +5429,8 @@ void CBatteryHelthDlg::OnBnClickedBtnStandby()
     else {
         dlg.eng_lang = false;
     }
+
+    dlg.designCapValue = designCapValue;
 
     dlg.DoModal(); // open modal window
 }

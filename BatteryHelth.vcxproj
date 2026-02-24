@@ -187,7 +187,9 @@
   <ItemGroup>
     <ClInclude Include="BatteryHelth.h" />
     <ClInclude Include="BatteryHelthDlg.h" />
+    <ClInclude Include="CCPUProgressDlg.h" />
     <ClInclude Include="CDischargeDlg.h" />
+    <ClInclude Include="CDischargeProgressDlg.h" />
     <ClInclude Include="CManipulationDlg.h" />
     <ClInclude Include="CPerfDlg.h" />
     <ClInclude Include="CPredictionDlg.h" />
@@ -203,7 +205,9 @@
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp" />
     <ClCompile Include="BatteryHelthDlg.cpp" />
+    <ClCompile Include="CCPUProgressDlg.cpp" />
     <ClCompile Include="CDischargeDlg.cpp" />
+    <ClCompile Include="CDischargeProgressDlg.cpp" />
     <ClCompile Include="CManipulationDlg.cpp" />
     <ClCompile Include="CPerfDlg.cpp" />
     <ClCompile Include="CPredictionDlg.cpp" />

@@ -57,6 +57,12 @@
     <ClInclude Include="CSleepDataDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CDischargeProgressDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CCPUProgressDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -90,6 +96,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CSleepDataDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CDischargeProgressDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CCPUProgressDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

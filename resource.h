@@ -34,6 +34,8 @@
 #define IDR_ACCELERATOR3                196
 #define IDB_PNG14                       197
 #define IDB_PNG10                       200
+#define IDD_DISCHARGE_PROGRESS_DLG      203
+#define IDD_CPULOAD_PROGRESS_DLG        205
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -74,10 +76,17 @@
 #define IDC_BATT_DID                    1045
 #define IDC_BTN_PREDICTION              1046
 #define IDC_BTN_DISCHARGE2              1046
+#define IDC_STATIC_CPU                  1046
+#define IDC_STATIC_ACTIVE               1047
 #define IDC_BTN_BREPORT                 1048
+#define IDC_STATIC_STANDBY              1049
 #define IDC_PROGRESS4                   1050
 #define IDC_PROGRESS5                   1051
+#define IDC_STATIC_BGAPP                1052
+#define IDC_STATIC_RATEINFO             1053
+#define IDC_STATIC_MANIPULATION         1054
 #define IDC_BTN_ACTIVE                  1057
+#define IDC_STATIC_DISCHARGE            1058
 #define IDC_BTN_ACTIVE2                 1059
 #define IDC_BTN_STANDBY                 1059
 #define IDC_BTN_MANIPULATIOIN           1060
@@ -85,20 +94,32 @@
 #define IDC_BTN_USAGE                   1061
 #define IDC_BUTTON1                     1062
 #define IDC_BTN_BGAPP                   1062
+#define IDC_BTN_STOP                    1062
 #define IDC_BTN_RATEINFO                1063
 #define IDC_BTN_EN                      1066
 #define IDC_BTN_JP                      1067
 #define IDC_BTN_SLEEP                   1068
 #define IDC_LIST1                       1069
+#define IDC_STATIC_HISTORY              1069
+#define IDC_STATIC_UPLOADPDF            1071
+#define IDC_STATIC_SLEEP                1072
+#define IDC_STATIC_USAGE                1073
+#define IDC_PROGRESS_DISCHARGE          1073
+#define IDC_STATIC_BREPORT              1074
+#define IDC_STATIC_USAGE2               1075
+#define IDC_STATIC_CAPHIS               1075
+#define IDC_TXT_PROGRESS                1076
+#define IDC_PROGRESS_CPU                1078
+#define IDC_TXT_CPU                     1079
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        201
+#define _APS_NEXT_RESOURCE_VALUE        207
 #define _APS_NEXT_COMMAND_VALUE         32775
-#define _APS_NEXT_CONTROL_VALUE         1072
+#define _APS_NEXT_CONTROL_VALUE         1080
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

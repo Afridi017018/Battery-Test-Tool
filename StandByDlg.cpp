@@ -274,7 +274,8 @@ BOOL StandByDlg::OnInitDialog() {
     // === Always generate a fresh report, then parse ===
     const CString reportPath = GenBatteryReportPath();
     RunPowerCfgBatteryReport(reportPath); // best effort
-    LoadFromBatteryReport(reportPath);    // populate m_periods/m_full/m_design
+    LoadBatteryCapacityHistory(reportPath);
+    LoadFromBatteryReport(reportPath);
 
     // Load and set icon
     m_hIcon = LoadIcon(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ICON));
@@ -318,7 +319,78 @@ void StandByDlg::SetData(const std::vector<CString>& p,
 //   - At Design        -> times[3] (fallback to times[2] if only three found)
 //
 // Row order is kept as in the report; we skip headers and the "Since OS install" summary.
+// 
+// 
 //
+
+
+bool StandByDlg::LoadBatteryCapacityHistory(const CString& filePath)
+{
+    m_fullCapacity.clear();
+    m_designCapacity.clear();
+
+    const CString html = ReadTextAutoEncoding(filePath);
+    if (html.IsEmpty()) return false;
+
+    std::wstring H = html.GetString();
+
+    std::wsmatch mh;
+    std::wregex reTable(
+        LR"(BATTERY\s*CAPACITY\s*HISTORY[\s\S]*?<table[^>]*>([\s\S]*?)</table>)",
+        std::regex_constants::icase
+    );
+
+    if (!std::regex_search(H, mh, reTable))
+        return false;
+
+    std::wstring tableHtml = mh[1].str();
+
+    std::wregex reRow(L"<tr[^>]*>([\\s\\S]*?)</tr>", std::regex_constants::icase);
+    std::wregex reCell(L"<t[dh][^>]*>([\\s\\S]*?)</t[dh]>", std::regex_constants::icase);
+
+    for (std::wsregex_iterator it(tableHtml.begin(), tableHtml.end(), reRow), end;
+        it != end; ++it)
+    {
+        std::wstring rowHtml = (*it)[1].str();
+
+        std::vector<CString> cells;
+        for (std::wsregex_iterator ic(rowHtml.begin(), rowHtml.end(), reCell);
+            ic != end; ++ic)
+        {
+            CString cell = StripHtml(CString((*ic)[1].str().c_str()));
+            if (!cell.IsEmpty())
+                cells.push_back(cell);
+        }
+
+        if (cells.size() < 3)
+            continue;
+
+        CString upper = cells[0];
+        upper.MakeUpper();
+        if (upper.Find(L"PERIOD") >= 0)
+            continue;
+
+        auto ExtractNumber = [](CString s)->float
+            {
+                s.Replace(L",", L"");
+                s.Replace(L"mWh", L"");
+                s.Trim();
+                return (float)_wtof(s);
+            };
+
+        float fullCap = ExtractNumber(cells[1]);
+        float designCap = ExtractNumber(cells[2]);
+
+        if (fullCap > 0 && designCap > 0)
+        {
+            m_fullCapacity.push_back(fullCap);
+            m_designCapacity.push_back(designCap);
+        }
+    }
+
+    return !m_fullCapacity.empty();
+}
+
 bool StandByDlg::LoadFromBatteryReport(const CString& filePath)
 {
     m_periods.clear(); m_full.clear(); m_design.clear();
@@ -372,12 +444,31 @@ bool StandByDlg::LoadFromBatteryReport(const CString& filePath)
         auto times = ExtractTimesToHoursFromText(rowText);
         if (times.size() < 2) continue;
 
-        // Standby: [1] = Connected Standby (Full), [3] = Connected Standby (Design)
-        float fullStandby = (times.size() >= 2) ? times[1] : NAN;
-        float designStandby = (times.size() >= 4) ? times[3]
-            : (times.size() >= 3 ? times[2] : NAN);
+     
 
-        if (std::isnan(fullStandby) || std::isnan(designStandby)) continue;
+        float fullStandby = (times.size() >= 2) ? times[1] : NAN;
+        if (std::isnan(fullStandby)) continue;
+
+        // Compute design standby using capacity ratio
+        float designStandby = 0.f;
+
+        size_t idx = m_full.size();  // current row index
+
+        if (idx < m_fullCapacity.size() &&
+            idx < m_designCapacity.size())
+        {
+            float fullCap = m_fullCapacity[idx];
+            float designCap = designCapValue;
+
+            if (fullCap > 0.f)
+                designStandby = fullStandby * (designCap / fullCap);
+        }
+
+        if (designStandby <= 0.f)
+            continue;
+
+
+
 
         // Filter obviously bogus glitch values but allow big standby numbers
         if (fullStandby > 2000.f || designStandby > 2000.f) continue;

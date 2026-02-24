@@ -20,9 +20,14 @@
 
 #include <unordered_map>
 
+
 #include <PowerSetting.h> 
 #pragma comment(lib, "User32.lib")
 
+
+class CDischargeProgressDlg;
+
+class CCPUProgressDlg;
 
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
@@ -186,12 +191,12 @@ public:
 			{ IDC_BTN_HISTORY, IDB_PNG3 },
 			{ IDC_BTN_UPLOADPDF, IDB_PNG4 },
 			{ IDC_BTN_CAPHIS, IDB_PNG5 },
-	/*		{ IDC_BTN_PREDICTION, IDB_PNG6 },*/
+	   /*{ IDC_BTN_PREDICTION, IDB_PNG6 },*/
 			{ IDC_BTN_ACTIVE, IDB_PNG7 },
 		    { IDC_BTN_STANDBY, IDB_PNG8 },
 			{ IDC_BTN_USAGE, IDB_PNG9 },
 			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 },
-		     { IDC_BTN_RATEINFO, IDB_PNG11 },	
+		    { IDC_BTN_RATEINFO, IDB_PNG11 },	
 			{IDC_BTN_BGAPP, IDB_PNG12},
 			{IDC_BTN_SLEEP, IDB_PNG13},
 			{IDC_BTN_BREPORT, IDB_PNG14}
@@ -355,6 +360,15 @@ public:
 
 
 	afx_msg void OnBnClickedBtnBreport();
+
+	CDischargeProgressDlg* m_pDischargeDlg;
+	void StopDischargeTest();
+
+	CCPUProgressDlg* m_pCpuDlg;
+
+	int designCapValue = -1;
+
+
 };
 
 
