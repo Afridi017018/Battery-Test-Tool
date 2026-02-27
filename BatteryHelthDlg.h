@@ -368,6 +368,8 @@ public:
 
 	int designCapValue = -1;
 
+	void StopCpuLoadTest();
+
 
 };
 

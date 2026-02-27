@@ -59,6 +59,8 @@
 
 #include "CCPUProgressDlg.h"
 
+#include "CAppReportDlg.h"
+
 
 #include <string>
 #include <algorithm>
@@ -1137,31 +1139,28 @@ BOOL CBatteryHelthDlg::OnEraseBkgnd(CDC* pDC)
 
     TRIVERTEX vert[2] = {};
 
-    // Start color: Light Sky Blue (#87CEFA ? RGB(135,206,250))
+    // Top - lighter purple white
     vert[0].x = rc.left;
     vert[0].y = rc.top;
-    vert[0].Red = 135 << 8;
-    vert[0].Green = 206 << 8;
-    vert[0].Blue = 250 << 8;
+    vert[0].Red = 248 << 8;
+    vert[0].Green = 244 << 8;
+    vert[0].Blue = 252 << 8;
     vert[0].Alpha = 0xFFFF;
 
-    // End color: Soft Lavender (#BAA9F5 ? RGB(186,169,245))
+    // Bottom - slightly deeper tint
     vert[1].x = rc.right;
     vert[1].y = rc.bottom;
-    vert[1].Red = 186 << 8;
-    vert[1].Green = 169 << 8;
-    vert[1].Blue = 245 << 8;
+    vert[1].Red = 235 << 8;
+    vert[1].Green = 225 << 8;
+    vert[1].Blue = 248 << 8;
     vert[1].Alpha = 0xFFFF;
 
     GRADIENT_RECT g = { 0, 1 };
 
-    // Vertical gradient (top ? bottom)
     ::GradientFill(pDC->GetSafeHdc(), vert, 2, &g, 1, GRADIENT_FILL_RECT_V);
 
-    return TRUE; // we drew the background
+    return TRUE;
 }
-
-
 
 
 
@@ -1377,10 +1376,10 @@ HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
     }
 
     // Tell the dialog not to erase its background (your OnEraseBkgnd paints the gradient)
-    if (nCtlColor == CTLCOLOR_DLG)
+    /*if (nCtlColor == CTLCOLOR_DLG)
     {
         return (HBRUSH)GetStockObject(NULL_BRUSH);
-    }
+    }*/
 
     return CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
 }
@@ -1405,24 +1404,45 @@ void CBatteryHelthDlg::OnPaint()
 {
     if (IsIconic())
     {
-        CPaintDC dc(this); // device context for painting
+        CPaintDC dc(this);
 
-        SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
+        SendMessage(WM_ICONERASEBKGND,
+            reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
-        // Center icon in client rectangle
         int cxIcon = GetSystemMetrics(SM_CXICON);
         int cyIcon = GetSystemMetrics(SM_CYICON);
+
         CRect rect;
         GetClientRect(&rect);
-        int x = (rect.Width() - cxIcon + 1) / 2;
-        int y = (rect.Height() - cyIcon + 1) / 2;
 
-        // Draw the icon
-        dc.DrawIcon(x, y, m_hIcon);
+        int x = (rect.Width() - cxIcon + 1) / 2;
+        int yIcon = (rect.Height() - cyIcon + 1) / 2;
+
+        dc.DrawIcon(x, yIcon, m_hIcon);
     }
     else
     {
+        CPaintDC dc(this);
         CDialogEx::OnPaint();
+
+        CRect rc;
+        GetClientRect(&rc);
+
+        // Get text control position
+        CWnd* pText = GetDlgItem(IDC_BATT_DID);
+        CRect textRect;
+        pText->GetWindowRect(&textRect);
+        ScreenToClient(&textRect);
+
+        int y = textRect.bottom + 0;
+
+        CPen pen(PS_SOLID, 1, RGB(220, 220, 220));
+        CPen* pOldPen = dc.SelectObject(&pen);
+
+        dc.MoveTo(0.1, y);
+        dc.LineTo(rc.right - 1, y);
+
+        dc.SelectObject(pOldPen);
     }
 }
 
@@ -3534,7 +3554,6 @@ void CBatteryHelthDlg::GetBatteryInfo()
 }
 
 
-
 int GetBatteryPercent()
 {
     SYSTEM_POWER_STATUS sps{};
@@ -3678,9 +3697,6 @@ void CBatteryHelthDlg::CheckBatteryDecreaseNotify()
 }
 
 
-
-
-
 void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 {
     SYSTEM_POWER_STATUS sps = {};
@@ -3760,131 +3776,284 @@ void CBatteryHelthDlg::StopDischargeTest()
 }
 
 
-
-
-
+//void CBatteryHelthDlg::OnBnClickedBtnDischarge()
+//{
+//
+//    if(HasBattery() == false) {
+//        if(m_lang == Lang::EN) {
+//            AfxMessageBox(L"No battery detected.");
+//        }
+//        else {
+//            AfxMessageBox(L"バッテリーが検出されません。");
+//        }
+//        
+//        return;
+//	}
+//
+//    SYSTEM_POWER_STATUS sps;
+//    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+//    {
+//        if(m_lang == Lang::EN) {
+//            AfxMessageBox(L"Cannot read battery percentage.");
+//        }
+//        else {
+//            AfxMessageBox(L"バッテリー残量を読み取ることができません。");
+//        }
+//
+//        
+//        return;
+//    }
+//
+//    if (sps.ACLineStatus == 1) // Charging
+//    {
+//        if(m_lang == Lang::EN) {
+//            AfxMessageBox(L"Please unplug the charger to start the discharge test.", MB_OK | MB_ICONWARNING);
+//
+//        }
+//        else {
+//            AfxMessageBox(L"放電テストを開始するには充電器を抜いてください。", MB_OK | MB_ICONWARNING);
+//        }
+//
+//        
+//
+//        return;
+//    }
+//
+//
+//    // Check Battery Saver
+//    if (sps.SystemStatusFlag & 1) // Battery saver ON
+//    {
+//		AfxMessageBox(L"oooonnnnnnnnnnn", MB_OK | MB_ICONWARNING);
+//        m_discharge_progress.ShowWindow(SW_HIDE);
+//
+//        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
+//
+//  /*      UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
+//
+//        KillTimer(m_dischargeTimerID);
+//        m_dischargeTestRunning = false;
+//
+//        CString msg;
+//        
+//        if(m_lang == Lang::EN) {
+//            msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+//        }
+//        else {
+//            msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
+//        }
+//
+//
+//        ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+//
+//
+//
+//        return;
+//    }
+//
+//    // If already running 
+//    if (m_dischargeTestRunning)
+//    {
+//        m_dischargeTestRunning = false;
+//        m_discharge_progress.ShowWindow(SW_HIDE);
+//        KillTimer(m_dischargeTimerID);
+//
+//        SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
+//        /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
+//
+//        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
+//
+//
+//        if (sps.ACLineStatus == 1) {
+//            if(m_lang == Lang::EN) {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");
+//            }
+//            else {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"充電器を抜いてください!");
+//            }
+//
+//            
+//        }
+//        else
+//        {
+//
+//            if (m_lang == Lang::EN) {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
+//				AfxMessageBox(L"Discharge test stopped.");
+//            }
+//            else {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
+//                AfxMessageBox(L"放電テストを停止しました。");
+//            }
+//
+//            
+//        }
+//
+//        GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+//
+//        /* m_dischargeClick = false;*/
+//
+//		InitToolTips();
+//
+//        return;
+//    }
+//
+//
+//    if (m_dischargeClick) {
+//        SetButtonFont(IDC_BATT_DISCHARGR, true);
+//    }
+//
+//    GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
+//    m_discharge_progress.ShowWindow(SW_SHOW);
+//
+//   
+//
+//    // Start discharge test
+//    m_initialBatteryPercent = sps.BatteryLifePercent;
+//
+//    m_elapsedMinutes = 0;
+//    m_elapsedSeconds = 0;
+//
+//    m_dischargeTestRunning = true;
+//    InitToolTips();
+//
+//
+//    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+//
+//    if (m_lang == Lang::EN) {
+//        SetDlgItemText(IDC_BTN_DISCHARGE, L"Stop Discharge Test");
+//
+//    }
+//    else {
+//        SetDlgItemText(IDC_BTN_DISCHARGE, L"放電テスト停止");
+//    }
+//
+//    
+//
+//    SetTimer(m_dischargeTimerID, 1000, NULL); // 1-second interval
+//
+//    if (!m_pDischargeDlg)
+//    {
+//        m_pDischargeDlg = new CDischargeProgressDlg(this);
+//        m_pDischargeDlg->Create(IDD_DISCHARGE_PROGRESS_DLG, this);
+//    }
+//
+//    m_pDischargeDlg->CenterWindow();
+//    m_pDischargeDlg->ShowWindow(SW_SHOW);
+//
+//
+//    //CString imsg;
+//    //imsg.Format(L"\n\nDischarge Test Running...\nTime Elapsed: %d min\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
+//    //    0, m_initialBatteryPercent, m_initialBatteryPercent, 0, 0.0);
+//    //SetDlgItemText(IDC_BATT_DISCHARGR, imsg);
+//}
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
-
-    if(HasBattery() == false) {
-        if(m_lang == Lang::EN) {
+    if (HasBattery() == false) {
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"No battery detected.");
         }
         else {
             AfxMessageBox(L"バッテリーが検出されません。");
         }
-        
         return;
-	}
-
+    }
 
     SYSTEM_POWER_STATUS sps;
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
     {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Cannot read battery percentage.");
         }
         else {
             AfxMessageBox(L"バッテリー残量を読み取ることができません。");
         }
-
-        
         return;
     }
 
     if (sps.ACLineStatus == 1) // Charging
     {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Please unplug the charger to start the discharge test.", MB_OK | MB_ICONWARNING);
-
         }
         else {
             AfxMessageBox(L"放電テストを開始するには充電器を抜いてください。", MB_OK | MB_ICONWARNING);
         }
-
-        
-
         return;
     }
 
+    // ── Battery Saver Check (EnergySaverState: 2=OFF, 1=ON) ─────────────────
+    bool batterySaverOn = false;
 
-    // Check Battery Saver
-    if (sps.SystemStatusFlag & 1) // Battery saver ON
+    HKEY hKey;
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Control\\Power",
+        0, KEY_READ, &hKey) == ERROR_SUCCESS)
     {
+        DWORD value = 0, size = sizeof(DWORD);
+        if (RegQueryValueEx(hKey, L"EnergySaverState",
+            NULL, NULL, (LPBYTE)&value, &size) == ERROR_SUCCESS)
+        {
+            batterySaverOn = (value == 1);
+        }
+        RegCloseKey(hKey);
+    }
+
+
+
+    if (batterySaverOn)
+    {
+        
         m_discharge_progress.ShowWindow(SW_HIDE);
-
-        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
-
-  /*      UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
-
         KillTimer(m_dischargeTimerID);
         m_dischargeTestRunning = false;
 
         CString msg;
-        
-        if(m_lang == Lang::EN) {
-            msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+        if (m_lang == Lang::EN) {
+            msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Energy saver -> Turn Off\n\n";
         }
         else {
-            msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
+            msg = L"バッテリーセーバーをオフにしてください。\n\n => Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
         }
 
-
         ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
-
-
-
         return;
     }
-
-    // If already running 
+    // ────────────────────────────────────────────────────────────────────────
+  
+    // If already running
     if (m_dischargeTestRunning)
-    {
+    {  
         m_dischargeTestRunning = false;
         m_discharge_progress.ShowWindow(SW_HIDE);
         KillTimer(m_dischargeTimerID);
 
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
-        /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped!");*/
-
-        /*UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
-
 
         if (sps.ACLineStatus == 1) {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");
             }
             else {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"充電器を抜いてください!");
             }
-
-            
         }
         else
         {
-
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Test Stopped");
-				AfxMessageBox(L"Discharge test stopped.");
+                AfxMessageBox(L"Discharge test stopped.");
             }
             else {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
                 AfxMessageBox(L"放電テストを停止しました。");
             }
-
-            
         }
 
         GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-
-        /* m_dischargeClick = false;*/
-
-		InitToolTips();
-
+        InitToolTips();
         return;
     }
-
 
     if (m_dischargeClick) {
         SetButtonFont(IDC_BATT_DISCHARGR, true);
@@ -3893,29 +4062,22 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
     m_discharge_progress.ShowWindow(SW_SHOW);
 
-   
-
     // Start discharge test
     m_initialBatteryPercent = sps.BatteryLifePercent;
-
     m_elapsedMinutes = 0;
     m_elapsedSeconds = 0;
-
     m_dischargeTestRunning = true;
-    InitToolTips();
 
+    InitToolTips();
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
 
     if (m_lang == Lang::EN) {
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Stop Discharge Test");
-
     }
     else {
         SetDlgItemText(IDC_BTN_DISCHARGE, L"放電テスト停止");
     }
-
-    
 
     SetTimer(m_dischargeTimerID, 1000, NULL); // 1-second interval
 
@@ -3927,15 +4089,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
     m_pDischargeDlg->CenterWindow();
     m_pDischargeDlg->ShowWindow(SW_SHOW);
-
-
-    //CString imsg;
-    //imsg.Format(L"\n\nDischarge Test Running...\nTime Elapsed: %d min\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
-    //    0, m_initialBatteryPercent, m_initialBatteryPercent, 0, 0.0);
-    //SetDlgItemText(IDC_BATT_DISCHARGR, imsg);
 }
-
-
 
 void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -4214,6 +4368,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         // Stop if requested
         if (m_stopCpuLoad.load())
         {
+          
 
             if (m_pCpuDlg)
                 m_pCpuDlg->ShowWindow(SW_HIDE);
@@ -4374,6 +4529,30 @@ void RunCPULoadRemaining(
 // Modified CPU Load Test button handler
 // CPU Load Test button handler
 // CPU Load Test button handler
+
+
+void CBatteryHelthDlg::StopCpuLoadTest()
+{
+    if (!m_cpuLoadTestRunning)
+        return;
+
+    m_stopCpuLoad.store(true);
+    KillTimer(m_cpuLoadTimerID);
+
+    m_cpuLoadTestRunning = false;
+
+    if (m_pCpuDlg)
+        m_pCpuDlg->ShowWindow(SW_HIDE);
+
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+
+    if (m_lang == Lang::EN)
+        SetDlgItemText(IDC_BTN_CPULOAD, L"Start CPU Load Test");
+    else
+        SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テスト");
+}
+
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
@@ -4635,11 +4814,12 @@ CString CBatteryHelthDlg::QueryBatteryCapacityHistory()
 
 
 
-
 LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 {
 
-    if (m_cpuLoadTimerID != 0)
+   
+
+    if (m_cpuLoadTimerID != 0 )
     {
         KillTimer(m_cpuLoadTimerID);
 
@@ -4711,8 +4891,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
         m_pCpuDlg->ShowWindow(SW_HIDE);
 
-       
-        CString msg;
+
+        if (!m_stopCpuLoad.load()) {
+           CString msg;
 
         msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", 0);
              if (m_pCpuDlg)
@@ -4726,6 +4907,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
         dlg.SetData(initial, current, rate, gflops, tt, yy);
         dlg.DoModal();
     }
+        }
+       
+        
 
 
 
@@ -5776,6 +5960,8 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
         dlg.eng_lang = false;
     }
 
+	dlg.designCapValue = designCapValue;
+
 	dlg.DoModal(); 
  
 }
@@ -5783,49 +5969,71 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 
 
 
+//void CBatteryHelthDlg::OnBnClickedBtnBgapp()
+//{
+//    if (HasBattery() == false)
+//    {
+//        if (m_lang == Lang::EN)
+//        {
+//            MessageBox(
+//                L"No battery detected.",
+//                L"Battery Health Monitor",
+//                MB_ICONWARNING | MB_OK
+//            );
+//        }
+//        else
+//        {
+//            MessageBox(
+//                L"バッテリーが検出されません。",
+//                L"バッテリー状態",
+//                MB_ICONWARNING | MB_OK
+//            );
+//        }
+//
+//        return;
+//    }
+//
+//    // Show background apps report
+//    if (m_lang == Lang::EN)
+//    {
+//        MessageBox(
+//            BuildVisibleAppsReport(),
+//            L"Long-Running Background Applications",
+//            MB_ICONINFORMATION | MB_OK
+//        );
+//    }
+//    else
+//    {
+//        MessageBox(
+//            BuildVisibleAppsReport(),
+//            L"長時間実行されるバックグラウンドアプリケーション",
+//            MB_ICONINFORMATION | MB_OK
+//        );
+//    }
+//}
+
+
+
+
 void CBatteryHelthDlg::OnBnClickedBtnBgapp()
 {
-    if (HasBattery() == false)
+    if (!HasBattery())
     {
-        if (m_lang == Lang::EN)
-        {
-            MessageBox(
-                L"No battery detected.",
-                L"Battery Health Monitor",
-                MB_ICONWARNING | MB_OK
-            );
-        }
-        else
-        {
-            MessageBox(
-                L"バッテリーが検出されません。",
-                L"バッテリー状態",
-                MB_ICONWARNING | MB_OK
-            );
-        }
-
+        MessageBox(
+            m_lang == Lang::EN ? L"No battery detected." : L"バッテリーが検出されません。",
+            m_lang == Lang::EN ? L"Battery Health Monitor" : L"バッテリー状態",
+            MB_ICONWARNING | MB_OK
+        );
         return;
     }
 
-    // Show background apps report
-    if (m_lang == Lang::EN)
-    {
-        MessageBox(
-            BuildVisibleAppsReport(),
-            L"Long-Running Background Applications",
-            MB_ICONINFORMATION | MB_OK
-        );
-    }
-    else
-    {
-        MessageBox(
-            BuildVisibleAppsReport(),
-            L"長時間実行されるバックグラウンドアプリケーション",
-            MB_ICONINFORMATION | MB_OK
-        );
-    }
-}
+    CString title = (m_lang == Lang::EN)
+        ? L"Long-Running Background Applications"
+        : L"長時間実行されるバックグラウンドアプリケーション";
 
+    CAppReportDlg dlg(BuildVisibleAppsReport(), title, this);
+    dlg.DoModal();
+}
 
 
 

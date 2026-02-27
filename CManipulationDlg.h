@@ -84,4 +84,6 @@ public:
     CString cycles;
 
 	HICON m_hIcon;
+
+    int designCapValue;
 };

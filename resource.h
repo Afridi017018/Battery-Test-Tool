@@ -36,6 +36,8 @@
 #define IDB_PNG10                       200
 #define IDD_DISCHARGE_PROGRESS_DLG      203
 #define IDD_CPULOAD_PROGRESS_DLG        205
+#define IDD_APP_REPORT_DLG              207
+#define IDD_BGAPP_REPORT                207
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -95,6 +97,7 @@
 #define IDC_BUTTON1                     1062
 #define IDC_BTN_BGAPP                   1062
 #define IDC_BTN_STOP                    1062
+#define IDC_BTN_CPU_STOP                1062
 #define IDC_BTN_RATEINFO                1063
 #define IDC_BTN_EN                      1066
 #define IDC_BTN_JP                      1067
@@ -111,15 +114,16 @@
 #define IDC_TXT_PROGRESS                1076
 #define IDC_PROGRESS_CPU                1078
 #define IDC_TXT_CPU                     1079
+#define IDC_EDIT_REPORT                 1081
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        207
+#define _APS_NEXT_RESOURCE_VALUE        209
 #define _APS_NEXT_COMMAND_VALUE         32775
-#define _APS_NEXT_CONTROL_VALUE         1080
+#define _APS_NEXT_CONTROL_VALUE         1082
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -611,12 +611,17 @@ namespace BMD_Internal {
 
     // --------------------- Detectors + scoring ---------------------
 
-    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info, int lang, CString cycles)
+    BMD_DetectionResult RunManipulationChecks(const BMD_BatteryInfo& info, int lang, CString cycles, int designCapValue)
     {
         const auto& W = GetWeights();
         const auto& T = GetThresholds();
 
 
+   /*     CString msg;
+
+        msg.Format(L"%d", designCapValue);
+
+        AfxMessageBox(msg);*/
 
         BMD_DetectionResult R;
         std::vector<BMD_Flag> flags;
@@ -820,7 +825,7 @@ namespace BMD_Internal {
 
 // 8) Design Capacity Changed Over Time (NO threshold)
 {
-    uint64_t oldestDesign = 0;
+    uint64_t oldestDesign = designCapValue;
     uint64_t latestDesign = 0;
 
     for (const auto& smp : s) {
@@ -828,18 +833,18 @@ namespace BMD_Internal {
         if (smp.designCapacity_mWh > 0) {
 
             if (oldestDesign == 0)
-                oldestDesign = smp.designCapacity_mWh;
+                oldestDesign = designCapValue;
 
             latestDesign = smp.designCapacity_mWh;
         }
     }
 
-   /* CString dbg;
+    /*CString dbg;
     dbg.Format(L"[BMD] design=%.0f currentRate_mW=%llu\n",
         design,
-        oldestDesign);
+        oldestDesign);*/
 
-    OutputDebugString(dbg);*/
+ /*   OutputDebugString(dbg);*/
 
     // If both exist and differ → flag immediately
     if (oldestDesign > 0 &&
@@ -1347,7 +1352,7 @@ void CManipulationDlg::RunBatteryManipulationCheck()
 
 
     m_lastReportPath = htmlPath;
-    m_bmdResult = RunManipulationChecks(info, lang, cycles);
+    m_bmdResult = RunManipulationChecks(info, lang, cycles, designCapValue);
 
     // Reset scroll to top on new result
     m_scrollY = 0;

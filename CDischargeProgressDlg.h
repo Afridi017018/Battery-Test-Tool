@@ -22,4 +22,6 @@ protected:
 
 public:
     afx_msg void OnBnClickedBtnStop();
+protected:
+    afx_msg void OnClose();
 };

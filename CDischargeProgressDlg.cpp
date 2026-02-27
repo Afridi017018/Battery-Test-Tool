@@ -20,7 +20,7 @@ void CDischargeProgressDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CDischargeProgressDlg, CDialogEx)
-    ON_BN_CLICKED(IDC_BTN_STOP, &CDischargeProgressDlg::OnBnClickedBtnStop)
+    ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -34,7 +34,16 @@ void CDischargeProgressDlg::UpdateProgress(int percent, const CString& text)
         pBar->SetPos(percent);
 }
 
-void CDischargeProgressDlg::OnBnClickedBtnStop()
+//void CDischargeProgressDlg::OnBnClickedBtnStop()
+//{
+//    CBatteryHelthDlg* pParent =
+//        dynamic_cast<CBatteryHelthDlg*>(GetParent());
+//
+//    if (pParent)
+//        pParent->StopDischargeTest();
+//}
+
+void CDischargeProgressDlg::OnClose()
 {
     CBatteryHelthDlg* pParent =
         dynamic_cast<CBatteryHelthDlg*>(GetParent());
