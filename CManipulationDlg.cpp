@@ -625,7 +625,7 @@ namespace BMD_Internal {
 
         BMD_DetectionResult R;
         std::vector<BMD_Flag> flags;
-        int score = 0;
+        int score = 100;
 
         if (info.samples.empty() || info.designCapacity_mWh == 0) {
             R.score = 0;
@@ -656,7 +656,7 @@ namespace BMD_Internal {
                 detail.Format(g_Texts[lang][MTK_DETAIL_SUDDEN_JUMP],
                     oldF, newF, hOld, hNew);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_SUDDEN_JUMP], detail, W.suddenCapacityJump);
-                score += W.suddenCapacityJump;
+                score -= W.suddenCapacityJump;
                 break;
             }
         }
@@ -672,7 +672,7 @@ namespace BMD_Internal {
             if (overPct > T.exceedDesignPct) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_CAP_EXCEEDS], latestF, design, overPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_CAP_EXCEEDS], d, W.capacityExceedsDesign);
-                score += W.capacityExceedsDesign;
+                score -= W.capacityExceedsDesign;
             }
         }
 
@@ -685,7 +685,7 @@ namespace BMD_Internal {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_CYCLE_MISMATCH],
                     latestHealth, (float)_wtof(cycles), expected + T.cycleSlackPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_CYCLE_MISMATCH], d, W.unrealisticCycleCount);
-                score += W.unrealisticCycleCount;
+                score -= W.unrealisticCycleCount;
             }
         }
 
@@ -708,7 +708,7 @@ namespace BMD_Internal {
             if (months >= T.monthsForHighHealthCheck && latestHealth >= T.healthTooGoodAfterMonths) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_HEALTH_FOR_AGE], latestHealth, months);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE], d, W.healthTooGoodForAge);
-                score += W.healthTooGoodForAge;
+                score -= W.healthTooGoodForAge;
             }
         }
 
@@ -722,7 +722,7 @@ namespace BMD_Internal {
             if (upJumps >= T.upwardJumpCountToFlag) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_ERRATIC], upJumps, T.upwardJumpPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_ERRATIC], d, W.erraticHealthPattern);
-                score += W.erraticHealthPattern;
+                score -= W.erraticHealthPattern;
             }
         }
 
@@ -743,7 +743,7 @@ namespace BMD_Internal {
             if (suspicious) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_SERIAL], srl.c_str());
                 AddFlag(flags, g_Texts[lang][MTK_ROW_SERIAL], d, W.suspiciousSerial);
-                score += W.suspiciousSerial;
+                score -= W.suspiciousSerial;
             }
         }
         
@@ -794,7 +794,7 @@ namespace BMD_Internal {
                 W.capacityTimeImplausible
             );
 
-            score += W.capacityTimeImplausible;
+            score -= W.capacityTimeImplausible;
             break;
         }
     }
@@ -865,7 +865,7 @@ namespace BMD_Internal {
             W.designCapacityChanged
         );
 
-        score += W.designCapacityChanged;
+        score -= W.designCapacityChanged;
     }
 }
 
@@ -897,19 +897,44 @@ namespace BMD_Internal {
                     (unsigned long long)prev,
                     (unsigned long long)now);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_FULLCAP_ANOM], d, W.suddenFullCapJump);
-                score += W.suddenFullCapJump;
+                score -= W.suddenFullCapJump;
                 break;
             }
         }
 
+
+      
+        if (score < 0) score = 0;
         if (score > 100) score = 100;
+
+        std::sort(flags.begin(), flags.end(),
+            [](const BMD_Flag& a, const BMD_Flag& b)
+            {
+                return a.points > b.points;
+            });
+
+        R.score = score;
+
+        // Reverse mapping (100 = Genuine)
+        if (score >= 70)
+            R.status = g_Texts[lang][MTK_STATUS_GENUINE];
+        else if (score >= 40)
+            R.status = g_Texts[lang][MTK_STATUS_SUSPICIOUS];
+        else
+            R.status = g_Texts[lang][MTK_STATUS_LIKELY_MANIP];
+
+        R.flags = std::move(flags);
+        return R;
+
+
+        /*if (score > 100) score = 100;
         std::sort(flags.begin(), flags.end(), [](const BMD_Flag& a, const BMD_Flag& b) { return a.points > b.points; });
         R.score = score;
         if (score <= 39) R.status = g_Texts[lang][MTK_STATUS_GENUINE];
         else if (score <= 69) R.status = g_Texts[lang][MTK_STATUS_SUSPICIOUS];
         else R.status = g_Texts[lang][MTK_STATUS_LIKELY_MANIP];
         R.flags = std::move(flags);
-        return R;
+        return R;*/
     }
 
     // --------------------- UI helpers (checkbox) ---------------------
@@ -944,10 +969,19 @@ namespace BMD_Internal {
     {
         if (!pDC) return 0;
 
-        // Colors & fonts
-        COLORREF band = RGB(0, 160, 80);   // green
-        if (r.score >= 70) band = RGB(210, 60, 60);         // red
-        else if (r.score >= 40) band = RGB(240, 170, 40);   // orange
+        //// Colors & fonts
+        //COLORREF band = RGB(0, 160, 80);   // green
+        //if (r.score >= 70) band = RGB(210, 60, 60);         // red
+        //else if (r.score >= 40) band = RGB(240, 170, 40);   // orange
+
+        COLORREF band;
+
+        if (r.score >= 70)
+            band = RGB(0, 160, 80);        // Green (Genuine)
+        else if (r.score >= 40)
+            band = RGB(240, 170, 40);      // Yellow/Orange (Suspicious)
+        else
+            band = RGB(210, 60, 60);       // Red (Likely Manipulated)
 
         CFont fontTitle, fontItem, fontHint;
         LOGFONT lf{}; SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(lf), &lf, 0);
@@ -1107,9 +1141,25 @@ namespace BMD_Internal {
             // Score meter
             pDraw->Rectangle(rcMeter);
             CRect rcFill = rcMeter;
-            int w = rcMeter.Width();
+
+            /*int w = rcMeter.Width();
             int fillW = (int)((r.score / 100.0) * (w - 2));
+            rcFill.right = rcFill.left + fillW;*/
+
+            int w = rcMeter.Width();
+
+            int fillW;
+            if (r.score >= 100)
+            {
+                fillW = w - 1;   // fully cover inside border
+            }
+            else
+            {
+                fillW = (int)((r.score / 100.0) * (w - 1));
+            }
+
             rcFill.right = rcFill.left + fillW;
+
             CBrush brFill(band);
             pDraw->FillRect(&rcFill, &brFill);
         }
