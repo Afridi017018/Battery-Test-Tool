@@ -61,6 +61,8 @@
 
 #include "CAppReportDlg.h"
 
+#include "CChargeDlg.h"
+
 
 #include <string>
 #include <algorithm>
@@ -5063,12 +5065,51 @@ void CBatteryHelthDlg::OnBnClickedBtnUploadpdf()
     }
 }
 
+// Helper: get display width of a wide string (CJK chars = 2, others = 1)
+static int GetDisplayWidth(const wchar_t* str)
+{
+    int width = 0;
+    for (const wchar_t* p = str; *p; ++p)
+    {
+        wchar_t c = *p;
+        // CJK Unified Ideographs, Hiragana, Katakana, fullwidth, etc.
+        if ((c >= 0x1100 && c <= 0x115F) ||
+            (c >= 0x2E80 && c <= 0x303E) ||
+            (c >= 0x3041 && c <= 0x33FF) ||
+            (c >= 0x3400 && c <= 0x4DBF) ||
+            (c >= 0x4E00 && c <= 0x9FFF) ||
+            (c >= 0xA000 && c <= 0xA4CF) ||
+            (c >= 0xAC00 && c <= 0xD7AF) ||
+            (c >= 0xF900 && c <= 0xFAFF) ||
+            (c >= 0xFE10 && c <= 0xFE1F) ||
+            (c >= 0xFE30 && c <= 0xFE6F) ||
+            (c >= 0xFF01 && c <= 0xFF60) ||
+            (c >= 0xFFE0 && c <= 0xFFE6))
+        {
+            width += 2;
+        }
+        else
+        {
+            width += 1;
+        }
+    }
+    return width;
+}
 
-
+// Helper: pad a wide string to a given display width (left-aligned)
+static CString PadToWidth(const CString& str, int targetWidth)
+{
+    int displayWidth = GetDisplayWidth(str.GetString());
+    int spaces = targetWidth - displayWidth;
+    if (spaces < 0) spaces = 0;
+    CString result = str;
+    for (int i = 0; i < spaces; ++i)
+        result += L' ';
+    return result;
+}
 
 void CBatteryHelthDlg::OnBnClickedBtnHistory()
 {
-
     if (HasBattery() == false) {
         if (m_lang == Lang::EN) {
             AfxMessageBox(L"No battery detected.");
@@ -5076,27 +5117,41 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
         else {
             AfxMessageBox(L"バッテリーが検出されません。");
         }
-
         return;
     }
 
+    // Column widths (in display columns)
+    const int COL1 = 18;
+    const int COL2 = 18;
+    const int COL3 = 20;
+
     CString table;
-    CString okButtonText;
+    CString sep = L"--------------------------------------------------------------\r\n";
 
     // Column headers
-    if (m_lang == Lang::EN) {
-        table = L"Start       End         Total Charge Time\n";
-        table += L"----------------------------------------\n";
-        okButtonText = L"OK";
+    if (m_lang == Lang::EN)
+    {
+        table = PadToWidth(L"Start", COL1);
+        table += L" ";
+        table += PadToWidth(L"End", COL2);
+        table += L" ";
+        table += PadToWidth(L"Total Charge Time", COL3);
+        table += L"\r\n";
     }
-    else {
-        table = L"始める       終わり         合計充電時間\n";
-        table += L"----------------------------------------\n";
-        okButtonText = L"オーケー"; 
+    else
+    {
+        table = PadToWidth(L"始める", COL1);
+        table += L" ";
+        table += PadToWidth(L"終わり", COL2);
+        table += L" ";
+        table += PadToWidth(L"合計充電時間", COL3);
+        table += L"\r\n";
     }
+    table += sep;
 
     CTime startTime;
     bool hasStart = false;
+
     for (const auto& evt : m_batteryHistory)
     {
         if (evt.charging)
@@ -5109,79 +5164,210 @@ void CBatteryHelthDlg::OnBnClickedBtnHistory()
             if (hasStart)
             {
                 CTimeSpan total = evt.timestamp - startTime;
-                double totalMinutes = total.GetTotalSeconds() / 60.0;
+                double    totalMinutes = total.GetTotalSeconds() / 60.0;
+
                 CString startStr = startTime.Format(L"%H:%M:%S");
                 CString endStr = evt.timestamp.Format(L"%H:%M:%S");
                 CString totalStr;
-
-                if (m_lang == Lang::EN) {
+                if (m_lang == Lang::EN)
                     totalStr.Format(L"%.2f min", totalMinutes);
-                }
-                else {
+                else
                     totalStr.Format(L"%.2f 分", totalMinutes);
-                }
 
-                startStr = startStr + CString(' ', 10 - startStr.GetLength());
-                endStr = endStr + CString(' ', 10 - endStr.GetLength());
-                totalStr = totalStr + CString(' ', 12 - totalStr.GetLength());
-                table += startStr + endStr + totalStr + L"\n";
+                CString line;
+                line = PadToWidth(startStr, COL1);
+                line += L" ";
+                line += PadToWidth(endStr, COL2);
+                line += L" ";
+                line += PadToWidth(totalStr, COL3);
+                line += L"\r\n";
+                table += line;
+
                 hasStart = false;
             }
         }
     }
 
+    // Ongoing charge session (no end event yet)
     if (hasStart)
     {
         CString startStr = startTime.Format(L"%H:%M:%S");
         CString endStr, totalStr;
+
         if (m_lang == Lang::EN) {
-            endStr = L"null";
-            totalStr = L"0 min";
+            endStr = L"";
+            totalStr = L"";
         }
         else {
             endStr = L"ヌル";
             totalStr = L"0 分";
         }
-        startStr = startStr + CString(' ', 10 - startStr.GetLength());
-        endStr = endStr + CString(' ', 10 - endStr.GetLength());
-        totalStr = totalStr + CString(' ', 12 - totalStr.GetLength());
-        table += startStr + endStr + totalStr + L"\n";
+
+        CString line;
+        line = PadToWidth(startStr, COL1);
+        line += L" ";
+        line += PadToWidth(endStr, COL2);
+        line += L" ";
+        line += PadToWidth(totalStr, COL3);
+        line += L"\r\n";
+        table += line;
     }
 
+    // Empty history
     if (m_batteryHistory.empty())
     {
-        if (m_lang == Lang::EN) {
+        if (m_lang == Lang::EN)
             table += L"No history recorded yet.";
-        }
-        else {
-            table += L"まだ履歴は記録されていません。\n";
-        }
+        else
+            table += L"まだ履歴は記録されていません。\r\n";
     }
 
-    // Use TaskDialog for custom button text
     CString title = (m_lang == Lang::EN) ? L"Charge History" : L"充電履歴";
 
-    TASKDIALOGCONFIG config = { 0 };
-    config.cbSize = sizeof(config);
-    config.hwndParent = m_hWnd;
-    config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-    config.dwCommonButtons = TDCBF_OK_BUTTON;
-    config.pszWindowTitle = title;
-    config.pszContent = table;
-    config.pszMainIcon = TD_INFORMATION_ICON;
-
-    // Custom button (not using common button to have full control)
-    TASKDIALOG_BUTTON buttons[] = {
-        { IDOK, okButtonText }
-    };
-    config.pButtons = buttons;
-    config.cButtons = 1;
-    config.dwCommonButtons = 0; // Don't use common buttons
-
-    int nButton;
-    TaskDialogIndirect(&config, &nButton, NULL, NULL);
+    CChargeDlg dlg;
+    dlg.m_historyText = table;
+    dlg.DoModal();
 }
 
+//void CBatteryHelthDlg::OnBnClickedBtnHistory()
+//{
+//
+//    if (HasBattery() == false) {
+//        if (m_lang == Lang::EN) {
+//            AfxMessageBox(L"No battery detected.");
+//        }
+//        else {
+//            AfxMessageBox(L"バッテリーが検出されません。");
+//        }
+//
+//        return;
+//    }
+//
+//    CString table;
+//    CString okButtonText;
+//
+//    // Column headers
+//    if (m_lang == Lang::EN) {
+//        table = L"%-18s %-18s %-20s\r\n";
+//        CString header;
+//        header.Format(L"%-18s %-18s %-20s\r\n",
+//            L"Start",
+//            L"End",
+//            L"Total Charge Time");
+//
+//        table = header;
+//        table += L"--------------------------------------------------------------\r\n";
+//    }
+//    else {
+//        CString header;
+//        header.Format(L"%-18s %-18s %-20s\r\n",
+//            L"始める",
+//            L"終わり",
+//            L"合計充電時間");
+//
+//        table = header;
+//        table += L"--------------------------------------------------------------\r\n";
+//    }
+//
+//    CTime startTime;
+//    bool hasStart = false;
+//    for (const auto& evt : m_batteryHistory)
+//    {
+//        if (evt.charging)
+//        {
+//            startTime = evt.timestamp;
+//            hasStart = true;
+//        }
+//        else
+//        {
+//            if (hasStart)
+//            {
+//                CTimeSpan total = evt.timestamp - startTime;
+//                double totalMinutes = total.GetTotalSeconds() / 60.0;
+//                CString startStr = startTime.Format(L"%H:%M:%S");
+//                CString endStr = evt.timestamp.Format(L"%H:%M:%S");
+//                CString totalStr;
+//
+//                if (m_lang == Lang::EN) {
+//                    totalStr.Format(L"%.2f min", totalMinutes);
+//                }
+//                else {
+//                    totalStr.Format(L"%.2f 分", totalMinutes);
+//                }
+//
+//                CString line;
+//                line.Format(L"%-18s %-18s %-20s\r\n",
+//                    startStr.GetString(),
+//                    endStr.GetString(),
+//                    totalStr.GetString());
+//
+//                table += line;
+//
+//                hasStart = false;
+//            }
+//        }
+//    }
+//
+//    if (hasStart)
+//    {
+//        CString startStr = startTime.Format(L"%H:%M:%S");
+//        CString endStr, totalStr;
+//        if (m_lang == Lang::EN) {
+//            endStr = L"null";
+//            totalStr = L"0 min";
+//        }
+//        else {
+//            endStr = L"ヌル";
+//            totalStr = L"0 分";
+//        }
+//        CString line;
+//        line.Format(L"%-18s %-18s %-20s\r\n",
+//            startStr.GetString(),
+//            endStr.GetString(),
+//            totalStr.GetString());
+//
+//        table += line;
+//    }
+//
+//    if (m_batteryHistory.empty())
+//    {
+//        if (m_lang == Lang::EN) {
+//            table += L"No history recorded yet.";
+//        }
+//        else {
+//            table += L"まだ履歴は記録されていません。\r\n";
+//        }
+//    }
+//
+//    // Use TaskDialog for custom button text
+//    CString title = (m_lang == Lang::EN) ? L"Charge History" : L"充電履歴";
+//
+//    TASKDIALOGCONFIG config = { 0 };
+//    config.cbSize = sizeof(config);
+//    config.hwndParent = m_hWnd;
+//    config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
+//    config.dwCommonButtons = TDCBF_OK_BUTTON;
+//    config.pszWindowTitle = title;
+//    config.pszContent = table;
+//    config.pszMainIcon = TD_INFORMATION_ICON;
+//
+//    // Custom button (not using common button to have full control)
+//    TASKDIALOG_BUTTON buttons[] = {
+//        { IDOK, okButtonText }
+//    };
+//
+//    config.pButtons = buttons;
+//    config.cButtons = 1;
+//    config.dwCommonButtons = 0; // Don't use common buttons
+//
+//    int nButton;
+//    //TaskDialogIndirect(&config, &nButton, NULL, NULL);
+//
+//    CChargeDlg dlg;
+//    dlg.m_historyText = table;
+//    dlg.DoModal();
+//
+//}
 
 void CBatteryHelthDlg::OnStnClickedStaticDid()
 {
@@ -5282,7 +5468,6 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
         DrawToggleButton(lpDrawItemStruct, active, isJP ? L"JP" : L"EN");
         return; // handled
     }
-
 
     CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
 }
