@@ -20,7 +20,7 @@ struct BMD_BatteryInfo
 {
     uint64_t                designCapacity_mWh{ 0 };
     std::vector<BMD_Sample> samples;            // ascending by date
-    int                     cycleCount{ -1 };   // -1 if unknown
+    int                     cycleCount{ -1 };   
     std::wstring            serialNumber;
     std::wstring            manufacturer;
 
@@ -86,4 +86,5 @@ public:
 	HICON m_hIcon;
 
     int designCapValue;
+
 };

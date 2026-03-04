@@ -65,6 +65,7 @@
 
 
 #include <string>
+#include <map>
 #include <algorithm>
 #include <cwchar>      // _wcsnicmp
 
@@ -562,12 +563,175 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
  
 
 
+//static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
+//{
+//    if (!pDlg) return;
+//
+//    CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
+//    if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
+//
+//
+//    // ---------------------------------------------------------
+//  // 0) Apply 15-character limit with ellipsis (...)
+//  // ---------------------------------------------------------
+//    CString processedText = text;
+//
+//    // List of IDs that require the 15-character truncation
+//    if (ctrlId == IDC_BATT_MANUFAC)
+//    {
+//        if (processedText.GetLength() > 20)
+//        {
+//            processedText = processedText.Left(20) + _T("...");
+//        }
+//    }
+//
+//
+//    // -------------------------------
+//    // 1) Determine base (design) size
+//    // -------------------------------
+//    static SIZE s_base = { 0, 0 };
+//    CSize base(0, 0);
+//
+//    if (s_base.cx == 0 || s_base.cy == 0)
+//    {
+//        CRect rc0; pDlg->GetClientRect(&rc0);
+//        s_base.cx = rc0.Width();
+//        s_base.cy = rc0.Height();
+//        if (s_base.cx <= 0) s_base.cx = 1;
+//        if (s_base.cy <= 0) s_base.cy = 1;
+//    }
+//    base.cx = s_base.cx;
+//    base.cy = s_base.cy;
+//
+//    // -------------------------------
+//    // 2) Compute uniform scale factor
+//    // -------------------------------
+//    CRect rcNow; pDlg->GetClientRect(&rcNow);
+//    double scaleX = static_cast<double>(rcNow.Width()) / static_cast<double>(base.cx);
+//    double scaleY = static_cast<double>(rcNow.Height()) / static_cast<double>(base.cy);
+//
+//    double scale = (scaleX < scaleY) ? scaleX : scaleY;
+//
+//    if (scale < 0.75) scale = 0.75;
+//    if (scale > 1.50) scale = 1.50;
+//
+//    // -------------------------------
+//    // 3) Build/apply scaled font
+//    // -------------------------------
+//    const bool needsScaledSemiBold =
+//        (ctrlId == IDC_BATT_DISCHARGR) || (ctrlId == IDC_BATT_CPULOAD);
+//
+//    if (needsScaledSemiBold)
+//    {
+//        const int baseHeight = -13;
+//        int targetHeight = static_cast<int>(::lround(baseHeight * scale));
+//        if (targetHeight > -12) targetHeight = -12;
+//        if (targetHeight < -28) targetHeight = -28;
+//
+//        static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
+//        static CFont s_fontDischarge;       static int s_hDischarge = 0;
+//
+//        CFont* pFontObj = nullptr;
+//        int* pLastH = nullptr;
+//
+//        if (ctrlId == IDC_BATT_CPULOAD) {
+//            pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
+//        }
+//        else {
+//            pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
+//        }
+//
+//        if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
+//        {
+//            LOGFONT lf; ::ZeroMemory(&lf, sizeof(lf));
+//            if (CFont* pOld = pCtl->GetFont()) pOld->GetLogFont(&lf);
+//            else ::GetObject(::GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
+//
+//            lf.lfHeight = targetHeight;
+//            lf.lfWeight = 600;
+//
+//            pFontObj->DeleteObject();
+//            pFontObj->CreateFontIndirect(&lf);
+//            *pLastH = targetHeight;
+//        }
+//
+//        pCtl->SetFont(pFontObj, FALSE);
+//    }
+//
+//    // -------------------------------
+//    // 4) Ensure WS_EX_TRANSPARENT style (one-time setup)
+//    // -------------------------------
+//    static BOOL s_cpuLoadTransparent = FALSE;
+//    static BOOL s_dischargeTransparent = FALSE;
+//
+//    BOOL* pTransFlag = nullptr;
+//    if (ctrlId == IDC_BATT_CPULOAD)
+//        pTransFlag = &s_cpuLoadTransparent;
+//    else if (ctrlId == IDC_BATT_DISCHARGR)
+//        pTransFlag = &s_dischargeTransparent;
+//
+//    if (pTransFlag && !(*pTransFlag))
+//    {
+//        pCtl->ModifyStyleEx(0, WS_EX_TRANSPARENT);
+//        *pTransFlag = TRUE;
+//    }
+//
+//    // -------------------------------
+//    // 5) Check if text actually changed
+//    // -------------------------------
+//    CString cur;
+//    pCtl->GetWindowText(cur);
+//    if (cur == text) return;
+//
+//    // -------------------------------
+//    // 6) Update text with aggressive background clearing
+//    // -------------------------------
+//    // Get control rectangle BEFORE hiding
+//    CRect rcCtl;
+//    pCtl->GetWindowRect(&rcCtl);
+//    pDlg->ScreenToClient(&rcCtl);
+//
+//    // Expand the invalidation area to cover any antialiasing
+//    CRect rcInvalidate = rcCtl;
+//    rcInvalidate.InflateRect(5, 5);
+//
+//    // Hide control temporarily
+//    pCtl->ShowWindow(SW_HIDE);
+//
+//    // Force parent dialog to redraw the area (this redraws your gradient)
+//    pDlg->InvalidateRect(&rcInvalidate, TRUE);
+//    pDlg->UpdateWindow(); // Force immediate redraw
+//
+//    // Update the text while hidden
+//    pCtl->SetWindowText(processedText);
+//
+//    // Show and invalidate the control
+//    pCtl->ShowWindow(SW_SHOW);
+//    pCtl->Invalidate(TRUE); // TRUE = erase background
+//    pCtl->UpdateWindow();
+//}
+
+
 static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 {
     if (!pDlg) return;
 
     CWnd* pCtl = pDlg->GetDlgItem(ctrlId);
     if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
+
+    // ---------------------------------------------------------
+    // 0) Apply 15-character limit with ellipsis (...)
+    // ---------------------------------------------------------
+    CString processedText = text;
+
+    // List of IDs that require the 15-character truncation
+    if (ctrlId == IDC_BATT_MANUFAC)
+    {
+        if (processedText.GetLength() > 20)  
+        {
+            processedText = processedText.Left(20) + _T("...");
+        }
+    }
 
     // -------------------------------
     // 1) Determine base (design) size
@@ -611,17 +775,17 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
         if (targetHeight > -12) targetHeight = -12;
         if (targetHeight < -28) targetHeight = -28;
 
-        static CFont s_fontCpuLoad;         static int s_hCpuLoad = 0;
-        static CFont s_fontDischarge;       static int s_hDischarge = 0;
+        static CFont s_fontCpuLoad;     static int s_hCpuLoad = 0;
+        static CFont s_fontDischarge;   static int s_hDischarge = 0;
 
         CFont* pFontObj = nullptr;
         int* pLastH = nullptr;
 
         if (ctrlId == IDC_BATT_CPULOAD) {
-            pFontObj = &s_fontCpuLoad;      pLastH = &s_hCpuLoad;
+            pFontObj = &s_fontCpuLoad;    pLastH = &s_hCpuLoad;
         }
         else {
-            pFontObj = &s_fontDischarge;    pLastH = &s_hDischarge;
+            pFontObj = &s_fontDischarge;  pLastH = &s_hDischarge;
         }
 
         if (!pFontObj->GetSafeHandle() || *pLastH != targetHeight)
@@ -648,10 +812,8 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     static BOOL s_dischargeTransparent = FALSE;
 
     BOOL* pTransFlag = nullptr;
-    if (ctrlId == IDC_BATT_CPULOAD)
-        pTransFlag = &s_cpuLoadTransparent;
-    else if (ctrlId == IDC_BATT_DISCHARGR)
-        pTransFlag = &s_dischargeTransparent;
+    if (ctrlId == IDC_BATT_CPULOAD)  pTransFlag = &s_cpuLoadTransparent;
+    else if (ctrlId == IDC_BATT_DISCHARGR) pTransFlag = &s_dischargeTransparent;
 
     if (pTransFlag && !(*pTransFlag))
     {
@@ -664,7 +826,7 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     // -------------------------------
     CString cur;
     pCtl->GetWindowText(cur);
-    if (cur == text) return;
+    if (cur == processedText) return;   // Fix 2: compare against processedText, not raw text
 
     // -------------------------------
     // 6) Update text with aggressive background clearing
@@ -686,14 +848,13 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     pDlg->UpdateWindow(); // Force immediate redraw
 
     // Update the text while hidden
-    pCtl->SetWindowText(text);
+    pCtl->SetWindowText(processedText);  // Fix 3: was `text`, must be `processedText`
 
     // Show and invalidate the control
     pCtl->ShowWindow(SW_SHOW);
     pCtl->Invalidate(TRUE); // TRUE = erase background
     pCtl->UpdateWindow();
 }
-
 
 
 namespace {
@@ -712,6 +873,7 @@ struct Row {
     std::wstring title;
     HWND         mainWindow{};
     ULONGLONG    idleTimeSec{};
+    ULONGLONG    activeSec = 0;
 };
 
 static bool StartsWithI(const std::wstring& s, const std::wstring& prefix) {
@@ -796,7 +958,6 @@ static WindowSearchResult GetMainWindowAndTitleByPid(DWORD targetPid) {
     EnumWindows(cb, reinterpret_cast<LPARAM>(&ed));
     return result;
 }
-
 
 
 BOOL CBatteryHelthDlg::OnInitDialog()
@@ -988,6 +1149,11 @@ IDC_STATIC_CAPHIS
 
     m_lastSleepPromptPercent = -1;
 
+    //CWnd* p = GetDlgItem(IDC_BATT_MANUFAC);
+    //if (p)
+    //{
+    //    p->ModifyStyle(0, SS_NOTIFY);
+    //}
 
     return TRUE;
 }
@@ -1081,11 +1247,15 @@ void CBatteryHelthDlg::InitToolTips()
           { IDC_BTN_SLEEP,
             L"Sleep Logs",
             L"睡眠ログ" },
-            {
+          {
                 IDC_BTN_BREPORT,
                 L"Battery Report",
                 L"バッテリーレポート"
-            }
+          },
+        { IDC_BATT_MANUFAC,
+  L"Battery manufacturer reported by the device.",
+  L"デバイスによって報告されたバッテリーメーカー。" },
+
     };
 
     // Common tooltips based on language
@@ -1096,6 +1266,23 @@ void CBatteryHelthDlg::InitToolTips()
             const wchar_t* txt =
                 (m_lang == Lang::EN) ? tips[i].text_en : tips[i].text_jp;
             m_toolTip.AddTool(p, txt);
+        }
+    }
+
+
+    CWnd* p = GetDlgItem(IDC_BATT_MANUFAC);
+
+    if (p)
+    {
+        if (m_fullManufacturer.GetLength() > 20)
+        {
+            p->ModifyStyle(0, SS_NOTIFY);
+
+            m_toolTip.UpdateTipText(m_fullManufacturer, p);
+        }
+        else
+        {
+            p->ModifyStyle(SS_NOTIFY, 0);
         }
     }
 
@@ -1364,28 +1551,70 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
 }
 
 
+//HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+//{
+//
+//    if (nCtlColor == CTLCOLOR_STATIC)
+//    {
+//        pDC->SetBkMode(TRANSPARENT);
+//        pDC->SetBkColor(GetSysColor(COLOR_3DFACE));
+//        return (HBRUSH)GetStockObject(HOLLOW_BRUSH);
+//    }
+//
+//    // Tell the dialog not to erase its background (your OnEraseBkgnd paints the gradient)
+//    /*if (nCtlColor == CTLCOLOR_DLG)
+//    {
+//        return (HBRUSH)GetStockObject(NULL_BRUSH);
+//    }*/
+//
+//    return CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+//}
+
+
 
 
 
 HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
- 
-    if (nCtlColor == CTLCOLOR_STATIC )
+    // Let the base class do its default handling first
+    HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+    if (nCtlColor == CTLCOLOR_STATIC)
     {
+        // Your existing transparent background setup
         pDC->SetBkMode(TRANSPARENT);
-        pDC->SetBkColor(GetSysColor(COLOR_3DFACE)); 
+        pDC->SetBkColor(GetSysColor(COLOR_3DFACE));
+
+        // 1. Get the ID of the control currently being painted
+        int nID = pWnd->GetDlgCtrlID();
+
+        // 2. Check if the control is one of your specific IDs
+        if (nID == IDC_STATIC_STATUS ||
+            nID == IDC_STATIC_PERCENTAGE ||
+            nID == IDC_STATIC_NAME ||
+            nID == IDC_STATIC_MANUFAC ||
+            nID == IDC_STATIC_VOLTAGE ||
+            nID == IDC_STATIC_TEMP ||
+            nID == IDC_STATIC_TIME ||
+            nID == IDC_STATIC_DCAPACITY ||
+            nID == IDC_STATIC_CAPACITY ||
+            nID == IDC_STATIC_CURRCAPACITY ||
+            nID == IDC_STATIC_CYCLE ||
+            nID == IDC_STATIC_HEALTH ||
+            nID == IDC_BATT_DID)
+        {
+            // 3. Set the text color to grey
+            // RGB(128, 128, 128) is a standard medium grey. 
+            // Adjust the numbers closer to 0 for darker, or 255 for lighter.
+            pDC->SetTextColor(RGB(65, 65, 65));
+        }
+
+        // Return the hollow brush for transparency
         return (HBRUSH)GetStockObject(HOLLOW_BRUSH);
     }
 
-    // Tell the dialog not to erase its background (your OnEraseBkgnd paints the gradient)
-    /*if (nCtlColor == CTLCOLOR_DLG)
-    {
-        return (HBRUSH)GetStockObject(NULL_BRUSH);
-    }*/
-
-    return CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+    return hbr;
 }
-
 
 void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
@@ -2492,21 +2721,33 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // 8) DeviceID / Name
     // --------------------------
     VARIANT vtDev{};
-    if (SUCCEEDED(pObj->Get(L"DeviceID", 0, &vtDev, 0, 0))) {
-        CString dev = (vtDev.vt != VT_NULL && vtDev.vt != VT_EMPTY) ? vtDev.bstrVal : L"Unknown";
+    if (SUCCEEDED(pObj->Get(L"DeviceID", 0, &vtDev, 0, 0)))
+    {
+        CString dev = (vtDev.vt != VT_NULL && vtDev.vt != VT_EMPTY)
+            ? vtDev.bstrVal
+            : L"Unknown";
+
+        m_fullManufacturer = dev;
+
         UpdateLabel(this, IDC_BATT_MANUFAC, dev);
+
+        CWnd* p = GetDlgItem(IDC_BATT_MANUFAC);
+  /*      if (p && m_toolTip.GetSafeHwnd())
+            m_toolTip.UpdateTipText(m_fullManufacturer, p);*/
+
         VariantClear(&vtDev);
     }
-    else {
-        if(m_lang == Lang::EN) {
-            UpdateLabel(this, IDC_BATT_MANUFAC, L"");
-            UpdateLabel(this, IDC_BATT_MANUFAC, L"Unknown");
-        }
-        else {
-            UpdateLabel(this, IDC_BATT_MANUFAC, L"");
-			UpdateLabel(this, IDC_BATT_MANUFAC, L"不明");
-        }
+    else
+    {
+        if (m_lang == Lang::EN)
+            m_fullManufacturer = L"Unknown";
+        else
+            m_fullManufacturer = L"不明";
+
+        UpdateLabel(this, IDC_BATT_MANUFAC, m_fullManufacturer);
     }
+
+
 
     if (SUCCEEDED(pObj->Get(L"Name", 0, &vt, 0, 0))) {
         CString name = (vt.vt != VT_NULL && vt.vt != VT_EMPTY) ? vt.bstrVal : L"Unknown";
@@ -6310,10 +6551,150 @@ ULONGLONG CBatteryHelthDlg::GetProcessIdleTime(DWORD pid, HWND /*mainWindow*/)
 }
 
 //// ----------------- core (report) -----------------
+//CString CBatteryHelthDlg::BuildVisibleAppsReport()
+//{
+//    wchar_t windir[MAX_PATH] = L"";
+//    GetWindowsDirectoryW(windir, _countof(windir));
+//    std::wstring winPrefix = NtToDosPath(windir);
+//    if (!winPrefix.empty() && winPrefix.back() != L'\\') winPrefix.push_back(L'\\');
+//
+//    wchar_t pf[MAX_PATH] = L"", pf86[MAX_PATH] = L"";
+//    GetEnvironmentVariableW(L"ProgramFiles", pf, _countof(pf));
+//    GetEnvironmentVariableW(L"ProgramFiles(x86)", pf86, _countof(pf86));
+//
+//    std::wstring winApps1 = NtToDosPath(pf);
+//    if (!winApps1.empty() && winApps1.back() != L'\\') winApps1.push_back(L'\\');
+//    winApps1 += L"WindowsApps\\";
+//
+//    std::wstring winApps2 = NtToDosPath(pf86);
+//    if (!winApps2.empty() && winApps2.back() != L'\\') winApps2.push_back(L'\\');
+//    winApps2 += L"WindowsApps\\";
+//
+//    DWORD pids[8192] = {};
+//    DWORD cb = 0;
+//    if (!EnumProcesses(pids, sizeof(pids), &cb)) return L"Failed to enumerate processes.";
+//    const DWORD count = cb / sizeof(DWORD);
+//
+//    FILETIME nowFT{};
+//    GetSystemTimeAsFileTime(&nowFT);
+//    const ULONGLONG now100 = FTtoU64(nowFT);
+//
+//    std::vector<Row> rows;
+//    rows.reserve(count);
+//
+//    for (DWORD i = 0; i < count; ++i)
+//    {
+//        DWORD pid = pids[i];
+//        if (!pid) continue;
+//
+//        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+//        if (!h) continue;
+//
+//        wchar_t pathBuf[MAX_PATH] = L"";
+//        DWORD sz = _countof(pathBuf);
+//        std::wstring path;
+//        if (QueryFullProcessImageNameW(h, 0, pathBuf, &sz)) path.assign(pathBuf);
+//        if (path.empty()) { CloseHandle(h); continue; }
+//
+//        std::wstring norm = NtToDosPath(path);
+//        if (StartsWithI(norm, winPrefix) || StartsWithI(norm, winApps1) || StartsWithI(norm, winApps2))
+//        {
+//            CloseHandle(h);
+//            continue;
+//        }
+//
+//        FILETIME ftCreate{}, ftExit{}, ftKernel{}, ftUser{};
+//        if (!GetProcessTimes(h, &ftCreate, &ftExit, &ftKernel, &ftUser)) { CloseHandle(h); continue; }
+//
+//        WindowSearchResult wsResult = GetMainWindowAndTitleByPid(pid);
+//        if (wsResult.title.empty()) { CloseHandle(h); continue; }
+//
+//        const ULONGLONG start100 = FTtoU64(ftCreate);
+//        if (now100 <= start100) { CloseHandle(h); continue; }
+//        const ULONGLONG uptimeSec = (now100 - start100) / 10000000ULL;
+//
+//        // ---- NEW: calculate active (CPU) time and idle time ----
+//        const ULONGLONG kernelU = FTtoU64(ftKernel);
+//        const ULONGLONG userU = FTtoU64(ftUser);
+//        const ULONGLONG activeSec = (kernelU + userU) / 10000000ULL;
+//        const ULONGLONG idleSec = (uptimeSec > activeSec) ? (uptimeSec - activeSec) : 0;
+//        // ---------------------------------------------------------
+//
+//        std::wstring name = norm;
+//        size_t pos = name.find_last_of(L"\\/");
+//        if (pos != std::wstring::npos) name = name.substr(pos + 1);
+//
+//        Row row;
+//        row.name = name;
+//        row.pid = pid;
+//        row.startFT = ftCreate;
+//        row.uptimeSec = uptimeSec;
+//        row.title = wsResult.title;
+//        row.mainWindow = wsResult.hwnd;
+//        row.idleTimeSec = idleSec;    // ← was hardcoded 0 before
+//        row.activeSec = activeSec;  // ← NEW field (add to Row struct!)
+//
+//        rows.push_back(row);
+//        CloseHandle(h);
+//    }
+//
+//    if (rows.empty())
+//    {
+//        return (m_lang == Lang::EN)
+//            ? L"No eligible apps (visible window, non-Windows path)."
+//            : L"適格なアプリがありません (表示ウィンドウ、非 Windows パス)。";
+//    }
+//
+//    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+//        return a.uptimeSec > b.uptimeSec;
+//        });
+//
+//    CString out;
+//
+//    // ---- NEW: wider header with Active + Idle columns ----
+//    if (m_lang == Lang::EN)
+//    {
+//        out += L"Name                      StartTime              Uptime        Active        Idle\r\n";
+//        out += L"------------------------- ---------------------- ------------- ------------- -------------\r\n";
+//    }
+//    else
+//    {
+//        out += L"名前                      開始時間              稼働時間      アクティブ    アイドル\r\n";
+//        out += L"------------------------- ---------------------- ------------- ------------- -------------\r\n";
+//    }
+//
+//    for (size_t idx = 0; idx < rows.size(); ++idx)
+//    {
+//        const Row& r = rows[idx];
+//        CString name = r.name.c_str();
+//        CString start = FormatFileTimeLocal(r.startFT);
+//        CString up = FormatTimespan(r.uptimeSec);
+//        CString active = FormatTimespan(r.activeSec);   // ← NEW
+//        CString idle = FormatTimespan(r.idleTimeSec); // ← NEW
+//
+//        CString line;
+//        // ---- NEW: 5 columns now ----
+//        line.Format(L"%-25.25s %-22.22s %-13.13s %-13.13s %-13.13s\r\n",
+//            name.GetString(), start.GetString(), up.GetString(),
+//            active.GetString(), idle.GetString());
+//        out += line;
+//
+//        if (out.GetLength() > 60000)
+//        {
+//            out += (m_lang == Lang::EN) ? L"... (truncated)\r\n" : L"...（省略）\r\n";
+//            break;
+//        }
+//    }
+//
+//    return out;
+//}
+
 CString CBatteryHelthDlg::BuildVisibleAppsReport()
 {
-    wchar_t windir[MAX_PATH] = L""; GetWindowsDirectoryW(windir, _countof(windir));
-    std::wstring winPrefix = NtToDosPath(windir); if (!winPrefix.empty() && winPrefix.back() != L'\\') winPrefix.push_back(L'\\');
+    wchar_t windir[MAX_PATH] = L"";
+    GetWindowsDirectoryW(windir, _countof(windir));
+    std::wstring winPrefix = NtToDosPath(windir);
+    if (!winPrefix.empty() && winPrefix.back() != L'\\') winPrefix.push_back(L'\\');
 
     wchar_t pf[MAX_PATH] = L"", pf86[MAX_PATH] = L"";
     GetEnvironmentVariableW(L"ProgramFiles", pf, _countof(pf));
@@ -6327,102 +6708,149 @@ CString CBatteryHelthDlg::BuildVisibleAppsReport()
     if (!winApps2.empty() && winApps2.back() != L'\\') winApps2.push_back(L'\\');
     winApps2 += L"WindowsApps\\";
 
-    DWORD pids[8192] = {}; DWORD cb = 0;
+    DWORD pids[8192] = {};
+    DWORD cb = 0;
     if (!EnumProcesses(pids, sizeof(pids), &cb)) return L"Failed to enumerate processes.";
     const DWORD count = cb / sizeof(DWORD);
 
-    FILETIME nowFT{}; GetSystemTimeAsFileTime(&nowFT); const ULONGLONG now100 = FTtoU64(nowFT);
+    FILETIME nowFT{};
+    GetSystemTimeAsFileTime(&nowFT);
+    const ULONGLONG now100 = FTtoU64(nowFT);
 
-    std::vector<Row> rows; rows.reserve(count);
+    // ── STEP 1: collect info for every pid ───────────────────────────────────
+    struct ProcInfo
+    {
+        std::wstring name;
+        ULONGLONG    cpuSec = 0;
+        ULONGLONG    uptimeSec = 0;
+        FILETIME     startFT = {};
+        bool         hasWindow = false;
+    };
 
-    for (DWORD i = 0; i < count; ++i) {
-        DWORD pid = pids[i]; if (!pid) continue;
-        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid); if (!h) continue;
+    // key = lowercase exe name  →  aggregated info
+    std::map<std::wstring, ProcInfo> grouped;
 
-        wchar_t pathBuf[MAX_PATH] = L""; DWORD sz = _countof(pathBuf);
-        std::wstring path; if (QueryFullProcessImageNameW(h, 0, pathBuf, &sz)) path.assign(pathBuf);
+    for (DWORD i = 0; i < count; ++i)
+    {
+        DWORD pid = pids[i];
+        if (!pid) continue;
+
+        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (!h) continue;
+
+        wchar_t pathBuf[MAX_PATH] = L"";
+        DWORD sz = _countof(pathBuf);
+        std::wstring path;
+        if (QueryFullProcessImageNameW(h, 0, pathBuf, &sz)) path.assign(pathBuf);
         if (path.empty()) { CloseHandle(h); continue; }
 
         std::wstring norm = NtToDosPath(path);
-        if (StartsWithI(norm, winPrefix) || StartsWithI(norm, winApps1) || StartsWithI(norm, winApps2)) {
+
+        // skip Windows/system paths
+        if (StartsWithI(norm, winPrefix) || StartsWithI(norm, winApps1) || StartsWithI(norm, winApps2))
+        {
             CloseHandle(h); continue;
         }
 
         FILETIME ftCreate{}, ftExit{}, ftKernel{}, ftUser{};
         if (!GetProcessTimes(h, &ftCreate, &ftExit, &ftKernel, &ftUser)) { CloseHandle(h); continue; }
 
-        WindowSearchResult wsResult = GetMainWindowAndTitleByPid(pid);
-        if (wsResult.title.empty()) { CloseHandle(h); continue; }
-
         const ULONGLONG start100 = FTtoU64(ftCreate);
-        if (now100 <= start100) { CloseHandle(h); continue; }
-        const ULONGLONG uptimeSec = (now100 - start100) / 10000000ULL;
+        const ULONGLONG uptimeSec = (now100 > start100) ? (now100 - start100) / 10000000ULL : 0;
+        const ULONGLONG cpuSec = (FTtoU64(ftKernel) + FTtoU64(ftUser)) / 10000000ULL;
 
-        std::wstring name = norm; size_t pos = name.find_last_of(L"\\/");
+        // exe name
+        std::wstring name = norm;
+        size_t pos = name.find_last_of(L"\\/");
         if (pos != std::wstring::npos) name = name.substr(pos + 1);
 
-        Row row;
-        row.name = name;
-        row.pid = pid;
-        row.startFT = ftCreate;
-        row.uptimeSec = uptimeSec;
-        row.title = wsResult.title;
-        row.mainWindow = wsResult.hwnd;
-        row.idleTimeSec = 0;
+        // lowercase key for grouping
+        std::wstring key = name;
+        std::transform(key.begin(), key.end(), key.begin(), ::towlower);
 
-        rows.push_back(row);
+        // check if this specific pid has a visible window
+        WindowSearchResult ws = GetMainWindowAndTitleByPid(pid);
+        bool thisHasWindow = !ws.title.empty();
+
+        // accumulate into group
+        ProcInfo& info = grouped[key];
+        info.name = name;                          // display name
+        info.cpuSec += cpuSec;                        // SUM cpu across all instances
+        info.hasWindow = info.hasWindow || thisHasWindow;
+
+        // keep the longest uptime as the "start time" for the group
+        if (uptimeSec > info.uptimeSec)
+        {
+            info.uptimeSec = uptimeSec;
+            info.startFT = ftCreate;
+        }
+
         CloseHandle(h);
     }
 
+    // ── STEP 2: build rows — only exes that have at least one visible window ─
+    std::vector<Row> rows;
+    for (auto it = grouped.begin(); it != grouped.end(); ++it)
+    {
+        std::wstring key = it->first;
+        ProcInfo& info = it->second;
+    
+        if (!info.hasWindow) continue;   // skip background-only processes
 
-    if (rows.empty()) {
-        if (m_lang == Lang::EN) {
-            return L"No eligible apps (visible window, non-Windows path).";
-        }
-        else {
-            return L"適格なアプリがありません (表示ウィンドウ、非 Windows パス)。";
-        }
+        Row row;
+        row.name = info.name;
+        row.pid = 0;
+        row.startFT = info.startFT;
+        row.uptimeSec = info.uptimeSec;
+        row.activeSec = info.cpuSec;
+        row.idleTimeSec = (info.uptimeSec > info.cpuSec)
+            ? (info.uptimeSec - info.cpuSec) : 0;
+        rows.push_back(row);
     }
 
-    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.uptimeSec > b.uptimeSec; });
+    // ── STEP 3: output ────────────────────────────────────────────────────────
+    if (rows.empty())
+    {
+        return (m_lang == Lang::EN)
+            ? L"No eligible apps (visible window, non-Windows path)."
+            : L"適格なアプリがありません (表示ウィンドウ、非 Windows パス)。";
+    }
+
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+        return a.uptimeSec > b.uptimeSec;
+        });
 
     CString out;
-    
-    if(m_lang == Lang::EN){
-        out += L"Name                      StartTime              Uptime\r\n";
-        out += L"------------------------- ---------------------- -------------\r\n";
+    if (m_lang == Lang::EN)
+    {
+        out += L"Name                      StartTime              Uptime        Active        Idle\r\n";
+        out += L"------------------------- ---------------------- ------------- ------------- -------------\r\n";
     }
-    else {
-        out += L"名前                      開始時間              稼働時間\r\n";
-        out += L"------------------------- ---------------------- -------------\r\n";
+    else
+    {
+        out += L"名前                      開始時間              稼働時間      アクティブ    アイドル\r\n";
+        out += L"------------------------- ---------------------- ------------- ------------- -------------\r\n";
     }
 
-    
-
-        
-
-    for (size_t idx = 0; idx < rows.size(); ++idx) {
+    for (size_t idx = 0; idx < rows.size(); ++idx)
+    {
         const Row& r = rows[idx];
         CString name = r.name.c_str();
         CString start = FormatFileTimeLocal(r.startFT);
         CString up = FormatTimespan(r.uptimeSec);
+        CString active = FormatTimespan(r.activeSec);
+        CString idle = FormatTimespan(r.idleTimeSec);
 
         CString line;
-        line.Format(L"%-25.25s %-22.22s %-13.13s\r\n",
-            name.GetString(), start.GetString(), up.GetString());
+        line.Format(L"%-25.25s %-22.22s %-13.13s %-13.13s %-13.13s\r\n",
+            name.GetString(), start.GetString(), up.GetString(),
+            active.GetString(), idle.GetString());
         out += line;
 
-        if (out.GetLength() > 60000) { 
-
-            if(m_lang == Lang::EN){
-                out += L"... (truncated)\r\n"; 
-            }
-            else {
-                out += L"...（省略）\r\n";
-            }
-            
-            
-            break; 
+        if (out.GetLength() > 60000)
+        {
+            out += (m_lang == Lang::EN) ? L"... (truncated)\r\n" : L"...（省略）\r\n";
+            break;
         }
     }
 

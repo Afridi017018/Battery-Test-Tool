@@ -116,7 +116,6 @@
 #define IDC_PROGRESS_CPU                1078
 #define IDC_TXT_CPU                     1079
 #define IDC_EDIT_REPORT                 1081
-#define IDC_EDIT1                       1086
 #define IDC_EDIT_HISTORY                1086
 #define ID_ACCELERATOR32771             32771
 

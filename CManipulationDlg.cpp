@@ -1018,8 +1018,14 @@ namespace BMD_Internal {
         int sidePad = (int)std::lround(12 * scale);
 
         // List paddings
+     /*   int listTopPad = (int)std::lround(10 * scale);
+        int listBotPad = (int)std::lround(12 * scale);*/
+
         int listTopPad = (int)std::lround(10 * scale);
         int listBotPad = (int)std::lround(12 * scale);
+        int legendH = (int)std::lround(26 * scale);   // height of the score legend strip
+        int legendGap = (int)std::lround(6 * scale);  // gap below legend before list
+
         int boxSize = max(12, (int)std::lround(16 * scale));
         int gapX = max(6, (int)std::lround(8 * scale));
         int vPad = max(3, (int)std::lround(5 * scale));
@@ -1061,7 +1067,13 @@ namespace BMD_Internal {
         CRect rcBand = rc; rcBand.bottom = rcBand.top + bandH;
         CRect rcMeter(rc.left + sidePad, rcBand.bottom + meterTopPad,
             rc.right - sidePad, rcBand.bottom + meterTopPad + meterH);
-        CRect rcList(rc.left + sidePad, rcMeter.bottom + listTopPad,
+       /* CRect rcList(rc.left + sidePad, rcMeter.bottom + listTopPad,
+            rc.right - sidePad, rc.bottom - listBotPad);*/
+
+        CRect rcLegend(rc.left + sidePad, rcMeter.bottom + listTopPad,
+            rc.right - sidePad, rcMeter.bottom + listTopPad + legendH);
+
+        CRect rcList(rc.left + sidePad, rcLegend.bottom + legendGap,
             rc.right - sidePad, rc.bottom - listBotPad);
 
         // 1) Compute height needed for list (single column, wrapped text + optional hint)
@@ -1104,8 +1116,13 @@ namespace BMD_Internal {
         dc->SelectObject(oldItem);
 
         // Full panel content height (header + meter + list padding + list content)
+     /*   int fullContentHeight =
+            bandH + meterTopPad + meterH + listTopPad + contentListHeight + listBotPad +40;*/
+
         int fullContentHeight =
-            bandH + meterTopPad + meterH + listTopPad + contentListHeight + listBotPad +40;
+            bandH + meterTopPad + meterH + listTopPad + legendH + legendGap + contentListHeight + listBotPad + 40;
+
+
 
         if (!doDraw) {
             return fullContentHeight; // measurement-only
@@ -1163,6 +1180,55 @@ namespace BMD_Internal {
             CBrush brFill(band);
             pDraw->FillRect(&rcFill, &brFill);
         }
+
+
+        // --- Score legend strip ---
+        {
+            struct LegendSeg { COLORREF col; const wchar_t* label; } segs[] = {
+                { RGB(0,160,80),     L"Genuine  70–100" },
+                { RGB(240,170,40),   L"Suspicious  40–69" },
+                { RGB(210,60,60),    L"Likely Manipulated  0–39" },
+            };
+
+            // Light background
+            CBrush brLeg(RGB(240, 242, 245));
+            pDraw->FillRect(&rcLegend, &brLeg);
+
+            // Thin border around legend
+            CPen penLeg(PS_SOLID, 1, RGB(200, 205, 210));
+            CPen* oldLegPen = pDraw->SelectObject(&penLeg);
+            pDraw->MoveTo(rcLegend.left, rcLegend.top);
+            pDraw->LineTo(rcLegend.right, rcLegend.top);
+            pDraw->LineTo(rcLegend.right, rcLegend.bottom);
+            pDraw->LineTo(rcLegend.left, rcLegend.bottom);
+            pDraw->LineTo(rcLegend.left, rcLegend.top);
+            pDraw->SelectObject(oldLegPen);
+
+            int swSize = max(10, (int)std::lround(12 * scale));
+            int x = rcLegend.left + (int)std::lround(8 * scale);
+            int cy2 = (rcLegend.top + rcLegend.bottom) / 2;
+
+            CFont* oldLF = pDraw->SelectObject(&fontHint);
+            pDraw->SetBkMode(TRANSPARENT);
+
+            for (auto& seg : segs) {
+                // Color swatch
+                CRect sw(x, cy2 - swSize / 2, x + swSize, cy2 + swSize / 2);
+                CBrush swBr(seg.col);
+                pDraw->FillRect(&sw, &swBr);
+                x += swSize + (int)std::lround(4 * scale);
+
+                // Label
+                pDraw->SetTextColor(RGB(55, 60, 65));
+                CSize sz = pDraw->GetTextExtent(seg.label);
+                pDraw->TextOut(x, cy2 - sz.cy / 2, seg.label);
+                x += sz.cx + (int)std::lround(14 * scale);
+            }
+
+            pDraw->SelectObject(oldLF);
+        }
+     
+
 
         // Scrollable list area: set clip + translate by -scrollY
         CRect scrollViewport = rcList;
@@ -1293,6 +1359,11 @@ BEGIN_MESSAGE_MAP(CManipulationDlg, CDialogEx)
     ON_WM_VSCROLL()
     ON_WM_MOUSEWHEEL()
 END_MESSAGE_MAP()
+
+
+
+
+
 
 // --------------------- Paint (double-buffered) ---------------------
 
