@@ -4,6 +4,8 @@
 #include "CManipulationDlg.h"
 #include "afxdialogex.h"
 
+#include <shlobj.h>
+
 #include <algorithm>
 #include <regex>
 #include <fstream>
@@ -13,10 +15,22 @@
 #include <cmath>
 #include <map>
 
+#include <shellapi.h>      // ShellExecute
+#include <commdlg.h>       // GetSaveFileName
+#include <winspool.h>      // OpenPrinter / print-to-PDF
+
+
+#pragma comment(lib, "winspool.lib")
+#pragma comment(lib, "comdlg32.lib")
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
+
+
+static CRect s_exportBtnClientRect;
 
 // ===================== Language support (EN / JP) =====================
 
@@ -44,8 +58,10 @@ enum M_TEXT_KEY
     MTK_ROW_HEALTH_FOR_AGE,
     MTK_ROW_ERRATIC,
     MTK_ROW_SERIAL,
-   /* MTK_ROW_UNREAL_DISCHARGE,
-    MTK_ROW_UNREAL_CHARGE,*/
+
+    MTK_ROW_UNREAL_DISCHARGE,
+    MTK_ROW_UNREAL_CHARGE,
+
     MTK_ROW_CAP_TIME_IMPLAUSIBLE, // NEW RULE 7
     MTK_ROW_DESIGN_CAP_CHANGED,     // RULE 8 (NEW)
     MTK_ROW_FULLTIME,
@@ -58,8 +74,9 @@ enum M_TEXT_KEY
     MTK_HINT_HEALTH_FOR_AGE,
     MTK_HINT_ERRATIC,
     MTK_HINT_SERIAL,
-    //MTK_HINT_UNREAL_DISCHARGE,
-    //MTK_HINT_UNREAL_CHARGE,
+
+    MTK_HINT_UNREAL_DISCHARGE,
+    MTK_HINT_UNREAL_CHARGE,
 
     MTK_HINT_CAP_TIME_IMPLAUSIBLE, // NEW rule 7
     MTK_HINT_DESIGN_CAP_CHANGED,    //  RULE 8
@@ -74,8 +91,8 @@ enum M_TEXT_KEY
     MTK_DETAIL_HEALTH_FOR_AGE,
     MTK_DETAIL_ERRATIC,
     MTK_DETAIL_SERIAL,
-    //MTK_DETAIL_UNREAL_DISCHARGE,
-    //MTK_DETAIL_UNREAL_CHARGE,
+    MTK_DETAIL_UNREAL_DISCHARGE,
+    MTK_DETAIL_UNREAL_CHARGE,
 
     MTK_DETAIL_CAP_TIME_IMPLAUSIBLE, // NEW rule 7
 
@@ -106,39 +123,79 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
         L"- Try running 'powercfg /batteryreport' in CMD\n"
         L"- If it needs elevation, run the app as admin",
 
-    // Row labels
-    L"Sudden capacity jump",            // MTK_ROW_SUDDEN_JUMP
-    L"Capacity exceeds design",         // MTK_ROW_CAP_EXCEEDS
-    L"Cycle vs health mismatch",        // MTK_ROW_CYCLE_MISMATCH
-    L"Unrealistic battery health for age",   // MTK_ROW_HEALTH_FOR_AGE
-    L"Erratic health pattern",          // MTK_ROW_ERRATIC
-    L"Suspicious serial number",        // MTK_ROW_SERIAL
+    //// Row labels
+    //L"Sudden capacity jump",            // MTK_ROW_SUDDEN_JUMP
+    //L"Capacity exceeds design",         // MTK_ROW_CAP_EXCEEDS
+    //L"Cycle vs health mismatch",        // MTK_ROW_CYCLE_MISMATCH
+    //L"Unrealistic battery health for age",   // MTK_ROW_HEALTH_FOR_AGE
+    //L"Erratic health pattern",          // MTK_ROW_ERRATIC
+    //L"Suspicious serial number",        // MTK_ROW_SERIAL
+
     //L"Unrealistic discharge speed",     // MTK_ROW_UNREAL_DISCHARGE
     //L"Unrealistic charge speed",        // MTK_ROW_UNREAL_CHARGE
 
-    L"Capacity change too fast over time",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
+    //L"Capacity change too fast over time",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
 
-    L"Design capacity changed over time",      // MTK_ROW_DESIGN_CAP_CHANGED
+    //L"Design capacity changed over time",      // MTK_ROW_DESIGN_CAP_CHANGED
 
-    L"Impossible full charge time",     // MTK_ROW_FULLTIME
-    L"Sudden full capacity anomaly",    // MTK_ROW_FULLCAP_ANOM
+    //L"Impossible full charge time",     // MTK_ROW_FULLTIME
+    //L"Sudden full capacity anomaly",    // MTK_ROW_FULLCAP_ANOM
 
-    // Row hints
-    L"Big one-step rise in health/capacity",     // MTK_HINT_SUDDEN_JUMP
-    L"Full > design by >5%",                     // MTK_HINT_CAP_EXCEEDS
-    L"Health too good for cycle count",          // MTK_HINT_CYCLE_MISMATCH
-    L"Very high health after many months",       // MTK_HINT_HEALTH_FOR_AGE
-    L"Multiple upward jumps >3%",                // MTK_HINT_ERRATIC
-    L"Placeholder/format mismatch",              // MTK_HINT_SERIAL
+
+
+    // ==================== English Row labels ====================
+
+L"Stable capacity over time",           // MTK_ROW_SUDDEN_JUMP     (was: Sudden capacity jump)
+L"Capacity within design limits",       // MTK_ROW_CAP_EXCEEDS     (was: Capacity exceeds design)
+L"Cycle count matches health",          // MTK_ROW_CYCLE_MISMATCH  (was: Cycle vs health mismatch)
+L"Battery health realistic for age",    // MTK_ROW_HEALTH_FOR_AGE  (was: Unrealistic battery health for age)
+L"Consistent health pattern",           // MTK_ROW_ERRATIC         (was: Erratic health pattern)
+L"Valid serial number",                 // MTK_ROW_SERIAL          (was: Suspicious serial number)
+L"Realistic discharge speed",           // MTK_ROW_UNREAL_DISCHARGE(was: Unrealistic discharge speed)
+L"Realistic charge speed",              // MTK_ROW_UNREAL_CHARGE   (was: Unrealistic charge speed)
+L"Capacity change rate normal",         // MTK_ROW_CAP_TIME_IMPLAUSIBLE (was: Capacity change too fast over time)
+L"Design capacity stable",              // MTK_ROW_DESIGN_CAP_CHANGED   (was: Design capacity changed over time)
+L"Full charge time plausible",          // MTK_ROW_FULLTIME        (was: Impossible full charge time)
+L"Full capacity stable",                // MTK_ROW_FULLCAP_ANOM    (was: Sudden full capacity anomaly)
+
+
+
+
+    //// Row hints
+    //L"Big one-step rise in health/capacity",     // MTK_HINT_SUDDEN_JUMP
+    //L"Full > design by >5%",                     // MTK_HINT_CAP_EXCEEDS
+    //L"Health too good for cycle count",          // MTK_HINT_CYCLE_MISMATCH
+    //L"Very high health after many months",       // MTK_HINT_HEALTH_FOR_AGE
+    //L"Multiple upward jumps >3%",                // MTK_HINT_ERRATIC
+    //L"Placeholder/format mismatch",              // MTK_HINT_SERIAL
+
     //L">100 W discharge",                         // MTK_HINT_UNREAL_DISCHARGE
     //L">150 W charge",                            // MTK_HINT_UNREAL_CHARGE
 
-    L"Capacity changes faster than physically possible", // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
+    //L"Capacity changes faster than physically possible", // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
 
-    L"Design capacity should never change",    // MTK_HINT_DESIGN_CAP_CHANGED
+    //L"Design capacity should never change",    // MTK_HINT_DESIGN_CAP_CHANGED
 
-    L"0–100% in <30 min",                        // MTK_HINT_FULLTIME
-    L"±12% jump in full mWh",                    // MTK_HINT_FULLCAP_ANOM
+    //L"0–100% in <30 min",                        // MTK_HINT_FULLTIME
+    //L"±12% jump in full mWh",                    // MTK_HINT_FULLCAP_ANOM
+
+
+    // ==================== English Row hints ====================
+
+L"No single-step rise in health/capacity detected",      // MTK_HINT_SUDDEN_JUMP
+L"Full charge capacity within 5% of design",             // MTK_HINT_CAP_EXCEEDS
+L"Health is appropriate for the cycle count",            // MTK_HINT_CYCLE_MISMATCH
+L"Health level is expected for battery age",             // MTK_HINT_HEALTH_FOR_AGE
+L"No repeated upward jumps above 3% detected",           // MTK_HINT_ERRATIC
+L"Serial number format appears valid",                   // MTK_HINT_SERIAL
+L"Discharge rate is within 100W normal range",           // MTK_HINT_UNREAL_DISCHARGE
+L"Charge rate is within 150W normal range",              // MTK_HINT_UNREAL_CHARGE
+L"Capacity change rate is physically plausible",         // MTK_HINT_CAP_TIME_IMPLAUSIBLE
+L"Design capacity has remained constant",                // MTK_HINT_DESIGN_CAP_CHANGED
+L"Full charge took a realistic amount of time",          // MTK_HINT_FULLTIME
+L"No sudden large jumps in full charge capacity",        // MTK_HINT_FULLCAP_ANOM
+
+
 
     // Detail format strings
     L"Capacity %.0f → %.0f mWh or health %.1f%% → %.1f%%",           // MTK_DETAIL_SUDDEN_JUMP
@@ -147,8 +204,9 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"%.1f%% after %d months",                                        // MTK_DETAIL_HEALTH_FOR_AGE
     L"%d upward jumps > %.1f%%",                                      // MTK_DETAIL_ERRATIC
     L"Serial \"%s\" looks placeholder/invalid",                       // MTK_DETAIL_SERIAL
-    //L"Discharge rate %.1f W exceeds %.1f W",                          // MTK_DETAIL_UNREAL_DISCHARGE
-    //L"Charge rate %.1f W exceeds %.1f W",                             // MTK_DETAIL_UNREAL_CHARGE
+
+    L"Discharge rate %.1f W exceeds %.1f W",                          // MTK_DETAIL_UNREAL_DISCHARGE
+    L"Charge rate %.1f W exceeds %.1f W",                             // MTK_DETAIL_UNREAL_CHARGE
 
     L"Capacity changed %.1f%% over %.1f months (%.1f%% per month)",   // NEW rule 7 - MTK_DETAIL_CAP_TIME_IMPLAUSIBLE
 
@@ -172,39 +230,80 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"- コマンド プロンプトで 'powercfg /batteryreport' を実行してみてください\n"
     L"- 管理者権限が必要な場合は、このアプリを管理者として実行してください",
 
-    // Row labels
-    L"容量が急に変化",                       // MTK_ROW_SUDDEN_JUMP
-    L"容量が設計を超えています",                 // MTK_ROW_CAP_EXCEEDS
-    L"サイクル数とヘルスの不一致",           // MTK_ROW_CYCLE_MISMATCH
-    L"経年に対して不自然なバッテリーヘルス", // MTK_ROW_HEALTH_FOR_AGE
-    L"不規則な健康パターン",                   // MTK_ROW_ERRATIC
-    L"シリアル番号が不審",                   // MTK_ROW_SERIAL
+    //// Row labels
+    //L"容量が急に変化",                       // MTK_ROW_SUDDEN_JUMP
+    //L"容量が設計を超えています",                 // MTK_ROW_CAP_EXCEEDS
+    //L"サイクル数とヘルスの不一致",           // MTK_ROW_CYCLE_MISMATCH
+    //L"経年に対して不自然なバッテリーヘルス", // MTK_ROW_HEALTH_FOR_AGE
+    //L"不規則な健康パターン",                   // MTK_ROW_ERRATIC
+    //L"シリアル番号が不審",                   // MTK_ROW_SERIAL
+
     //L"非現実的な排出速度",                   // MTK_ROW_UNREAL_DISCHARGE
     //L"非現実的な充電速度",                   // MTK_ROW_UNREAL_CHARGE
 
-    L"時間の経過とともに容量が非常に速く変化する",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
+    //L"時間の経過とともに容量が非常に速く変化する",   // NEW RULE 7 -  MTK_ROW_CAP_TIME_IMPLAUSIBLE
 
-    L"設計容量が時間とともに変化しています",   // MTK_ROW_DESIGN_CAP_CHANGED
+    //L"設計容量が時間とともに変化しています",   // MTK_ROW_DESIGN_CAP_CHANGED
 
-    L"不可能なフル充電時間",                 // MTK_ROW_FULLTIME
-    L"突然のバッテリー容量異常",           // MTK_ROW_FULLCAP_ANOM
+    //L"不可能なフル充電時間",                 // MTK_ROW_FULLTIME
+    //L"突然のバッテリー容量異常",           // MTK_ROW_FULLCAP_ANOM
 
-    // Row hints
-    L"ヘルス/容量が一度に大きく増える場合",             // MTK_HINT_SUDDEN_JUMP
-    L"フル充電容量 > 設計容量 > 5%",               // MTK_HINT_CAP_EXCEEDS
-    L"サイクル数に対してヘルスが良すぎる",             // MTK_HINT_CYCLE_MISMATCH
-    L"長期間使用後なのにヘルスが非常に高い",           // MTK_HINT_HEALTH_FOR_AGE
-    L"3%を超える複数回の上方ジャンプ",               // MTK_HINT_ERRATIC
-    L"プレースホルダ/形式の不一致",                  // MTK_HINT_SERIAL
-    //L"100W を超える放電",                         // MTK_HINT_UNREAL_DISCHARGE
-    //L"150W を超える充電",                         // MTK_HINT_UNREAL_CHARGE
 
-    L"容量は %.1f か月で %.1f%% 変化しました (月あたり %.1f%%)",    // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
 
-    L"設計容量は通常変化しません",             // MTK_HINT_DESIGN_CAP_CHANGED
+    // ==================== Japanese Row labels ====================
 
-    L"0〜100% が 30 分未満で充電される",               // MTK_HINT_FULLTIME
-    L"満充電容量が ±12% 以上一度に変化",                // MTK_HINT_FULLCAP_ANOM
+L"容量は安定しています",                    // MTK_ROW_SUDDEN_JUMP
+L"容量は設計範囲内です",                    // MTK_ROW_CAP_EXCEEDS
+L"サイクル数とヘルスは一致しています",      // MTK_ROW_CYCLE_MISMATCH
+L"経年に対して自然なバッテリーヘルス",      // MTK_ROW_HEALTH_FOR_AGE
+L"安定した健康パターン",                    // MTK_ROW_ERRATIC
+L"有効なシリアル番号",                      // MTK_ROW_SERIAL
+L"現実的な放電速度",                        // MTK_ROW_UNREAL_DISCHARGE
+L"現実的な充電速度",                        // MTK_ROW_UNREAL_CHARGE
+L"容量変化率は正常です",                    // MTK_ROW_CAP_TIME_IMPLAUSIBLE
+L"設計容量は安定しています",                // MTK_ROW_DESIGN_CAP_CHANGED
+L"フル充電時間は妥当です",                  // MTK_ROW_FULLTIME
+L"満充電容量は安定しています",              // MTK_ROW_FULLCAP_ANOM
+
+
+
+    //// Row hints
+    //L"ヘルス/容量が一度に大きく増える場合",             // MTK_HINT_SUDDEN_JUMP
+    //L"フル充電容量 > 設計容量 > 5%",               // MTK_HINT_CAP_EXCEEDS
+    //L"サイクル数に対してヘルスが良すぎる",             // MTK_HINT_CYCLE_MISMATCH
+    //L"長期間使用後なのにヘルスが非常に高い",           // MTK_HINT_HEALTH_FOR_AGE
+    //L"3%を超える複数回の上方ジャンプ",               // MTK_HINT_ERRATIC
+    //L"プレースホルダ/形式の不一致",                  // MTK_HINT_SERIAL
+    ////L"100W を超える放電",                         // MTK_HINT_UNREAL_DISCHARGE
+    ////L"150W を超える充電",                         // MTK_HINT_UNREAL_CHARGE
+
+    //L"容量は %.1f か月で %.1f%% 変化しました (月あたり %.1f%%)",    // NEW rule 7 - MTK_HINT_CAP_TIME_IMPLAUSIBLE
+
+    //L"設計容量は通常変化しません",             // MTK_HINT_DESIGN_CAP_CHANGED
+
+    //L"0〜100% が 30 分未満で充電される",               // MTK_HINT_FULLTIME
+    //L"満充電容量が ±12% 以上一度に変化",                // MTK_HINT_FULLCAP_ANOM
+
+
+
+
+
+    // ==================== Japanese Row hints ====================
+
+L"ヘルス/容量の急激な上昇は検出されませんでした",          // MTK_HINT_SUDDEN_JUMP
+L"満充電容量は設計容量の5%以内です",                       // MTK_HINT_CAP_EXCEEDS
+L"ヘルスはサイクル数に対して適切です",                     // MTK_HINT_CYCLE_MISMATCH
+L"ヘルスレベルはバッテリーの経年に対して自然です",         // MTK_HINT_HEALTH_FOR_AGE
+L"3%を超える上昇の繰り返しは検出されませんでした",         // MTK_HINT_ERRATIC
+L"シリアル番号の形式は有効です",                           // MTK_HINT_SERIAL
+L"放電レートは100W以内の正常範囲です",                     // MTK_HINT_UNREAL_DISCHARGE
+L"充電レートは150W以内の正常範囲です",                     // MTK_HINT_UNREAL_CHARGE
+L"容量変化率は物理的に妥当な範囲内です",                   // MTK_HINT_CAP_TIME_IMPLAUSIBLE
+L"設計容量は一定を保っています",                           // MTK_HINT_DESIGN_CAP_CHANGED
+L"フル充電にかかった時間は妥当です",                       // MTK_HINT_FULLTIME
+L"満充電容量に急激な大きな変化はありません",               // MTK_HINT_FULLCAP_ANOM
+
+
 
     // Detail format strings
     L"容量 %.0f → %.0f mWh またはヘルス %.1f%% → %.1f%%",           // MTK_DETAIL_SUDDEN_JUMP
@@ -213,8 +312,9 @@ static const wchar_t* g_Texts[2][MTK_COUNT] =
     L"%d ヶ月後に %.1f%%",                                            // MTK_DETAIL_HEALTH_FOR_AGE
     L"%.1f%% を超える上昇が %d 回",                                   // MTK_DETAIL_ERRATIC
     L"シリアル番号 \"%s\" はプレースホルダ/無効な可能性",            // MTK_DETAIL_SERIAL
-    //L"放電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_DISCHARGE
-    //L"充電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_CHARGE
+
+    L"放電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_DISCHARGE
+    L"充電速度 %.1f W が %.1f W を超えています",                      // MTK_DETAIL_UNREAL_CHARGE
 
     L"容量は %.1f か月で %.1f%% 変化しました (月あたり %.1f%%)"          // NEW rule 7 - MTK_DETAIL_CAP_TIME_IMPLAUSIBLE
 
@@ -338,6 +438,29 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
     return lab;
 }
 
+
+// Escape plain text so it is safe inside HTML
+static CString HtmlEscape(const CString& in)
+{
+    CString out;
+    out.Preallocate(in.GetLength() + 32);
+    for (int i = 0; i < in.GetLength(); ++i)
+    {
+        WCHAR c = in[i];
+        switch (c)
+        {
+        case L'&':  out += L"&amp;";  break;
+        case L'<':  out += L"&lt;";   break;
+        case L'>':  out += L"&gt;";   break;
+        case L'"':  out += L"&quot;"; break;
+        case L'\'': out += L"&#39;";  break;
+        default:    out.AppendChar(c); break;
+        }
+    }
+    return out;
+}
+
+
 // ===================== Internal detection engine =====================
 
 namespace BMD_Internal {
@@ -350,7 +473,7 @@ namespace BMD_Internal {
         int erraticHealthPattern = 15;
         int suspiciousSerial = 5;
         // NEW:
-        //int unrealisticRate = 20;     // charge/discharge/time-to-full
+        int unrealisticRate = 20;     // charge/discharge/time-to-full
 
         int capacityTimeImplausible = 20; // NEW RULE 7
         int designCapacityChanged = 40; // RULE 8 (STRONG SIGNAL)
@@ -370,8 +493,8 @@ namespace BMD_Internal {
         double upwardJumpPct = 3.0;        // count jumps > +3%
         int    upwardJumpCountToFlag = 2;
         // NEW (rate/time/jump)
-        //double maxDischargeWatt = 100.0;   // >100 W discharge => suspect
-        //double maxChargeWatt = 150.0;      // >150 W charge    => suspect
+        double maxDischargeWatt = 100.0;   // >100 W discharge => suspect
+        double maxChargeWatt = 150.0;      // >150 W charge    => suspect
 
         double maxCapacityChangePctPerMonth = 4.0; // NEW RULE 7
 
@@ -802,23 +925,23 @@ namespace BMD_Internal {
 
 
 
-        //// 7) Charge/Discharge Rate Anomaly (from report)
-        //if (info.currentRate_mW > 0) {
+        // 7) Charge/Discharge Rate Anomaly (from report)
+        if (info.currentRate_mW > 0) {
 
-        //    
+            
 
-        //    double watts = info.currentRate_mW / 1000.0; // mW ? W
-        //    if (watts > T.maxDischargeWatt) {
-        //        CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_DISCHARGE], watts, T.maxDischargeWatt);
-        //        AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE], d, W.unrealisticRate);
-        //        score += W.unrealisticRate;
-        //    }
-        //    if (watts > T.maxChargeWatt) {
-        //        CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_CHARGE], watts, T.maxChargeWatt);
-        //        AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_CHARGE], d, W.unrealisticRate);
-        //        score += W.unrealisticRate;
-        //    }
-        //}
+            double watts = info.currentRate_mW / 1000.0; // mW ? W
+            if (watts > T.maxDischargeWatt) {
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_DISCHARGE], watts, T.maxDischargeWatt);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE], d, W.unrealisticRate);
+                score += W.unrealisticRate;
+            }
+            if (watts > T.maxChargeWatt) {
+                CString d; d.Format(g_Texts[lang][MTK_DETAIL_UNREAL_CHARGE], watts, T.maxChargeWatt);
+                AddFlag(flags, g_Texts[lang][MTK_ROW_UNREAL_CHARGE], d, W.unrealisticRate);
+                score += W.unrealisticRate;
+            }
+        }
 
 
 
@@ -1079,8 +1202,9 @@ namespace BMD_Internal {
             { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE], g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE] },
             { g_Texts[lang][MTK_ROW_ERRATIC],          g_Texts[lang][MTK_HINT_ERRATIC] },
             { g_Texts[lang][MTK_ROW_SERIAL],        g_Texts[lang][MTK_HINT_SERIAL] },
-            //{ g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],     g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE] },
-            //{ g_Texts[lang][MTK_ROW_UNREAL_CHARGE],        g_Texts[lang][MTK_HINT_UNREAL_CHARGE] },
+
+            { g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],     g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE] },
+            { g_Texts[lang][MTK_ROW_UNREAL_CHARGE],        g_Texts[lang][MTK_HINT_UNREAL_CHARGE] },
 
               // NEW RULE #7 (replaces charge/discharge rate)
               { g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE], g_Texts[lang][MTK_HINT_CAP_TIME_IMPLAUSIBLE] },
@@ -1123,14 +1247,25 @@ namespace BMD_Internal {
             bool matched = (hitMap.find(rdef.name) != hitMap.end());
 
             // Main text
-            CString toDraw = rdef.name;
+            /*CString toDraw = rdef.name;
             if (matched) {
                 const auto& f = hitMap[rdef.name];
                 if (!f.detail.IsEmpty()) {
                     toDraw += L" — ";
                     toDraw += f.detail;
                 }
+            }*/
+
+
+            CString toDraw = rdef.name;
+            if (matched) {
+                const auto& f = hitMap[rdef.name];
+                if (!f.detail.IsEmpty()) {
+                    toDraw += L" ⚠ ";   // warning prefix makes it clear this is the failure detail
+                    toDraw += f.detail;
+                }
             }
+
 
             CRect calcMain(0, 0, rcList.Width() - (boxSize + gapX), 10000);
             dc->DrawText(toDraw, &calcMain, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
@@ -1182,39 +1317,69 @@ namespace BMD_Internal {
             CBrush brBand(band);
             pDraw->FillRect(&rcBand, &brBand);
 
-            CString title; title.Format(L"%s   (%d/100)", r.status.GetString(), r.score);
-            CRect rcTxt = rcBand; rcTxt.DeflateRect(sidePad, (int)std::lround(8 * scale));
+            // ── Export button (drawn top-right of header) ─────────────────
+            int btnW = (int)std::lround(90 * scale);
+            int btnH = (int)std::lround(26 * scale);
+            int btnMargin = (int)std::lround(9 * scale);
+
+            CRect rcBtn(
+                rcBand.right - btnW - btnMargin,
+                rcBand.top + (rcBand.Height() - btnH) / 2,
+                rcBand.right - btnMargin,
+                rcBand.top + (rcBand.Height() - btnH) / 2 + btnH
+            );
+
+            // Button background (white, semi-transparent look via solid)
+            CBrush brBtn(RGB(255, 255, 255));
+            CPen   penBtn(PS_SOLID, 1, RGB(220, 225, 230));
+            CPen* oldBtnPen = pDraw->SelectObject(&penBtn);
+            CBrush* oldBtnBr = pDraw->SelectObject(&brBtn);
+            pDraw->RoundRect(rcBtn.left, rcBtn.top, rcBtn.right, rcBtn.bottom,
+                (int)std::lround(5 * scale), (int)std::lround(5 * scale));
+            pDraw->SelectObject(oldBtnPen);
+            pDraw->SelectObject(oldBtnBr);
+
+            // Button label
+            CFont fontBtn;
+            LOGFONT lfBtn{}; SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(lfBtn), &lfBtn, 0);
+            lfBtn.lfWeight = FW_SEMIBOLD;
+            lfBtn.lfHeight = mkHeight((LONG)(baseH * 0.85));
+            fontBtn.CreateFontIndirect(&lfBtn);
+
+            CFont* oldBtnF = pDraw->SelectObject(&fontBtn);
             pDraw->SetBkMode(TRANSPARENT);
+
+            // Draw label in band color so it pops on white button
+            pDraw->SetTextColor(band);
+            CString btnLabel = L"Export Report";   //Export PDF
+            pDraw->DrawText(btnLabel, &rcBtn,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+            pDraw->SelectObject(oldBtnF);
+
+            s_exportBtnClientRect = rcBtn; 
+
+            // ── Title text (leave room for button) ────────────────────────
+            CRect rcTxt = rcBand;
+            rcTxt.DeflateRect(sidePad, (int)std::lround(8 * scale));
+            rcTxt.right = rcBtn.left - sidePad;   // don't overlap button
+
             pDraw->SetTextColor(RGB(255, 255, 255));
             CFont* oldF = pDraw->SelectObject(&fontTitle);
-            pDraw->DrawText(title, &rcTxt, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+            CString title; title.Format(L"%s   (%d/100)", r.status.GetString(), r.score);
+            pDraw->DrawText(title, &rcTxt,
+                DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
             pDraw->SelectObject(oldF);
 
-            // Score meter
+            // Score meter (unchanged)
             pDraw->Rectangle(rcMeter);
             CRect rcFill = rcMeter;
-
-            /*int w = rcMeter.Width();
-            int fillW = (int)((r.score / 100.0) * (w - 2));
-            rcFill.right = rcFill.left + fillW;*/
-
             int w = rcMeter.Width();
-
-            int fillW;
-            if (r.score >= 100)
-            {
-                fillW = w - 1;   // fully cover inside border
-            }
-            else
-            {
-                fillW = (int)((r.score / 100.0) * (w - 1));
-            }
-
+            int fillW = (r.score >= 100) ? w - 1 : (int)((r.score / 100.0) * (w - 1));
             rcFill.right = rcFill.left + fillW;
-
             CBrush brFill(band);
             pDraw->FillRect(&rcFill, &brFill);
         }
+
 
 
         // --- Score legend strip ---
@@ -1296,7 +1461,7 @@ namespace BMD_Internal {
 
             CRect label(cb.right + gapX, y, rcList.right, y + 10000);
             CFont* oldItem2 = pDraw->SelectObject(&fontItem);
-            textColor = matched ? RGB(35, 38, 41) : RGB(120, 125, 130);
+            textColor = matched ? RGB(0, 0, 0) : RGB(0, 0, 0);
             pDraw->SetTextColor(textColor);
 
             CRect calcMain = label;
@@ -1401,6 +1566,7 @@ BEGIN_MESSAGE_MAP(CManipulationDlg, CDialogEx)
     ON_WM_SIZE()
     ON_WM_VSCROLL()
     ON_WM_MOUSEWHEEL()
+    ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 
 
@@ -1439,6 +1605,13 @@ void CManipulationDlg::OnSize(UINT nType, int cx, int cy)
     UpdateVScrollBar();
     Invalidate(FALSE); // repaint during resize (lower flicker)
 }
+
+
+
+
+
+
+
 
 // --------------------- Scrollbar + wheel handling ---------------------
 
@@ -1534,4 +1707,467 @@ void CManipulationDlg::RunBatteryManipulationCheck()
     m_scrollY = 0;
 
     Invalidate(FALSE);
+}
+
+
+
+
+
+
+// ── Helper: build a timestamped output path in Documents ─────────────────────
+static CString MakeTimestampedPath(const wchar_t* prefix, const wchar_t* ext)
+{
+    // Get user's Documents folder
+    WCHAR docsPath[MAX_PATH] = {};
+    SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, docsPath);
+
+    SYSTEMTIME st; GetLocalTime(&st);
+
+    CString path;
+    path.Format(L"%s\\%s_%04u%02u%02u_%02u%02u%02u.%s",
+        docsPath,
+        prefix,
+        st.wYear, st.wMonth, st.wDay,
+        st.wHour, st.wMinute, st.wSecond,
+        ext);
+
+    return path;
+}
+
+
+void CManipulationDlg::ExportHtmlReport(const CString& destPath /*= L""*/) const
+{
+    // Auto-generate timestamped path — never ask, never overwrite
+    CString outPath = destPath.IsEmpty()
+        ? MakeTimestampedPath(L"BatteryReport", L"html")
+        : destPath;
+
+    // ── Write UTF-8 HTML ──────────────────────────────────────────────────
+    CString html = BuildHtmlReport();
+
+    int needed = WideCharToMultiByte(CP_UTF8, 0,
+        html, html.GetLength(), nullptr, 0, nullptr, nullptr);
+    std::vector<char> utf8(needed);
+    WideCharToMultiByte(CP_UTF8, 0,
+        html, html.GetLength(), utf8.data(), needed, nullptr, nullptr);
+
+    CFile f;
+    if (!f.Open(outPath, CFile::modeCreate | CFile::modeWrite))
+    {
+        AfxMessageBox(L"Failed to write report file.", MB_ICONERROR | MB_TOPMOST);
+        return;
+    }
+    f.Write(utf8.data(), (UINT)utf8.size());
+    f.Close();
+
+    // ── Open in browser ───────────────────────────────────────────────────
+    ShellExecute(nullptr, L"open", outPath, nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+
+bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
+{
+    // Auto-generate timestamped path — never ask, never overwrite
+    outPdfPath = MakeTimestampedPath(L"BatteryReport", L"pdf");
+
+    // ── Write temp HTML alongside the PDF path ────────────────────────────
+    CString htmlTemp = outPdfPath;
+    int dot = htmlTemp.ReverseFind(L'.');
+    if (dot >= 0) htmlTemp = htmlTemp.Left(dot);
+    htmlTemp += L"_print_tmp.html";
+
+    CString baseHtml = BuildHtmlReport();
+
+    CString printScript =
+        L"<script>\n"
+        L"window.onload = function() {\n"
+        L"  setTimeout(function() {\n"
+        L"    window.print();\n"
+        L"  }, 800);\n"
+        L"};\n"
+        L"</script>\n";
+
+    CString printCss =
+        L"<style>\n"
+        L"  @media print {\n"
+        L"    * { -webkit-print-color-adjust: exact !important;\n"
+        L"        print-color-adjust: exact !important; }\n"
+        L"    body { margin: 0; padding: 0; background: #fff; }\n"
+        L"    .card { box-shadow: none; border-radius: 0;\n"
+        L"            max-width: 100%%; margin: 0; }\n"
+        L"  }\n"
+        L"</style>\n";
+
+    CString finalHtml = baseHtml;
+    int bodyClose = finalHtml.Find(L"</body>");
+    if (bodyClose >= 0)
+    {
+        CString inject = printCss + printScript;
+        finalHtml = finalHtml.Left(bodyClose) + inject + finalHtml.Mid(bodyClose);
+    }
+
+    int needed = WideCharToMultiByte(CP_UTF8, 0,
+        finalHtml, finalHtml.GetLength(), nullptr, 0, nullptr, nullptr);
+    std::vector<char> utf8(needed);
+    WideCharToMultiByte(CP_UTF8, 0,
+        finalHtml, finalHtml.GetLength(), utf8.data(), needed, nullptr, nullptr);
+
+    {
+        CFile f;
+        if (!f.Open(htmlTemp, CFile::modeCreate | CFile::modeWrite))
+        {
+            AfxMessageBox(L"Failed to write temporary HTML file.",
+                MB_ICONERROR | MB_TOPMOST);
+            return false;
+        }
+        f.Write(utf8.data(), (UINT)utf8.size());
+        f.Close();
+    }
+
+    // ── 3a. Try silent headless Edge ──────────────────────────────────────
+    {
+        const wchar_t* edgePaths[] = {
+            L"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+            L"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+        };
+
+        CString edgeExe;
+        for (auto& p : edgePaths)
+        {
+            if (GetFileAttributes(p) != INVALID_FILE_ATTRIBUTES)
+            {
+                edgeExe = p; break;
+            }
+        }
+
+        if (!edgeExe.IsEmpty())
+        {
+            CString args;
+            args.Format(
+                L"--headless --disable-gpu "
+                L"--print-to-pdf=\"%s\" "
+                L"--print-to-pdf-no-header "
+                L"--no-margins "
+                L"\"%s\"",
+                outPdfPath.GetString(),
+                htmlTemp.GetString());
+
+            SHELLEXECUTEINFO sei{};
+            sei.cbSize = sizeof(sei);
+            sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+            sei.lpVerb = L"open";
+            sei.lpFile = edgeExe;
+            sei.lpParameters = args;
+            sei.nShow = SW_HIDE;
+
+            if (ShellExecuteEx(&sei) && sei.hProcess)
+            {
+                DWORD waitResult = WaitForSingleObject(sei.hProcess, 30000);
+                CloseHandle(sei.hProcess);
+                DeleteFile(htmlTemp);
+
+                if (waitResult == WAIT_OBJECT_0 &&
+                    GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // ── 3b. Try silent headless Chrome ───────────────────────────────────
+    {
+        const wchar_t* chromePaths[] = {
+            L"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+            L"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        };
+
+        CString chromeExe;
+        for (auto& p : chromePaths)
+        {
+            if (GetFileAttributes(p) != INVALID_FILE_ATTRIBUTES)
+            {
+                chromeExe = p; break;
+            }
+        }
+
+        if (!chromeExe.IsEmpty())
+        {
+            CString args;
+            args.Format(
+                L"--headless --disable-gpu "
+                L"--print-to-pdf=\"%s\" "
+                L"--print-to-pdf-no-header "
+                L"--no-margins "
+                L"\"%s\"",
+                outPdfPath.GetString(),
+                htmlTemp.GetString());
+
+            SHELLEXECUTEINFO sei{};
+            sei.cbSize = sizeof(sei);
+            sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+            sei.lpVerb = L"open";
+            sei.lpFile = chromeExe;
+            sei.lpParameters = args;
+            sei.nShow = SW_HIDE;
+
+            if (ShellExecuteEx(&sei) && sei.hProcess)
+            {
+                DWORD waitResult = WaitForSingleObject(sei.hProcess, 30000);
+                CloseHandle(sei.hProcess);
+                DeleteFile(htmlTemp);
+
+                if (waitResult == WAIT_OBJECT_0 &&
+                    GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // ── 3c. Fallback: open browser with auto-print script ────────────────
+    ShellExecute(nullptr, L"open", htmlTemp, nullptr, nullptr, SW_SHOWNORMAL);
+
+    AfxMessageBox(
+        L"Your browser will open with the report and show the Print dialog.\n\n"
+        L"In the Print dialog:\n"
+        L"  \u2022 Destination \u2192 'Save as PDF'\n"
+        L"  \u2022 Enable 'Background graphics'\n"
+        L"  \u2022 Click Save — file will be saved to:\n    " + outPdfPath,
+        MB_ICONINFORMATION | MB_TOPMOST);
+
+    return true;
+}
+
+
+
+CString CManipulationDlg::BuildHtmlReport() const
+{
+    const BMD_DetectionResult& r = m_bmdResult;
+    int lang = eng_lang ? LANG_EN : LANG_JP;
+
+    // ── Determine band colour ──────────────────────────────────────────────
+    CString bandColor;
+    if (r.score >= 70) bandColor = L"#00a050";
+    else if (r.score >= 40) bandColor = L"#f0aa28";
+    else                    bandColor = L"#d23c3c";
+
+    // ── Build a fast lookup: title → flag ─────────────────────────────────
+    std::map<CString, const BMD_Flag*> hitMap;
+    for (const auto& f : r.flags)
+        hitMap[f.title] = &f;
+
+    // ── Full criteria list (same order as MeasureAndDrawPanel) ────────────
+    struct Row { const wchar_t* name; const wchar_t* hint; };
+    const Row rows[] = {
+        { g_Texts[lang][MTK_ROW_SUDDEN_JUMP],         g_Texts[lang][MTK_HINT_SUDDEN_JUMP]         },
+        { g_Texts[lang][MTK_ROW_CAP_EXCEEDS],         g_Texts[lang][MTK_HINT_CAP_EXCEEDS]         },
+        { g_Texts[lang][MTK_ROW_CYCLE_MISMATCH],      g_Texts[lang][MTK_HINT_CYCLE_MISMATCH]      },
+        { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE],      g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE]      },
+        { g_Texts[lang][MTK_ROW_ERRATIC],             g_Texts[lang][MTK_HINT_ERRATIC]             },
+        { g_Texts[lang][MTK_ROW_SERIAL],              g_Texts[lang][MTK_HINT_SERIAL]              },
+        { g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE],g_Texts[lang][MTK_HINT_CAP_TIME_IMPLAUSIBLE]},
+        { g_Texts[lang][MTK_ROW_DESIGN_CAP_CHANGED],  g_Texts[lang][MTK_HINT_DESIGN_CAP_CHANGED]  },
+        { g_Texts[lang][MTK_ROW_FULLCAP_ANOM],        g_Texts[lang][MTK_HINT_FULLCAP_ANOM]        },
+    };
+
+    // ── Build table rows ──────────────────────────────────────────────────
+    CString tableRows;
+    for (const auto& row : rows)
+    {
+        CString rowName = row.name;
+        auto it = hitMap.find(rowName);
+        bool matched = (it != hitMap.end());
+
+        if (matched)
+        {
+            // ── FLAGGED row (red ✕) ───────────────────────────────────────
+            const BMD_Flag* f = it->second;
+
+            CString ptsBadge;
+            ptsBadge.Format(
+                L"<span style='background:#d23c3c;color:#fff;border-radius:4px;"
+                L"padding:1px 6px;font-size:11px;margin-left:6px;'>-%d pts</span>",
+                f->points);
+
+         /*   CString detail = f->detail.IsEmpty()
+                ? L""
+                : HtmlEscape(f->detail) + ptsBadge;*/
+
+            CString detail = f->detail.IsEmpty()
+                ? L""
+                : CString(L"&#9888; ") + HtmlEscape(f->detail) + ptsBadge;
+
+
+            tableRows +=
+                L"<tr style='background:#fff5f5;'>"
+                L"<td style='padding:8px 10px;text-align:center;width:32px;'>"
+                L"  <span style='display:inline-flex;align-items:center;justify-content:center;"
+                L"  width:20px;height:20px;border-radius:50%;background:rgba(210,60,60,.15);"
+                L"  color:#d23c3c;font-weight:700;font-size:13px;'>&#10007;</span>"
+                L"</td>"
+                L"<td style='padding:8px 10px;font-weight:600;color:#c0392b;vertical-align:top;width:230px;'>"
+                + HtmlEscape(rowName) +
+                L"</td>"
+                L"<td style='padding:8px 10px;color:#444;vertical-align:top;font-size:13px;'>"
+                + detail +
+                L"</td>"
+                L"</tr>\n";
+        }
+        else
+        {
+            // ── PASSED row (green ✓) ──────────────────────────────────────
+            CString hint = (row.hint && *row.hint)
+                ? CString(L"<br><span style='font-size:11px;color:#aaa;font-family:monospace;'>")
+                + HtmlEscape(CString(row.hint)) + L"</span>"
+                : CString(L"");
+
+            tableRows +=
+                L"<tr>"
+                L"<td style='padding:8px 10px;text-align:center;width:32px;'>"
+                L"  <span style='display:inline-flex;align-items:center;justify-content:center;"
+                L"  width:20px;height:20px;border-radius:50%;background:rgba(0,149,74,.12);"
+                L"  color:#00954a;font-size:13px;'>&#10003;</span>"
+                L"</td>"
+                L"<td style='padding:8px 10px;font-weight:600;color:#000000;vertical-align:top;width:230px;'>"
+                + HtmlEscape(rowName) + hint +
+                L"</td>"
+                L"<td style='padding:8px 10px;color:#ccc;vertical-align:top;"
+                L"font-size:12px;font-style:italic;'>"
+                L"&#8212; not triggered &#8212;"
+                L"</td>"
+                L"</tr>\n";
+        }
+    }
+
+    // ── Meter bar ─────────────────────────────────────────────────────────
+    CString meterBar;
+    meterBar.Format(
+        L"<div style='background:#e0e0e0;border-radius:4px;height:12px;margin:10px 0 6px;'>"
+        L"<div style='width:%d%%;background:%s;height:12px;border-radius:4px;'></div></div>",
+        r.score, bandColor);
+
+    // ── Timestamp ─────────────────────────────────────────────────────────
+    SYSTEMTIME st; GetLocalTime(&st);
+    CString stamp;
+    stamp.Format(L"%04u-%02u-%02u  %02u:%02u:%02u",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+    // ── Assemble HTML ─────────────────────────────────────────────────────
+    CString html;
+    html.Format(
+        L"<!DOCTYPE html>\n"
+        L"<html lang='en'><head>\n"
+        L"<meta charset='UTF-8'>\n"
+        L"<meta name='viewport' content='width=device-width,initial-scale=1'>\n"
+        L"<title>Battery Manipulation Detection Report</title>\n"
+        L"<style>\n"
+        L"  body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:24px;background:#f4f6f8;color:#222;}\n"
+        L"  .card{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);"
+        L"        max-width:860px;margin:0 auto;overflow:hidden;}\n"
+        L"  .header{background:%s;color:#fff;padding:18px 24px;}\n"
+        L"  .header h1{margin:0;font-size:21px;}\n"
+        L"  .header p{margin:4px 0 0;font-size:12px;opacity:.85;}\n"
+        L"  .body{padding:20px 24px 28px;}\n"
+        L"  .verdict{font-size:22px;font-weight:700;margin-bottom:2px;}\n"
+        L"  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:9px 14px;"
+        L"          background:#f0f2f5;border-radius:6px;font-size:12px;margin:14px 0 18px;}\n"
+        L"  .leg{display:flex;align-items:center;gap:5px;}\n"
+        L"  .sw{width:11px;height:11px;border-radius:2px;display:inline-block;}\n"
+        L"  table{width:100%%;border-collapse:collapse;font-size:13.5px;}\n"
+        L"  thead th{background:#f5f6f8;text-align:left;padding:8px 10px;"
+        L"           font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#777;"
+        L"           border-bottom:2px solid #e8e8e8;}\n"
+        L"  tbody tr{border-bottom:1px solid #f0f0f0;}\n"
+        L"  tbody tr:last-child{border-bottom:none;}\n"
+        L"  .footer{font-size:11px;color:#aaa;margin-top:20px;padding-top:14px;"
+        L"          border-top:1px solid #eee;line-height:1.6;}\n"
+        L"  @media print{body{background:#fff;padding:0;}.card{box-shadow:none;}}\n"
+        L"</style></head>\n"
+        L"<body><div class='card'>\n"
+        L"  <div class='header'>\n"
+        L"    <h1>Battery Manipulation Detection Report</h1>\n"
+        L"    <p>Generated: %s</p>\n"
+        L"  </div>\n"
+        L"  <div class='body'>\n"
+        L"    <div class='verdict'>Verdict: "
+        L"      <span style='color:%s;'>%s</span>"
+        L"      <span style='font-size:15px;font-weight:normal;color:#888;'>&nbsp;(%d / 100)</span>"
+        L"    </div>\n"
+        L"    %s\n"   // meter bar
+        L"    <div class='legend'>\n"
+        L"      <span class='leg'><span class='sw' style='background:#d23c3c'></span>Likely Manipulated (0–39)</span>\n"
+        L"      <span class='leg'><span class='sw' style='background:#f0aa28'></span>Suspicious (40–69)</span>\n"
+        L"      <span class='leg'><span class='sw' style='background:#00a050'></span>Genuine (70–100)</span>\n"
+        L"    </div>\n"
+        L"    <table>\n"
+        L"      <thead><tr>"
+        L"        <th style='width:32px'></th>"
+        L"        <th>Indicator</th>"
+        L"        <th>Detail / Evidence</th>"
+        L"      </tr></thead>\n"
+        L"      <tbody>\n%s\n      </tbody>\n"
+        L"    </table>\n"
+        L"    <p class='footer'>* Information is sourced from the battery report generated "
+        L"by your device. Results may vary depending on the data provided by your device&#39;s firmware.</p>\n"
+        L"  </div>\n"
+        L"</div></body></html>\n",
+        bandColor,            // header background
+        stamp,                // timestamp
+        bandColor,            // verdict colour
+        r.status.GetString(), // verdict text
+        r.score,              // score number
+        meterBar,             // meter HTML
+        tableRows             // ALL rows (flagged + passed)
+    );
+
+    return html;
+}
+
+
+
+
+
+void CManipulationDlg::OnLButtonUp(UINT nFlags, CPoint point)
+{
+    if (s_exportBtnClientRect.PtInRect(point))
+    {
+        TASKDIALOGCONFIG tdc = {};
+        tdc.cbSize = sizeof(tdc);
+        tdc.hwndParent = GetSafeHwnd();
+        tdc.dwFlags = TDF_USE_COMMAND_LINKS;
+        tdc.pszWindowTitle = L"Export Report";
+        tdc.pszMainInstruction = L"Choose export format";
+
+        TASKDIALOG_BUTTON buttons[] = {
+            { 100, L"Export HTML\nOpens in browser — use Ctrl+P to save as PDF" },
+            { 101, L"Export PDF\nDirect PDF via headless browser"               },
+        };
+
+        tdc.pButtons = buttons;
+        tdc.cButtons = _countof(buttons);
+        tdc.nDefaultButton = 100;
+
+        int nButton = 0;
+        if (SUCCEEDED(TaskDialogIndirect(&tdc, &nButton, nullptr, nullptr)))
+        {
+            if (nButton == 100)
+            {
+                ExportHtmlReport();
+            }
+            else if (nButton == 101)
+            {
+                CString pdfPath;
+                if (ExportPrintToPdf(pdfPath))
+                {
+                    CString msg;
+                    msg.Format(L"PDF saved to:\n%s", pdfPath.GetString());
+                    AfxMessageBox(msg, MB_ICONINFORMATION | MB_TOPMOST);
+                }
+            }
+        }
+    }
+
+    CDialogEx::OnLButtonUp(nFlags, point);
 }

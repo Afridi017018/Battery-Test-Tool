@@ -87,4 +87,22 @@ public:
 
     int designCapValue;
 
+public:
+    // Exports a self-contained HTML report that can be printed/saved as PDF
+    void ExportHtmlReport(const CString& destPath = L"") const;
+
+    // Exports directly to PDF using the Windows "Microsoft Print to PDF" printer
+    // Returns true on success.  outPdfPath receives the final path.
+    bool ExportPrintToPdf(CString& outPdfPath) const;
+
+private:
+    CString BuildHtmlReport() const;   // builds the HTML string
+
+public:
+    afx_msg void OnBnClickedButton2();
+
+private:
+    CRect m_exportBtnRect;   // tracks the drawn button's screen rect for hit-testing
+
+    afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 };

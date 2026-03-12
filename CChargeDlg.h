@@ -21,4 +21,5 @@ protected:
 
 public:
     CEdit m_editHistory;
+    afx_msg void OnSetFocusHistory();
 };

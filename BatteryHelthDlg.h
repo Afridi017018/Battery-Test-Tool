@@ -370,9 +370,10 @@ public:
 
 	void StopCpuLoadTest();
 
-	CString m_fullManufacturer;   // store full text for tooltip
+	CString m_fullManufacturer;  
 
 
+	bool IsCharging();
 };
 
 

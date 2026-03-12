@@ -21,13 +21,24 @@ void CChargeDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CChargeDlg, CDialogEx)
+    ON_EN_SETFOCUS(IDC_EDIT_HISTORY, &CChargeDlg::OnSetFocusHistory)
 END_MESSAGE_MAP()
+
+void CChargeDlg::OnSetFocusHistory()
+{
+    ::HideCaret(m_editHistory.GetSafeHwnd());
+}
 
 BOOL CChargeDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
     m_editHistory.SetWindowTextW(m_historyText);
+
+    m_editHistory.SetWindowTextW(m_historyText);
+
+    ::HideCaret(m_editHistory.GetSafeHwnd());   // hide caret
+
 
     return TRUE;
 }

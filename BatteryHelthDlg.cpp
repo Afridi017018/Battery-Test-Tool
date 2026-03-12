@@ -712,6 +712,58 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 //}
 
 
+// Helper function to truncate text to fit a control width, adding ellipsis
+CString TruncateToFit(CWnd* pCtl, const CString& text)
+{
+    if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd()))
+        return text;
+
+    // Get control client width
+    CRect rcCtl;
+    pCtl->GetClientRect(&rcCtl);
+    int maxWidth = rcCtl.Width() - 4; // small padding
+    if (maxWidth <= 0) return text;
+
+    // Get the control's DC and font
+    CDC* pDC = pCtl->GetDC();
+    if (!pDC) return text;
+
+    CFont* pFont = pCtl->GetFont();
+    CFont* pOldFont = nullptr;
+    if (pFont) pOldFont = pDC->SelectObject(pFont);
+
+    // Check if full text fits
+    CSize szFull = pDC->GetTextExtent(text);
+    if (szFull.cx <= maxWidth)
+    {
+        if (pOldFont) pDC->SelectObject(pOldFont);
+        pCtl->ReleaseDC(pDC);
+        return text; // No truncation needed
+    }
+
+    // Measure ellipsis width
+    CSize szEllipsis = pDC->GetTextExtent(_T("..."));
+    int availWidth = maxWidth - szEllipsis.cx;
+
+    // Binary search for the longest fitting prefix
+    int lo = 0, hi = text.GetLength();
+    while (lo < hi)
+    {
+        int mid = (lo + hi + 1) / 2;
+        CSize sz = pDC->GetTextExtent(text.Left(mid));
+        if (sz.cx <= availWidth)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+
+    if (pOldFont) pDC->SelectObject(pOldFont);
+    pCtl->ReleaseDC(pDC);
+
+    return text.Left(lo) + _T("...");
+}
+
+
 static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 {
     if (!pDlg) return;
@@ -720,17 +772,14 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     if (!pCtl || !::IsWindow(pCtl->GetSafeHwnd())) return;
 
     // ---------------------------------------------------------
-    // 0) Apply 15-character limit with ellipsis (...)
-    // ---------------------------------------------------------
+   // 0) Dynamically truncate to fit control width with ellipsis
+   //    (replaces hardcoded 15-char limit for IDC_BATT_MANUFAC)
+   // ---------------------------------------------------------
     CString processedText = text;
 
-    // List of IDs that require the 15-character truncation
     if (ctrlId == IDC_BATT_MANUFAC)
     {
-        if (processedText.GetLength() > 20)  
-        {
-            processedText = processedText.Left(20) + _T("...");
-        }
+        processedText = TruncateToFit(pCtl, text);
     }
 
     // -------------------------------
@@ -1159,6 +1208,9 @@ IDC_STATIC_CAPHIS
 }
 
 
+
+
+
 void CBatteryHelthDlg::InitToolTips()
 {
     if (!m_toolTip.GetSafeHwnd())
@@ -1271,13 +1323,14 @@ void CBatteryHelthDlg::InitToolTips()
 
 
     CWnd* p = GetDlgItem(IDC_BATT_MANUFAC);
-
     if (p)
     {
-        if (m_fullManufacturer.GetLength() > 20)
+        CString displayed;
+        p->GetWindowText(displayed);
+
+        if (!displayed.IsEmpty() && displayed != m_fullManufacturer)  // truncated
         {
             p->ModifyStyle(0, SS_NOTIFY);
-
             m_toolTip.UpdateTipText(m_fullManufacturer, p);
         }
         else
@@ -2402,7 +2455,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             UpdateLabel(this, IDC_BATT_DID, L"");
             UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
         }
-        
+
         pLoc->Release();
         return;
     }
@@ -2421,7 +2474,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
 
-        
+
         pSvc->Release(); pLoc->Release();
         return;
     }
@@ -2433,18 +2486,18 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL, &pEnumerator);
     if (FAILED(hr) || !pEnumerator) {
-        
 
-            if (m_lang == Lang::EN) {
-                UpdateLabel(this, IDC_BATT_DID, L"");
-                UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
-            }
-            else {
-                UpdateLabel(this, IDC_BATT_DID, L"");
-                UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
-            }
 
-        
+        if (m_lang == Lang::EN) {
+            UpdateLabel(this, IDC_BATT_DID, L"");
+            UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
+        }
+        else {
+            UpdateLabel(this, IDC_BATT_DID, L"");
+            UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
+        }
+
+
         pSvc->Release(); pLoc->Release();
         return;
     }
@@ -2466,9 +2519,9 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         return;
     }
 
- 
+
     VARIANT vt{};
-  
+
 
     // ---------------------------------------
     // 2) Full Charge Capacity (current WMI)
@@ -2481,12 +2534,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         fullCapStr += L" mWh";
     }
     else {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             fullCapStr = L"Unknown";
         }
         else {
             fullCapStr = L"不明";
-		}
+        }
     }
     UpdateLabel(this, IDC_BATT_CAPACITY, fullCapStr);
 
@@ -2501,7 +2554,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         designCapStr += L" mWh";
     }
     else {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             designCapStr = L"Unknown";
         }
         else {
@@ -2681,14 +2734,14 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     }
 
     else {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"");
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"Unknown");
         }
         else {
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"");
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"不明");
-		}
+        }
     }
 
 
@@ -2705,7 +2758,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
         }
         else {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_HEALTH, L"");
                 UpdateLabel(this, IDC_BATT_HEALTH, L"Unknown");
             }
@@ -2716,7 +2769,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         }
     }
 
-  
+
     // --------------------------
     // 8) DeviceID / Name
     // --------------------------
@@ -2732,8 +2785,8 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         UpdateLabel(this, IDC_BATT_MANUFAC, dev);
 
         CWnd* p = GetDlgItem(IDC_BATT_MANUFAC);
-  /*      if (p && m_toolTip.GetSafeHwnd())
-            m_toolTip.UpdateTipText(m_fullManufacturer, p);*/
+        /*      if (p && m_toolTip.GetSafeHwnd())
+                  m_toolTip.UpdateTipText(m_fullManufacturer, p);*/
 
         VariantClear(&vtDev);
     }
@@ -2755,7 +2808,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         VariantClear(&vt);
     }
     else {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_NAME, L"");
             UpdateLabel(this, IDC_BATT_NAME, L"Unknown");
         }
@@ -2772,20 +2825,20 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         CString cycles = QueryBatteryCycleCount(); // your helper
         if (cycles != L"Not available" && cycles != L"0")
         {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 cycles += L" cycles";
             }
             else {
                 cycles += L" サイクル";
-			}
+            }
         }
         else
         {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 cycles = L"Unknown";
             }
             else {
-				cycles = L"不明";
+                cycles = L"不明";
             }
         }
         UpdateLabel(this, IDC_BATT_CYCLE, cycles);
@@ -2813,26 +2866,26 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
                 pUUID->Release();
             }
             else {
-                if(m_lang == Lang::EN) {
+                if (m_lang == Lang::EN) {
                     UpdateLabel(this, IDC_BATT_DID, L"");
                     UpdateLabel(this, IDC_BATT_DID, L"Not available");
                 }
                 else {
                     UpdateLabel(this, IDC_BATT_DID, L"");
                     UpdateLabel(this, IDC_BATT_DID, L"利用不可");
-				}
+                }
             }
             pEnumUUID->Release();
         }
         else {
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-                    UpdateLabel(this, IDC_BATT_DID, L"Not available");
-                }
-                else {
+                UpdateLabel(this, IDC_BATT_DID, L"Not available");
+            }
+            else {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-                    UpdateLabel(this, IDC_BATT_DID, L"利用不可");
-				}
+                UpdateLabel(this, IDC_BATT_DID, L"利用不可");
+            }
         }
     }
 
@@ -2846,7 +2899,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 
-	Invalidate();
+    Invalidate();
 
 }
 
@@ -4796,6 +4849,15 @@ void CBatteryHelthDlg::StopCpuLoadTest()
         SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テスト");
 }
 
+
+bool CBatteryHelthDlg::IsCharging()
+{
+    SYSTEM_POWER_STATUS sps;
+    if (GetSystemPowerStatus(&sps))
+        return (sps.ACLineStatus == 1);
+    return false;
+}
+
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
@@ -4810,6 +4872,12 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
         
         return;
 	}
+
+    if (IsCharging())
+    {
+        AfxMessageBox(L"Please unplug the charger.");
+        return;
+    }
 
     UpdateLabel(this,IDC_BATT_DISCHARGR, L"");
 
@@ -6454,7 +6522,7 @@ void CBatteryHelthDlg::OnBnClickedBtnBgapp()
     }
 
     CString title = (m_lang == Lang::EN)
-        ? L"Long-Running Background Applications"
+        ? L"Running Applications"
         : L"長時間実行されるバックグラウンドアプリケーション";
 
     CAppReportDlg dlg(BuildVisibleAppsReport(), title, this);

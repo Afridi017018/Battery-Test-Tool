@@ -22,6 +22,7 @@ void CCPUProgressDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CCPUProgressDlg, CDialogEx)
 
     ON_BN_CLICKED(IDC_BTN_CPU_STOP, &CCPUProgressDlg::OnBnClickedBtnCpuStop)
+    ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 void CCPUProgressDlg::UpdateProgress(int percent, const CString& text)
@@ -46,3 +47,11 @@ void CCPUProgressDlg::OnBnClickedBtnCpuStop()
 }
 
 
+void CCPUProgressDlg::OnClose()
+{
+    CBatteryHelthDlg* pParent =
+        dynamic_cast<CBatteryHelthDlg*>(GetParent());
+
+    if (pParent)
+        pParent->StopCpuLoadTest();
+}

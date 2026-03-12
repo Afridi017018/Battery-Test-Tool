@@ -47,4 +47,7 @@ private:
 public:
     afx_msg void OnSetFocusEdit();
     BOOL m_firstFocus = TRUE;
+
+
+
 };
