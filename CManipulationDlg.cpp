@@ -1789,6 +1789,9 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
 
     CString printCss =
         L"<style>\n"
+        L"  @page {\n"
+        L"    margin: 0;\n"
+        L"  }\n"
         L"  @media print {\n"
         L"    * { -webkit-print-color-adjust: exact !important;\n"
         L"        print-color-adjust: exact !important; }\n"
@@ -1848,6 +1851,7 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
                 L"--print-to-pdf=\"%s\" "
                 L"--print-to-pdf-no-header "
                 L"--no-margins "
+                L"--no-pdf-header-footer "   
                 L"\"%s\"",
                 outPdfPath.GetString(),
                 htmlTemp.GetString());
@@ -1869,6 +1873,7 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
                 if (waitResult == WAIT_OBJECT_0 &&
                     GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
                 {
+                    ShellExecute(nullptr, L"open", outPdfPath, nullptr, nullptr, SW_SHOWNORMAL);
                     return true;
                 }
             }
