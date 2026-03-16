@@ -4875,7 +4875,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
     if (IsCharging())
     {
-        AfxMessageBox(L"Please unplug the charger.");
+        AfxMessageBox(L"Please unplug the charger to start the cpu load test.");
         return;
     }
 
@@ -4897,6 +4897,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
        /* UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");*/
         return;
     }
+
 
 
     // Check current CPU usage before starting

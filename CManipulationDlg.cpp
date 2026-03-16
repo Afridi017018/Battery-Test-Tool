@@ -1961,15 +1961,17 @@ CString CManipulationDlg::BuildHtmlReport() const
     // ── Full criteria list (same order as MeasureAndDrawPanel) ────────────
     struct Row { const wchar_t* name; const wchar_t* hint; };
     const Row rows[] = {
-        { g_Texts[lang][MTK_ROW_SUDDEN_JUMP],         g_Texts[lang][MTK_HINT_SUDDEN_JUMP]         },
-        { g_Texts[lang][MTK_ROW_CAP_EXCEEDS],         g_Texts[lang][MTK_HINT_CAP_EXCEEDS]         },
-        { g_Texts[lang][MTK_ROW_CYCLE_MISMATCH],      g_Texts[lang][MTK_HINT_CYCLE_MISMATCH]      },
-        { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE],      g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE]      },
-        { g_Texts[lang][MTK_ROW_ERRATIC],             g_Texts[lang][MTK_HINT_ERRATIC]             },
-        { g_Texts[lang][MTK_ROW_SERIAL],              g_Texts[lang][MTK_HINT_SERIAL]              },
-        { g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE],g_Texts[lang][MTK_HINT_CAP_TIME_IMPLAUSIBLE]},
-        { g_Texts[lang][MTK_ROW_DESIGN_CAP_CHANGED],  g_Texts[lang][MTK_HINT_DESIGN_CAP_CHANGED]  },
-        { g_Texts[lang][MTK_ROW_FULLCAP_ANOM],        g_Texts[lang][MTK_HINT_FULLCAP_ANOM]        },
+    { g_Texts[lang][MTK_ROW_SUDDEN_JUMP],         g_Texts[lang][MTK_HINT_SUDDEN_JUMP]         },
+    { g_Texts[lang][MTK_ROW_CAP_EXCEEDS],         g_Texts[lang][MTK_HINT_CAP_EXCEEDS]         },
+    { g_Texts[lang][MTK_ROW_CYCLE_MISMATCH],      g_Texts[lang][MTK_HINT_CYCLE_MISMATCH]      },
+    { g_Texts[lang][MTK_ROW_HEALTH_FOR_AGE],      g_Texts[lang][MTK_HINT_HEALTH_FOR_AGE]      },
+    { g_Texts[lang][MTK_ROW_ERRATIC],             g_Texts[lang][MTK_HINT_ERRATIC]             },
+    { g_Texts[lang][MTK_ROW_SERIAL],              g_Texts[lang][MTK_HINT_SERIAL]              },
+    { g_Texts[lang][MTK_ROW_UNREAL_DISCHARGE],    g_Texts[lang][MTK_HINT_UNREAL_DISCHARGE]    },  
+    { g_Texts[lang][MTK_ROW_UNREAL_CHARGE],       g_Texts[lang][MTK_HINT_UNREAL_CHARGE]       },  
+    { g_Texts[lang][MTK_ROW_CAP_TIME_IMPLAUSIBLE],g_Texts[lang][MTK_HINT_CAP_TIME_IMPLAUSIBLE]},
+    { g_Texts[lang][MTK_ROW_DESIGN_CAP_CHANGED],  g_Texts[lang][MTK_HINT_DESIGN_CAP_CHANGED]  },
+    { g_Texts[lang][MTK_ROW_FULLCAP_ANOM],        g_Texts[lang][MTK_HINT_FULLCAP_ANOM]        },
     };
 
     // ── Build table rows ──────────────────────────────────────────────────

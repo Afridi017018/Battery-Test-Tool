@@ -26,4 +26,6 @@ protected:
 public:
     afx_msg void OnBnClickedBtnCpuStop();
     afx_msg void OnClose();
+    CProgressCtrl m_CPU_ProgressDialog;
+    BOOL OnInitDialog();
 };

@@ -24,4 +24,8 @@ public:
     afx_msg void OnBnClickedBtnStop();
 protected:
     afx_msg void OnClose();
+public:
+    CProgressCtrl m_Discharge_ProgressDialog;
+
+    BOOL OnInitDialog();
 };
