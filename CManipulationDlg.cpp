@@ -1714,18 +1714,42 @@ void CManipulationDlg::RunBatteryManipulationCheck()
 
 
 
-// ── Helper: build a timestamped output path in Documents ─────────────────────
+//// ── Helper: build a timestamped output path in Documents ─────────────────────
+//static CString MakeTimestampedPath(const wchar_t* prefix, const wchar_t* ext)
+//{
+//    // Get user's Documents folder
+//    WCHAR docsPath[MAX_PATH] = {};
+//    SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, docsPath);
+//
+//    SYSTEMTIME st; GetLocalTime(&st);
+//
+//    CString path;
+//    path.Format(L"%s\\%s_%04u%02u%02u_%02u%02u%02u.%s",
+//        docsPath,
+//        prefix,
+//        st.wYear, st.wMonth, st.wDay,
+//        st.wHour, st.wMinute, st.wSecond,
+//        ext);
+//
+//    return path;
+//}
+
+
 static CString MakeTimestampedPath(const wchar_t* prefix, const wchar_t* ext)
 {
-    // Get user's Documents folder
-    WCHAR docsPath[MAX_PATH] = {};
-    SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, docsPath);
+    // Use TEMP instead of Documents — shorter path, no OneDrive wrapping issues
+    WCHAR tempPath[MAX_PATH] = {};
+    GetTempPath(MAX_PATH, tempPath);
+
+    // Remove trailing backslash if present
+    CString base(tempPath);
+    base.TrimRight(L'\\');
 
     SYSTEMTIME st; GetLocalTime(&st);
 
     CString path;
     path.Format(L"%s\\%s_%04u%02u%02u_%02u%02u%02u.%s",
-        docsPath,
+        base.GetString(),
         prefix,
         st.wYear, st.wMonth, st.wDay,
         st.wHour, st.wMinute, st.wSecond,
@@ -1789,9 +1813,6 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
 
     CString printCss =
         L"<style>\n"
-        L"  @page {\n"
-        L"    margin: 0;\n"
-        L"  }\n"
         L"  @media print {\n"
         L"    * { -webkit-print-color-adjust: exact !important;\n"
         L"        print-color-adjust: exact !important; }\n"
@@ -1851,7 +1872,6 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
                 L"--print-to-pdf=\"%s\" "
                 L"--print-to-pdf-no-header "
                 L"--no-margins "
-                L"--no-pdf-header-footer "   
                 L"\"%s\"",
                 outPdfPath.GetString(),
                 htmlTemp.GetString());
@@ -1868,7 +1888,7 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
             {
                 DWORD waitResult = WaitForSingleObject(sei.hProcess, 30000);
                 CloseHandle(sei.hProcess);
-                DeleteFile(htmlTemp);
+                /*DeleteFile(htmlTemp);*/
 
                 if (waitResult == WAIT_OBJECT_0 &&
                     GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
@@ -1920,7 +1940,7 @@ bool CManipulationDlg::ExportPrintToPdf(CString& outPdfPath) const
             {
                 DWORD waitResult = WaitForSingleObject(sei.hProcess, 30000);
                 CloseHandle(sei.hProcess);
-                DeleteFile(htmlTemp);
+                /*DeleteFile(htmlTemp);*/
 
                 if (waitResult == WAIT_OBJECT_0 &&
                     GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
