@@ -759,8 +759,8 @@ namespace BMD_Internal {
         const auto& s = info.samples;
         const double design = (double)info.designCapacity_mWh;
         const double latestF = (double)s.back().fullCharge_mWh;
-        const double latestHealth = (double)((design > 0) ? (latestF * 100.0 / design) : 0.0);
-
+    /*    const double latestHealth = (double)((design > 0) ? (latestF * 100.0 / design) : 0.0);*/
+        const double latestHealth = (double)((designCapValue > 0) ? (latestF * 100.0 / designCapValue) : 0.0);
 
      
 

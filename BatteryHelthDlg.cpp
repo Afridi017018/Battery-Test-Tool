@@ -242,114 +242,114 @@ static void BuildSeries(float initialPct, float currentPct, float ratePctPerMin,
 
 
 void CBatteryHelthDlg::CalculateDPIScale()
-    {
-        // 1) Get DPI for THIS window
-        UINT dpi = 96;
-        if (m_hWnd) {
-            HMODULE hUser32 = ::GetModuleHandleW(L"user32.dll");
-            if (hUser32) {
-                using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
-                auto pGetDpiForWindow = reinterpret_cast<GetDpiForWindow_t>(
-                    ::GetProcAddress(hUser32, "GetDpiForWindow"));
-                if (pGetDpiForWindow) {
-                    dpi = pGetDpiForWindow(m_hWnd);
-                }
-                else {
-                    HDC hdc = ::GetDC(m_hWnd);
-                    if (hdc) {
-                        dpi = static_cast<UINT>(::GetDeviceCaps(hdc, LOGPIXELSX));
-                        ::ReleaseDC(m_hWnd, hdc);
-                    }
-                }
+{
+    // 1) Get DPI for THIS window
+    UINT dpi = 96;
+    if (m_hWnd) {
+        HMODULE hUser32 = ::GetModuleHandleW(L"user32.dll");
+        if (hUser32) {
+            using GetDpiForWindow_t = UINT(WINAPI*)(HWND);
+            auto pGetDpiForWindow = reinterpret_cast<GetDpiForWindow_t>(
+                ::GetProcAddress(hUser32, "GetDpiForWindow"));
+            if (pGetDpiForWindow) {
+                dpi = pGetDpiForWindow(m_hWnd);
             }
-        }
-        if (dpi == 0) dpi = 96;
-        m_dpiScaleFactor = static_cast<double>(dpi) / 96.0;
-
-        // 2) Get screen dimensions
-        RECT workArea;
-        SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
-        int screenWidth = workArea.right - workArea.left;
-        int screenHeight = workArea.bottom - workArea.top;
-
-        // 3) Get dialog base size
-        CRect rcClient;
-        GetClientRect(&rcClient);
-        int w = rcClient.Width();
-        int h = rcClient.Height();
-        if (w <= 0) w = 1;
-        if (h <= 0) h = 1;
-
-        if (m_baseWidth <= 0 || m_baseHeight <= 0) {
-            m_baseWidth = w;
-            m_baseHeight = h;
-        }
-
-        // 4) Calculate scaled dimensions
-        int scaledWidth = static_cast<int>(m_baseWidth * m_dpiScaleFactor);
-        int scaledHeight = static_cast<int>(m_baseHeight * m_dpiScaleFactor);
-
-        // 5) Apply adaptive strategy based on screen size
-        const int SAFE_MARGIN = 80; // For window borders, taskbar, etc.
-        int availableWidth = screenWidth - SAFE_MARGIN;
-        int availableHeight = screenHeight - SAFE_MARGIN;
-
-        bool needsAdjustment = false;
-        double adjustedScale = m_dpiScaleFactor;
-
-        // Strategy 1: If dialog is much larger than screen, reduce DPI scaling
-        if (scaledHeight > availableHeight || scaledWidth > availableWidth)
-        {
-            double heightScale = (double)availableHeight / m_baseHeight;
-            double widthScale = (double)availableWidth / m_baseWidth;
-            double maxFitScale = min(heightScale, widthScale);
-
-            // Only reduce DPI scale, never increase it beyond original
-            if (maxFitScale < m_dpiScaleFactor)
-            {
-                adjustedScale = maxFitScale;
-                needsAdjustment = true;
-
-                CString msg;
-                msg.Format(_T("Screen too small. Adjusted DPI from %.2f to %.2f\n"),
-                    m_dpiScaleFactor, adjustedScale);
-                OutputDebugString(msg);
-            }
-        }
-
-        // Strategy 2: For very small screens (< 800x600), use minimum scale
-        if (screenHeight < 600 || screenWidth < 800)
-        {
-            adjustedScale = min(adjustedScale, 1);
-            needsAdjustment = false;
-
-            OutputDebugString(_T("Very small screen detected. Using minimum scale.\n"));
-        }
-
-        // Strategy 3: Clamp to reasonable bounds
-        adjustedScale = max(0.5, min(adjustedScale, 1.5));
-
-        // Apply adjusted scale
-        if (needsAdjustment)
-        {
-            m_dpiScaleFactor = adjustedScale;
-
-            // Show user-friendly message
-            if (screenHeight < 768) // Small screen detected
-            {
-                CString userMsg;
-                userMsg.Format(
-                    _T("Small screen detected (%dx%d).\n")
-                    _T("Application has been scaled to fit.\n")
-                    _T("Some controls may appear smaller than intended."),
-                    screenWidth, screenHeight);
-
-                // Optional: Show this message once per session
-                // MessageBox(userMsg, _T("Display Notice"), MB_OK | MB_ICONINFORMATION);
-                OutputDebugString(userMsg);
+            else {
+                HDC hdc = ::GetDC(m_hWnd);
+                if (hdc) {
+                    dpi = static_cast<UINT>(::GetDeviceCaps(hdc, LOGPIXELSX));
+                    ::ReleaseDC(m_hWnd, hdc);
+                }
             }
         }
     }
+    if (dpi == 0) dpi = 96;
+    m_dpiScaleFactor = static_cast<double>(dpi) / 96.0;
+
+    // 2) Get screen dimensions
+    RECT workArea;
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+    int screenWidth = workArea.right - workArea.left;
+    int screenHeight = workArea.bottom - workArea.top;
+
+    // 3) Get dialog base size
+    CRect rcClient;
+    GetClientRect(&rcClient);
+    int w = rcClient.Width();
+    int h = rcClient.Height();
+    if (w <= 0) w = 1;
+    if (h <= 0) h = 1;
+
+    if (m_baseWidth <= 0 || m_baseHeight <= 0) {
+        m_baseWidth = w;
+        m_baseHeight = h;
+    }
+
+    // 4) Calculate scaled dimensions
+    int scaledWidth = static_cast<int>(m_baseWidth * m_dpiScaleFactor);
+    int scaledHeight = static_cast<int>(m_baseHeight * m_dpiScaleFactor);
+
+    // 5) Apply adaptive strategy based on screen size
+    const int SAFE_MARGIN = 80; // For window borders, taskbar, etc.
+    int availableWidth = screenWidth - SAFE_MARGIN;
+    int availableHeight = screenHeight - SAFE_MARGIN;
+
+    bool needsAdjustment = false;
+    double adjustedScale = m_dpiScaleFactor;
+
+    // Strategy 1: If dialog is much larger than screen, reduce DPI scaling
+    if (scaledHeight > availableHeight || scaledWidth > availableWidth)
+    {
+        double heightScale = (double)availableHeight / m_baseHeight;
+        double widthScale = (double)availableWidth / m_baseWidth;
+        double maxFitScale = min(heightScale, widthScale);
+
+        // Only reduce DPI scale, never increase it beyond original
+        if (maxFitScale < m_dpiScaleFactor)
+        {
+            adjustedScale = maxFitScale;
+            needsAdjustment = true;
+
+            CString msg;
+            msg.Format(_T("Screen too small. Adjusted DPI from %.2f to %.2f\n"),
+                m_dpiScaleFactor, adjustedScale);
+            OutputDebugString(msg);
+        }
+    }
+
+    // Strategy 2: For very small screens (< 800x600), use minimum scale
+    if (screenHeight < 600 || screenWidth < 800)
+    {
+        adjustedScale = min(adjustedScale, 1);
+        needsAdjustment = false;
+
+        OutputDebugString(_T("Very small screen detected. Using minimum scale.\n"));
+    }
+
+    // Strategy 3: Clamp to reasonable bounds
+    adjustedScale = max(0.5, min(adjustedScale, 1.5));
+
+    // Apply adjusted scale
+    if (needsAdjustment)
+    {
+        m_dpiScaleFactor = adjustedScale;
+
+        // Show user-friendly message
+        if (screenHeight < 768) // Small screen detected
+        {
+            CString userMsg;
+            userMsg.Format(
+                _T("Small screen detected (%dx%d).\n")
+                _T("Application has been scaled to fit.\n")
+                _T("Some controls may appear smaller than intended."),
+                screenWidth, screenHeight);
+
+            // Optional: Show this message once per session
+            // MessageBox(userMsg, _T("Display Notice"), MB_OK | MB_ICONINFORMATION);
+            OutputDebugString(userMsg);
+        }
+    }
+}
 
 int CBatteryHelthDlg::ScaleDPI(int value)
 {
@@ -449,13 +449,13 @@ void CBatteryHelthDlg::ApplyScaledFonts()
             IDC_BATT_CAPACITY, IDC_BATT_NAME, IDC_BATT_DCAPACITY,
             IDC_BATT_MANUFAC, IDC_BATT_CYCLE, IDC_BATT_HEALTH,
             IDC_BATT_VOLTAGE, IDC_BATT_TEMP, IDC_BATT_CURRCAPACITY,
-            IDC_STATIC_DH, IDC_STATIC_ABT, IDC_STATIC_BBI, 
+            IDC_STATIC_DH, IDC_STATIC_ABT, IDC_STATIC_BBI,
     };
 
     for (UINT id : boldIds)
     {
         if (CWnd* pWnd = GetDlgItem(id))
-            pWnd->SetFont(& m_fontBold);
+            pWnd->SetFont(&m_fontBold);
     }
 
     // Apply normal font to value displays
@@ -515,8 +515,8 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT, 
+        IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY, IDC_BTN_MANIPULATIOIN,
+        IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
 IDC_STATIC_CAPHIS
@@ -560,7 +560,7 @@ LRESULT CBatteryHelthDlg::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 
     return 0;
 }
- 
+
 
 
 //static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
@@ -908,7 +908,7 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
 
 namespace {
     constexpr UINT  IDT_NOTIFY_LONGRUN = 2001;
-    constexpr UINT  NOTIFY_INTERVAL_MS = 30*60000;             // every 30*1min = 30 mins
+    constexpr UINT  NOTIFY_INTERVAL_MS = 30 * 60000;             // every 30*1min = 30 mins
     constexpr ULONGLONG MIN_UPTIME_SEC = 15ULL * 60ULL;     // 15 minutes (requirement)
     constexpr ULONGLONG IDLE_THRESHOLD_SEC = 5ULL * 60ULL;  // 5 minutes = idle
 }
@@ -1063,11 +1063,11 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 
 
 
- /*   UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
-    UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");*/
+    /*   UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested");
+       UpdateLabel(this, IDC_BATT_DISCHARGR, L"Discharge Not Tested");*/
 
 
-	GetStaticBatteryInfo(); // Initial fetch
+    GetStaticBatteryInfo(); // Initial fetch
 
     // Get battery info + start timer
     GetBatteryInfo();
@@ -1114,8 +1114,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BATT_MANUFAC, IDC_STATIC_CYCLE, IDC_BATT_CYCLE, IDC_STATIC_HEALTH,
         IDC_BATT_HEALTH, IDC_STATIC_VOLTAGE, IDC_BATT_VOLTAGE, IDC_STATIC_TEMP,
         IDC_BATT_TEMP, IDC_PROGRESS5, IDC_STATIC_CURRCAPACITY, IDC_BATT_CURRCAPACITY,
-		IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
-		IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
+        IDC_BTN_CAPHIS, IDC_BTN_ACTIVE, IDC_BTN_STANDBY,IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN,
+        IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
 IDC_STATIC_CAPHIS
@@ -1187,7 +1187,7 @@ IDC_STATIC_CAPHIS
 
     SetDlgItemTextW(IDC_STATIC_HEADER, L"Battery Health and Performance Monitor");
 
-	// Register for display on/off/dim notifications (sleep-awake features)
+    // Register for display on/off/dim notifications (sleep-awake features)
     m_hDispNotify = RegisterPowerSettingNotification(
         m_hWnd,
         &GUID_CONSOLE_DISPLAY_STATE,
@@ -1575,7 +1575,7 @@ void CBatteryHelthDlg::OnSize(UINT nType, int cx, int cy)
     }
     else if (nType == SIZE_RESTORED)
     {
-		
+
         // Restore to DPI-scaled fonts (not 1.0, but m_dpiScaleFactor)
         CreateScaledFonts();
         ApplyScaledFonts();
@@ -4000,7 +4000,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
     {
         // Could not read battery status
         GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
-       
+
         /*     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
         return;
     }
@@ -4022,14 +4022,14 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
 
     if (sps.ACLineStatus == 1) // Charging
     {
-       /* GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);*/
-        /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
+        /* GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);*/
+         /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
         m_discharge_progress.ShowWindow(SW_HIDE);
 
-       /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
-       
+        /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
 
-           // If discharge test is running, stop it immediately
+
+            // If discharge test is running, stop it immediately
         if (m_dischargeTestRunning)
         {
             KillTimer(m_dischargeTimerID);
@@ -4047,13 +4047,13 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
         /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow();*/
     }
 
-    
+
 }
 
 
 void CBatteryHelthDlg::StopDischargeTest()
 {
-	//AfxMessageBox(L"1112222Please unplug the charger to stop the discharge test.", MB_OK | MB_ICONWARNING);
+    //AfxMessageBox(L"1112222Please unplug the charger to stop the discharge test.", MB_OK | MB_ICONWARNING);
     //if (!m_dischargeTestRunning)
     //    return;
 
@@ -4299,7 +4299,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
     if (batterySaverOn)
     {
-        
+
         m_discharge_progress.ShowWindow(SW_HIDE);
         KillTimer(m_dischargeTimerID);
         m_dischargeTestRunning = false;
@@ -4316,10 +4316,10 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         return;
     }
     // ────────────────────────────────────────────────────────────────────────
-  
+
     // If already running
     if (m_dischargeTestRunning)
-    {  
+    {
         m_dischargeTestRunning = false;
         m_discharge_progress.ShowWindow(SW_HIDE);
         KillTimer(m_dischargeTimerID);
@@ -4391,12 +4391,12 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 {
     if (nIDEvent == 1 || nIDEvent == 2)
     {
-       if (nIDEvent == 2) {
+        if (nIDEvent == 2) {
             GetBatteryInfo();
 
             CheckBatteryDecreaseNotify();
 
-	   }
+        }
 
         if (nIDEvent == 1) {
             CPoint mouse; GetCursorPos(&mouse);
@@ -4421,7 +4421,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     }
 
     else if (nIDEvent == m_dischargeTimerID && m_dischargeTestRunning)
-    { 
+    {
         m_elapsedSeconds++; // count seconds
 
         SYSTEM_POWER_STATUS sps;
@@ -4443,12 +4443,12 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             //msg.Format(L"Time elapsed: %d sec\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
             //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
 
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)", progressPercent);
             }
             else {
-                    msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
-			}
+                msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
+            }
 
             //// Create dialog if needed
             //if (!m_pDischargeDlg)
@@ -4466,8 +4466,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
 
             /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
-            
-            
+
+
      /*       UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
 
             m_discharge_progress.SetPos(progressPercent);*/
@@ -4486,38 +4486,38 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
-                
-                if(m_lang == Lang::EN) {
+
+                if (m_lang == Lang::EN) {
                     AfxMessageBox(L"Charger connected. Discharge test stopped.");
                 }
                 else {
-					AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
+                    AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
                 }
 
                 StopDischargeTest();
                 GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-				m_discharge_progress.ShowWindow(SW_HIDE);
-                
+                m_discharge_progress.ShowWindow(SW_HIDE);
+
             }
 
             else if (sps.SystemStatusFlag & 1) // Battery saver ON
             {
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
-               /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
+                /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
 
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
-                
+
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
 
                 CString msg;
-                
-                if(m_lang == Lang::EN) {
+
+                if (m_lang == Lang::EN) {
                     msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
                 }
                 else {
-					msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
+                    msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
                 }
 
 
@@ -4530,7 +4530,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 return;
             }
             // Stop the test after duration
-            else if (m_elapsedSeconds >= totalSeconds )
+            else if (m_elapsedSeconds >= totalSeconds)
             {
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
@@ -4539,7 +4539,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
                 // Store final result
-                if(m_lang == Lang::EN) {
+                if (m_lang == Lang::EN) {
                     m_dischargeResult.Format(L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                         m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
                 }
@@ -4548,7 +4548,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                         m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
                 }
 
-            
+
 
                 //msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
                 //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
@@ -4567,7 +4567,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     float initial = static_cast<float>(m_initialBatteryPercent);
                     float current = static_cast<float>(sps.BatteryLifePercent);
                     float rate = static_cast<float>(drainRate);     // %/min
-    
+
 
                     // Build (time, %) series
                     std::vector<float> tt, yy;
@@ -4592,29 +4592,29 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
              /*   UpdateLabel(this, IDC_BATT_DISCHARGR, msg);*/
 
                 GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-                
-                if(m_lang == Lang::EN) {
+
+                if (m_lang == Lang::EN) {
                     SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
                 }
                 else {
                     SetDlgItemText(IDC_BTN_DISCHARGE, L"放電試験を開始する");
                 }
 
-                
 
-               /* AfxMessageBox(L"Discharge Test Completed!");*/
+
+                /* AfxMessageBox(L"Discharge Test Completed!");*/
             }
         }
         else
         {
             /*SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");*/
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
             }
-            else { 
+            else {
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"バッテリー残量を読み取ることができません。");
             }
-           
+
 
         }
     }
@@ -4633,16 +4633,16 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         CString msg;
         /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
 
-        
 
-            if(m_lang == Lang::EN) {
-                msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", percentDone);
-            }
-            else {
-                msg.Format(L"完了するまで 1 分ほどお待ちください。(%.0f%%)", percentDone);
-			}
 
-        
+        if (m_lang == Lang::EN) {
+            msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", percentDone);
+        }
+        else {
+            msg.Format(L"完了するまで 1 分ほどお待ちください。(%.0f%%)", percentDone);
+        }
+
+
 
 
         ///*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
@@ -4650,13 +4650,13 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
         //m_CPU_Progress.SetPos(percentDone);
 
-            if (m_pCpuDlg)
-            {
-                m_pCpuDlg->UpdateProgress(
-                    (int)percentDone,
-                    msg
-                );
-            }
+        if (m_pCpuDlg)
+        {
+            m_pCpuDlg->UpdateProgress(
+                (int)percentDone,
+                msg
+            );
+        }
 
 
 
@@ -4664,7 +4664,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         // Stop if requested
         if (m_stopCpuLoad.load())
         {
-          
+
 
             if (m_pCpuDlg)
                 m_pCpuDlg->ShowWindow(SW_HIDE);
@@ -4673,18 +4673,18 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             m_cpuLoadTestRunning = false;
             KillTimer(m_cpuLoadTimerID);
 
-            if(m_lang == Lang::EN) {
+            if (m_lang == Lang::EN) {
                 SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
             }
             else {
                 SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テスト");
             }
 
-       
+
 
             /*SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");*/
-            
-            if(m_lang == Lang::EN) {
+
+            if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
             }
             else {
@@ -4861,17 +4861,17 @@ bool CBatteryHelthDlg::IsCharging()
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
-    if(HasBattery() == false) {
-        
-        if(m_lang == Lang::EN) {
+    if (HasBattery() == false) {
+
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"No battery detected. CPU Load Test requires a battery.");
         }
         else {
             AfxMessageBox(L"バッテリーが検出されません。CPU負荷テストにはバッテリーが必要です。");
         }
-        
+
         return;
-	}
+    }
 
     if (IsCharging())
     {
@@ -4879,7 +4879,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
         return;
     }
 
-    UpdateLabel(this,IDC_BATT_DISCHARGR, L"");
+    UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
 
     // Stop if running
     if (m_cpuLoadTestRunning)
@@ -4894,7 +4894,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
             SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テストの開始");
         }
 
-       /* UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");*/
+        /* UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Not Tested...");*/
         return;
     }
 
@@ -4908,14 +4908,14 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
         //en2jp
 
-        if(m_lang== Lang::EN) {
+        if (m_lang == Lang::EN) {
             msg.Format(L"CPU usage is currently too high (%.0f%%). Please close background applications first.", usage);
         }
         else {
             msg.Format(L"現在CPU使用率が高すぎます（ % .0f % %）。まずバックグラウンドアプリケーションを閉じてください。", usage);
         }
 
-        
+
         ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
         return;
     }
@@ -4924,13 +4924,13 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     SYSTEM_POWER_STATUS sps;
     if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
     {
-        
-            if(m_lang == Lang::EN) {
-                AfxMessageBox(L"Cannot read battery percentage.");
-            }
-            else {
-                AfxMessageBox(L"バッテリー残量を読み取ることができません。");
-            }
+
+        if (m_lang == Lang::EN) {
+            AfxMessageBox(L"Cannot read battery percentage.");
+        }
+        else {
+            AfxMessageBox(L"バッテリー残量を読み取ることができません。");
+        }
         return;
     }
 
@@ -4946,9 +4946,9 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
  //   }
  //   else {
  //       UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU 負荷テストを実行中...");
-	//}
+    //}
 
-    
+
 
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
@@ -5028,7 +5028,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
                         0,
                         gflops);
                 }
-            
+
                 //en2jp-
                 else {
                     msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
@@ -5043,13 +5043,13 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
             }
             else
             {
-                if(m_lang == Lang::EN) {
+                if (m_lang == Lang::EN) {
                     msg = L"Cannot read battery percentage.";
                 }
                 else {
                     msg = L"バッテリー残量を読み取ることができません。";
                 }
-               
+
             }
 
             m_cpuLoadTestCompleted = true;
@@ -5129,16 +5129,16 @@ CString CBatteryHelthDlg::QueryBatteryCapacityHistory()
 LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 {
 
-   
 
-    if (m_cpuLoadTimerID != 0 )
+
+    if (m_cpuLoadTimerID != 0)
     {
         KillTimer(m_cpuLoadTimerID);
 
     }
 
-   
-     
+
+
 
 
     m_CPU_Progress.ShowWindow(SW_HIDE);
@@ -5147,9 +5147,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     //SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);
 
     //UpdateLabel(this, IDC_BATT_CPULOAD, *pMsg);
-     UpdateLabel(this, IDC_BATT_CPULOAD, L"");
+    UpdateLabel(this, IDC_BATT_CPULOAD, L"");
 
-	
+
 
     // ---- Parse dynamic values from *pMsg and show the graph ----
     {
@@ -5205,10 +5205,10 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
 
 
         if (!m_stopCpuLoad.load()) {
-           CString msg;
+            CString msg;
 
-        msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", 0);
-             if (m_pCpuDlg)
+            msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", 0);
+            if (m_pCpuDlg)
             {
                 m_pCpuDlg->UpdateProgress(
                     (int)0,
@@ -5216,16 +5216,16 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
                 );
             }
 
-        dlg.SetData(initial, current, rate, gflops, tt, yy);
-        dlg.DoModal();
-    }
+            dlg.SetData(initial, current, rate, gflops, tt, yy);
+            dlg.DoModal();
         }
-       
-        
+    }
 
 
 
-	//AfxMessageBox(*pMsg);
+
+
+    //AfxMessageBox(*pMsg);
 
     //if (m_cpuLoadClick) {
     //    SetButtonFont(IDC_BATT_CPULOAD, true);
@@ -5788,10 +5788,10 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
     // Check if the cursor is over your button
-    if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY 
-        || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS|| pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE 
+    if (pWnd->GetDlgCtrlID() == IDC_BTN_CPULOAD || pWnd->GetDlgCtrlID() == IDC_BTN_DISCHARGE || pWnd->GetDlgCtrlID() == IDC_BTN_HISTORY
+        || pWnd->GetDlgCtrlID() == IDC_BTN_UPLOADPDF || pWnd->GetDlgCtrlID() == IDC_BTN_CAPHIS || pWnd->GetDlgCtrlID() == IDC_BTN_ACTIVE
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
-		|| pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP 
+        || pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP
         || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP || pWnd->GetDlgCtrlID() == IDC_BTN_BREPORT
         )
     {
@@ -5898,8 +5898,8 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
 
     std::vector<CBatteryHelthDlg::BatteryCapacityRecord> hist;
     if (!GetBatteryCapacityHistory(hist) || hist.empty()) {
-        
-        if(m_lang == Lang::EN) {
+
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Could not read Battery Capacity History.");
         }
         else {
@@ -5911,13 +5911,13 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
 
     // Build CSV content (header + rows)
     std::wstring csv;
-    
-    if(m_lang == Lang::EN) {
+
+    if (m_lang == Lang::EN) {
         csv += L"Period ,FullChargeCapacity,DesignCapacity,Health_%\r\n";
     }
     else {
         csv = L"期間,フル充電容量,設計容量,健全性_%\r\n";
-	}
+    }
 
     for (const auto& r : hist) {
         // If you also want ISO date, you can format COleDateTime here; we’ll stick to dateText.
@@ -5933,19 +5933,19 @@ void CBatteryHelthDlg::OnBnClickedBtnCaphis()
     // Save to %TEMP%\battery_capacity_history_YYYYMMDD_HHMMSS.csv and open it
     CString outPath;
     if (!SaveCsvUtf8AndOpen(csv, outPath)) {
-        if(m_lang == Lang::EN) {
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Failed to write/open CSV file.");
         }
         else {
             AfxMessageBox(L"CSV ファイルの書き込み / オープンに失敗しました。");
-            
+
         }
         return;
     }
 
     // Optional toast
     CString msg;
-    if(m_lang == Lang::EN) {
+    if (m_lang == Lang::EN) {
         msg.Format(L"CSV exported:\n%s", outPath.GetString());
     }
     else {
@@ -6042,11 +6042,11 @@ static bool PredictDateForTarget(const LinearFit& fit, double targetPct, COleDat
 //}
 
 void CBatteryHelthDlg::OnBnClickedBtnActive()
-{ 
+{
 
-    
 
-    if(HasBattery() == false)
+
+    if (HasBattery() == false)
     {
         if (m_lang == Lang::EN) {
             AfxMessageBox(L"No battery detected.");
@@ -6055,7 +6055,7 @@ void CBatteryHelthDlg::OnBnClickedBtnActive()
             AfxMessageBox(L"バッテリーが検出されません。");
         }
         return;
-	}
+    }
 
 
     CTrendDlg dlg(this);
@@ -6068,9 +6068,9 @@ void CBatteryHelthDlg::OnBnClickedBtnActive()
     // TODO: Add your control notification handler code here
     if (m_lang == Lang::EN)
     {
-		dlg.eng_lang = true;
+        dlg.eng_lang = true;
     }
-    else{
+    else {
         dlg.eng_lang = false;
     }
 
@@ -6364,19 +6364,19 @@ void CBatteryHelthDlg::OnBnClickedBtnUsage()
 
     std::vector<UsageHistoryRow> rows;
     if (!GetUsageHistory(rows) || rows.empty()) {
-        
-        if(m_lang == Lang::EN) {
+
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Could not read Usage History from the battery report.");
         }
         else {
             AfxMessageBox(L"バッテリーレポートから使用履歴を読み取ることができませんでした。");
-		}
+        }
         return;
     }
 
     std::wstring csv;
-    
-    if(m_lang == Lang::EN) {
+
+    if (m_lang == Lang::EN) {
         csv += L",Battery Duration,Battery Duration,AC Duration,AC Duration,\r\n";
         csv += L"Period,Battery Active (hrs),Battery Standby (hrs),AC Active (hrs),AC Standby (hrs)\r\n";
     }
@@ -6406,20 +6406,20 @@ void CBatteryHelthDlg::OnBnClickedBtnUsage()
 
     CString outPath;
     if (!SaveCsvUtf8AndOpen(csv, outPath)) {
-        
-        if(m_lang == Lang::EN) {
+
+        if (m_lang == Lang::EN) {
             AfxMessageBox(L"Failed to write/open CSV file.");
         }
         else {
             AfxMessageBox(L"英語CSVファイルの書き込み / オープンに失敗しました。");
-            
-		}
+
+        }
 
         return;
     }
 
     CString msg;
-    if(m_lang == Lang::EN) {
+    if (m_lang == Lang::EN) {
         msg.Format(L"CSV exported:\n%s", outPath.GetString());
     }
     else {
@@ -6443,7 +6443,7 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
         return;
     }
 
-	CManipulationDlg dlg(this);
+    CManipulationDlg dlg(this);
 
     dlg.cycles = QueryBatteryCycleCount();
 
@@ -6455,10 +6455,10 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
         dlg.eng_lang = false;
     }
 
-	dlg.designCapValue = designCapValue;
+    dlg.designCapValue = designCapValue;
 
-	dlg.DoModal(); 
- 
+    dlg.DoModal();
+
 }
 
 
@@ -6863,7 +6863,7 @@ CString CBatteryHelthDlg::BuildVisibleAppsReport()
     {
         std::wstring key = it->first;
         ProcInfo& info = it->second;
-    
+
         if (!info.hasWindow) continue;   // skip background-only processes
 
         Row row;
@@ -7010,7 +7010,7 @@ void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
 
     // Only notify if we found an IDLE app
     if (!best) {
-   
+
         return;
     }
 
@@ -7021,18 +7021,18 @@ void CBatteryHelthDlg::CheckAndNotifyTopLongRunning()
     CString idleStr = FormatTimespan(best->idleTimeSec);
 
     // Close any existing balloon before showing a new one
-        CloseBalloon();
+    CloseBalloon();
 
     CString title;
     CString body;
 
-    if(m_lang == Lang::EN) {
-         title.Format(L"Idle long-running app: %s", best->name.c_str());
-         body.Format(L"%s has been running for %s.\nStatus: IDLE",
+    if (m_lang == Lang::EN) {
+        title.Format(L"Idle long-running app: %s", best->name.c_str());
+        body.Format(L"%s has been running for %s.\nStatus: IDLE",
             best->name.c_str(), up.GetString());
         ShowBalloon(title, body, NIIF_INFO);
         return;
-	}
+    }
     else {
         title.Format(L"アイドル状態の長時間実行アプリ: %s", best->name.c_str());
         body.Format(L"%s は %s の間実行されています。\nステータス: IDLE",
@@ -7064,7 +7064,7 @@ void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
 
     // TODO: Add your control notification handler code here
 
-	CRateInfoDlg dlg(this); 
+    CRateInfoDlg dlg(this);
 
     if (m_lang == Lang::EN)
     {
@@ -7074,7 +7074,7 @@ void CBatteryHelthDlg::OnBnClickedBtnRateinfo()
         dlg.eng_lang = false;
     }
 
-	dlg.DoModal();
+    dlg.DoModal();
 }
 
 
@@ -7166,9 +7166,9 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         SetDlgItemTextW(IDC_STATIC_CYCLE, _T(""));
         SetDlgItemTextW(IDC_STATIC_HEALTH, _T(""));
 
-		Invalidate();
+        Invalidate();
 
-		//--------------------------------------
+        //--------------------------------------
         SetDlgItemTextW(IDC_STATIC_HEADER, L"Battery Health and Performance Monitor");
         SetDlgItemTextW(IDC_STATIC_BBI, _T("Basic Battery Info"));
 
@@ -7186,7 +7186,7 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         SetDlgItemTextW(IDC_STATIC_HEALTH, _T("Health"));
 
 
-		////////////Advance Info Section/////////////////////
+        ////////////Advance Info Section/////////////////////
 
         SetDlgItemTextW(IDC_STATIC_ABT, _T("Advance Battery Info"));
 
@@ -7197,13 +7197,13 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         CloseBalloon();
         CheckAndNotifyTopLongRunning();
 
-		InitToolTips();
+        InitToolTips();
         Invalidate();
 
         GetBatteryInfo();
         GetStaticBatteryInfo();
 
-		
+
         UpdateWindow();
     }
 }
@@ -7214,7 +7214,7 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
     if (m_lang != Lang::JP)
     {
         m_lang = Lang::JP;
-       /* UpdateLanguageTexts();*/
+        /* UpdateLanguageTexts();*/
         RedrawToggleButtons();
         // TODO: apply Japanese strings / resources here if needed
 
@@ -7242,7 +7242,7 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
 
 
         //--------------------------------------
-    
+
         SetDlgItemTextW(IDC_STATIC_HEADER, L"バッテリー状態・パフォーマンスモニター");
         SetDlgItemTextW(IDC_STATIC_BBI, _T("基本バッテリー情報"));
 
@@ -7264,7 +7264,7 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
         SetDlgItemTextW(IDC_STATIC_ABT, _T("事前のバッテリー情報"));
 
 
-		///////Data and History Section/////////////////////
+        ///////Data and History Section/////////////////////
         SetDlgItemTextW(IDC_STATIC_DH, _T("データと歴史"));
 
 
@@ -7276,8 +7276,8 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
 
         InitToolTips();
         Invalidate();
-    
-   /*     UpdateWindow();*/
+
+        /*     UpdateWindow();*/
     }
 }
 
@@ -7301,12 +7301,12 @@ void CBatteryHelthDlg::OnBnClickedBtnSleep()
 
     CSleepDataDlg dlg;
 
-    if(m_lang == Lang::EN){
+    if (m_lang == Lang::EN) {
         dlg.eng_lang = true;
     }
     else {
         dlg.eng_lang = false;
-	}
+    }
 
     dlg.DoModal(); // shows persistent log, auto-refreshing
 }
