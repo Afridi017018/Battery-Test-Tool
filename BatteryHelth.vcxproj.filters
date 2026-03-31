@@ -69,6 +69,12 @@
     <ClInclude Include="CChargeDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CAutoReportDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CReportDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -114,6 +120,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CChargeDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CAutoReportDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CReportDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

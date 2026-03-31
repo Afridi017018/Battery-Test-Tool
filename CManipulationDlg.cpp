@@ -792,7 +792,7 @@ namespace BMD_Internal {
             double overPct = (latestF / design - 1.0) * 100.0;
 
 
-            if (overPct > T.exceedDesignPct) {
+            if (overPct < T.exceedDesignPct) {
                 CString d; d.Format(g_Texts[lang][MTK_DETAIL_CAP_EXCEEDS], latestF, design, overPct);
                 AddFlag(flags, g_Texts[lang][MTK_ROW_CAP_EXCEEDS], d, W.capacityExceedsDesign);
                 score -= W.capacityExceedsDesign;

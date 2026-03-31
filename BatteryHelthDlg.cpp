@@ -63,6 +63,10 @@
 
 #include "CChargeDlg.h"
 
+#include "CAutoReportDlg.h"
+
+#include "CReportDlg.h"
+
 
 #include <string>
 #include <map>
@@ -205,6 +209,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_WM_POWERBROADCAST()   // main dialog is the single logger
     ON_BN_CLICKED(IDC_BTN_BREPORT, &CBatteryHelthDlg::OnBnClickedBtnBreport)
+    ON_BN_CLICKED(IDC_AUTO, &CBatteryHelthDlg::OnBnClickedAuto)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -877,32 +882,55 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
     pCtl->GetWindowText(cur);
     if (cur == processedText) return;   // Fix 2: compare against processedText, not raw text
 
-    // -------------------------------
-    // 6) Update text with aggressive background clearing
-    // -------------------------------
-    // Get control rectangle BEFORE hiding
+    //// -------------------------------
+    //// 6) Update text with aggressive background clearing
+    //// -------------------------------
+    //// Get control rectangle BEFORE hiding
+    //CRect rcCtl;
+    //pCtl->GetWindowRect(&rcCtl);
+    //pDlg->ScreenToClient(&rcCtl);
+
+    //// Expand the invalidation area to cover any antialiasing
+    //CRect rcInvalidate = rcCtl;
+    //rcInvalidate.InflateRect(5, 5);
+
+    //// Hide control temporarily
+    //pCtl->ShowWindow(SW_HIDE);
+
+    //// Force parent dialog to redraw the area (this redraws your gradient)
+    //pDlg->InvalidateRect(&rcInvalidate, TRUE);
+    //pDlg->UpdateWindow(); // Force immediate redraw
+
+    //// Update the text while hidden
+    //pCtl->SetWindowText(processedText);  // Fix 3: was `text`, must be `processedText`
+
+    //// Show and invalidate the control
+    //pCtl->ShowWindow(SW_SHOW);
+    //pCtl->Invalidate(TRUE); // TRUE = erase background
+    //pCtl->UpdateWindow();
+
+
+
+ // -------------------------------
+// 6) Update text (FIXED - no hide/show)
+// -------------------------------
     CRect rcCtl;
     pCtl->GetWindowRect(&rcCtl);
     pDlg->ScreenToClient(&rcCtl);
 
-    // Expand the invalidation area to cover any antialiasing
+    // Expand slightly
     CRect rcInvalidate = rcCtl;
-    rcInvalidate.InflateRect(5, 5);
+    rcInvalidate.InflateRect(3, 3);
 
-    // Hide control temporarily
-    pCtl->ShowWindow(SW_HIDE);
+    pCtl->SetWindowText(processedText);
+    pDlg->InvalidateRect(&rcInvalidate, FALSE);
 
-    // Force parent dialog to redraw the area (this redraws your gradient)
-    pDlg->InvalidateRect(&rcInvalidate, TRUE);
-    pDlg->UpdateWindow(); // Force immediate redraw
+    // Optional (if you want immediate update)
+    pDlg->UpdateWindow();
 
-    // Update the text while hidden
-    pCtl->SetWindowText(processedText);  // Fix 3: was `text`, must be `processedText`
 
-    // Show and invalidate the control
-    pCtl->ShowWindow(SW_SHOW);
-    pCtl->Invalidate(TRUE); // TRUE = erase background
-    pCtl->UpdateWindow();
+
+
 }
 
 
@@ -1666,6 +1694,8 @@ HBRUSH CBatteryHelthDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
         return (HBRUSH)GetStockObject(HOLLOW_BRUSH);
     }
 
+
+
     return hbr;
 }
 
@@ -1681,6 +1711,54 @@ void CBatteryHelthDlg::OnSysCommand(UINT nID, LPARAM lParam)
         CDialogEx::OnSysCommand(nID, lParam);
     }
 }
+
+
+
+//void CBatteryHelthDlg::OnPaint()
+//{
+//    if (IsIconic())
+//    {
+//        CPaintDC dc(this);
+//
+//        SendMessage(WM_ICONERASEBKGND,
+//            reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
+//
+//        int cxIcon = GetSystemMetrics(SM_CXICON);
+//        int cyIcon = GetSystemMetrics(SM_CYICON);
+//
+//        CRect rect;
+//        GetClientRect(&rect);
+//
+//        int x = (rect.Width() - cxIcon + 1) / 2;
+//        int yIcon = (rect.Height() - cyIcon + 1) / 2;
+//
+//        dc.DrawIcon(x, yIcon, m_hIcon);
+//    }
+//    else
+//    {
+//        CPaintDC dc(this);
+//        CDialogEx::OnPaint();
+//
+//        CRect rc;
+//        GetClientRect(&rc);
+//
+//        // Get text control position
+//        CWnd* pText = GetDlgItem(IDC_BATT_DID);
+//        CRect textRect;
+//        pText->GetWindowRect(&textRect);
+//        ScreenToClient(&textRect);
+//
+//        int y = textRect.bottom + 0;
+//
+//        CPen pen(PS_SOLID, 1, RGB(220, 220, 220));
+//        CPen* pOldPen = dc.SelectObject(&pen);
+//
+//        dc.MoveTo(0.1, y);
+//        dc.LineTo(rc.right - 1, y);
+//
+//        dc.SelectObject(pOldPen);
+//    }
+//}
 
 
 
@@ -1707,26 +1785,53 @@ void CBatteryHelthDlg::OnPaint()
     else
     {
         CPaintDC dc(this);
+
         CDialogEx::OnPaint();
 
+        // ✅ Paint 3 group boxes
+        int groupIDs[] = { IDC_STATIC_ABT, IDC_STATIC_BBI, IDC_STATIC_DH };
+        COLORREF colors[] = {
+    RGB(200, 220, 255),  // Light Blue
+    RGB(200, 220, 255),  // Light Green
+    RGB(200, 220, 255)   // Light Orange
+        };
+
+
+        for (int i = 0; i < 3; i++)
+        {
+            CWnd* pGroup = GetDlgItem(groupIDs[i]);
+            if (pGroup)
+            {
+                CRect rect;
+                pGroup->GetWindowRect(&rect);
+                ScreenToClient(&rect);
+
+                rect.DeflateRect(2, 10, 2, 2);
+                dc.FillSolidRect(&rect, colors[i]);
+            }
+        }
+
+        // ✅ Existing line
         CRect rc;
         GetClientRect(&rc);
 
-        // Get text control position
         CWnd* pText = GetDlgItem(IDC_BATT_DID);
-        CRect textRect;
-        pText->GetWindowRect(&textRect);
-        ScreenToClient(&textRect);
+        if (pText)
+        {
+            CRect textRect;
+            pText->GetWindowRect(&textRect);
+            ScreenToClient(&textRect);
 
-        int y = textRect.bottom + 0;
+            int y = textRect.bottom;
 
-        CPen pen(PS_SOLID, 1, RGB(220, 220, 220));
-        CPen* pOldPen = dc.SelectObject(&pen);
+            CPen pen(PS_SOLID, 1, RGB(220, 220, 220));
+            CPen* pOldPen = dc.SelectObject(&pen);
 
-        dc.MoveTo(0.1, y);
-        dc.LineTo(rc.right - 1, y);
+            dc.MoveTo(0, y);
+            dc.LineTo(rc.right - 1, y);
 
-        dc.SelectObject(pOldPen);
+            dc.SelectObject(pOldPen);
+        }
     }
 }
 
@@ -2889,6 +2994,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         }
     }
 
+
     // cleanup
     pObj->Release();
     pEnumerator->Release();
@@ -2899,7 +3005,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     UpdateDischargeButtonStatus();
     CheckBatteryTransition();
 
-    Invalidate();
+   
 
 }
 
@@ -3990,6 +4096,8 @@ void CBatteryHelthDlg::CheckBatteryDecreaseNotify()
 
     // Update last notified value
     m_lastBatteryNotifyPercent = currentPercent;
+
+
 }
 
 
@@ -6341,7 +6449,25 @@ bool GetUsageHistory(std::vector<UsageHistoryRow>& outRows)
         }
 
         outRows.push_back(std::move(row));
+
+        
     }
+
+    CString allDbg;
+
+    for (const auto& r : outRows) {
+        CString line;
+        line.Format(L"%s | %.2f | %.2f | %.2f | %.2f\r\n",
+            r.period.GetString(),
+            r.battActiveHrs,
+            r.battStandbyHrs,
+            r.acActiveHrs,
+            r.acStandbyHrs);
+
+        allDbg += line;
+    }
+
+    AfxMessageBox(allDbg);
 
     return !outRows.empty();
 }
@@ -6443,7 +6569,16 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
         return;
     }
 
-    CManipulationDlg dlg(this);
+
+    CReportDlg dlg(this);
+
+ 
+
+    dlg.DoModal();
+
+
+
+    /*CManipulationDlg dlg(this);
 
     dlg.cycles = QueryBatteryCycleCount();
 
@@ -6457,7 +6592,7 @@ void CBatteryHelthDlg::OnBnClickedBtnManipulatioin()
 
     dlg.designCapValue = designCapValue;
 
-    dlg.DoModal();
+    dlg.DoModal();*/
 
 }
 
@@ -7404,4 +7539,11 @@ void CBatteryHelthDlg::OnBnClickedBtnBreport()
         NULL,
         SW_SHOWNORMAL
     );
+}
+void CBatteryHelthDlg::OnBnClickedAuto()
+{
+    // TODO: Add your control notification handler code here
+
+    CAutoReportDlg dlg;
+    dlg.DoModal();
 }

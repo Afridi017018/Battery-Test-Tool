@@ -374,6 +374,7 @@ public:
 
 
 	bool IsCharging();
+	afx_msg void OnBnClickedAuto();
 };
 
 
