@@ -6,11 +6,11 @@
 
 IMPLEMENT_DYNAMIC(CReportDlg, CDialogEx)
 
-CReportDlg::CReportDlg(CWnd* pParent)
-	: CDialogEx(IDD_REPORT_DIALOG, pParent)
+CReportDlg::CReportDlg(const BatteryReportData& data, CWnd* pParent)
+	: CDialogEx(IDD_REPORT_DIALOG, pParent),
+	m_reportData(data)
 {
 }
-
 CReportDlg::~CReportDlg()
 {
 }
@@ -115,6 +115,7 @@ static bool GetUsageHistory(std::vector<CReportDlg::UsageHistoryRow>& outRows, c
 
 static bool GetBatteryCapacity(std::vector<CReportDlg::BatteryCapacityRow>& out, const CString& html)
 {
+
 	std::wregex re(LR"(BATTERY\s*CAPACITY\s*HISTORY[\s\S]*?<table[^>]*>([\s\S]*?)</table>)", std::regex_constants::icase);
 	std::wsmatch mh;
 	std::wstring H = html.GetString();
@@ -237,6 +238,10 @@ BOOL CReportDlg::OnInitDialog()
 	GetBatteryCapacity(m_capacity, m_htmlCache);
 	GetBatteryLife(m_life, m_htmlCache);
 
+	// 🔹 Calculate basic info block height:
+	// 1 headline row + 13 data rows + 1 separator gap
+	m_basicInfoHeight = m_rowHeight + 13 * m_rowHeight + 20;
+
 	UpdateScrollBar();
 
 	return TRUE;
@@ -247,7 +252,10 @@ void CReportDlg::UpdateScrollBar()
 	CRect r;
 	GetClientRect(&r);
 
-	int totalHeight = (m_rows.size() + m_capacity.size() + m_life.size()) * m_rowHeight + 300;
+	// Total height includes the basic info section at the top
+	int totalHeight = m_basicInfoHeight
+		+ (m_rows.size() + m_capacity.size() + m_life.size()) * m_rowHeight
+		+ 300;
 
 	SCROLLINFO vsi = { sizeof(vsi), SIF_RANGE | SIF_PAGE };
 	vsi.nMin = 0;
@@ -343,6 +351,73 @@ void CReportDlg::OnPaint()
 	int colPeriod = 320;
 	int col = 180;
 
+	//----------------------------------------------------------
+	// 🔹 BASIC BATTERY INFO SECTION
+	//----------------------------------------------------------
+
+	// Bold font for headline and all section headers
+	CFont fontBold;
+	fontBold.CreateFont(
+		18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
+	);
+
+	// Normal font for data rows
+	CFont fontNormal;
+	fontNormal.CreateFont(
+		16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
+	);
+
+	// --- Headline: "BATTERY INFO" ---
+	CFont* pOldFont = dc.SelectObject(&fontBold);
+	dc.TextOut(x, y, L"BATTERY INFO");
+	dc.SelectObject(pOldFont);
+	y += m_rowHeight + 5;
+
+	// --- Label column width ---
+	int labelCol = 220;
+
+	// Helper lambda to draw one info row (label bold, value normal)
+	auto DrawInfoRow = [&](const wchar_t* label, const CString& value)
+		{
+			pOldFont = dc.SelectObject(&fontBold);
+			dc.TextOut(x, y, label);
+			dc.SelectObject(&fontNormal);
+			dc.TextOut(x + labelCol, y, value);
+			dc.SelectObject(pOldFont);
+			y += m_rowHeight;
+		};
+
+	dc.SelectObject(&fontNormal);
+
+	DrawInfoRow(L"Manufacturer:", m_reportData.bid);
+	DrawInfoRow(L"Name:", m_reportData.name);
+	DrawInfoRow(L"UUID:", m_reportData.uuid);
+	DrawInfoRow(L"Design Capacity:", m_reportData.designCapacity + L" mWh");
+	DrawInfoRow(L"Full Charge Cap.:", m_reportData.fullChargeCapacity + L" mWh");
+	DrawInfoRow(L"Current Capacity:", m_reportData.currentCapacity + L" mWh");
+	DrawInfoRow(L"Health:", m_reportData.health);
+	DrawInfoRow(L"Cycles:", m_reportData.cycles);
+	DrawInfoRow(L"Voltage:", m_reportData.voltage);
+	DrawInfoRow(L"Temperature:", m_reportData.temperature);
+	DrawInfoRow(L"Status:", m_reportData.status);
+	DrawInfoRow(L"Percentage:", m_reportData.percentage);
+	DrawInfoRow(L"Time Remaining:", m_reportData.remainingTime);
+
+	dc.SelectObject(pOldFont);
+
+	// ✅ No horizontal separator line — just spacing before next section
+	y += 20;
+
+	//----------------------------------------------------------
+	// 🔹 USAGE HISTORY
+	//----------------------------------------------------------
+
+	// Bold section header + column headers
+	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"USAGE HISTORY");
 	y += m_rowHeight;
 
@@ -351,6 +426,7 @@ void CReportDlg::OnPaint()
 	dc.TextOut(x + colPeriod + col, y, L"Battery Standby");
 	dc.TextOut(x + colPeriod + col * 2, y, L"AC Active");
 	dc.TextOut(x + colPeriod + col * 3, y, L"AC Standby");
+	dc.SelectObject(pOldFont);
 
 	y += m_rowHeight;
 
@@ -373,12 +449,19 @@ void CReportDlg::OnPaint()
 
 	y += 40;
 
+	//----------------------------------------------------------
+	// 🔹 BATTERY CAPACITY HISTORY
+	//----------------------------------------------------------
+
+	// Bold section header + column headers
+	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"BATTERY CAPACITY HISTORY");
 	y += m_rowHeight;
 
 	dc.TextOut(x, y, L"Period");
 	dc.TextOut(x + colPeriod, y, L"Full Charge Capacity");
 	dc.TextOut(x + colPeriod + col, y, L"Design Capacity");
+	dc.SelectObject(pOldFont);
 
 	y += m_rowHeight;
 
@@ -393,6 +476,12 @@ void CReportDlg::OnPaint()
 
 	y += 40;
 
+	//----------------------------------------------------------
+	// 🔹 BATTERY LIFE ESTIMATES
+	//----------------------------------------------------------
+
+	// Bold section header + column headers
+	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"BATTERY LIFE ESTIMATES");
 	y += m_rowHeight;
 
@@ -401,6 +490,7 @@ void CReportDlg::OnPaint()
 	dc.TextOut(x + colPeriod + col, y, L"Design Connected");
 	dc.TextOut(x + colPeriod + col * 2, y, L"Full Active");
 	dc.TextOut(x + colPeriod + col * 3, y, L"Full Connected");
+	dc.SelectObject(pOldFont);
 
 	y += m_rowHeight;
 

@@ -15,7 +15,7 @@
 #include <atomic>
 
 #include "Resource.h"
-#include <shellapi.h>   // tray
+#include <shellapi.h>   
 #pragma comment(lib, "Shell32.lib")
 
 #include <unordered_map>
@@ -375,6 +375,8 @@ public:
 
 	bool IsCharging();
 	afx_msg void OnBnClickedAuto();
+
+	BatteryReportData m_reportData;
 };
 
 

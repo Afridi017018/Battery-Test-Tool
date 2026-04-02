@@ -9,11 +9,37 @@
 #endif
 
 #include "resource.h"		// main symbols
+#include <afxstr.h>
 
 
 // CBatteryHelthApp:
 // See BatteryHelth.cpp for the implementation of this class
 //
+
+
+struct BatteryReportData
+{
+    CString     designCapacity;
+    CString     fullChargeCapacity;
+
+
+    CString health;
+    CString cycles;
+
+    CString manufacturer;
+    CString name;
+    CString uuid;
+    CString bid;
+
+    CString status;
+    CString percentage;
+    CString remainingTime;
+    CString     currentCapacity;
+    CString voltage;
+    CString temperature;
+
+
+};
 
 class CBatteryHelthApp : public CWinApp
 {

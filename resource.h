@@ -39,8 +39,6 @@
 #define IDD_APP_REPORT_DLG              207
 #define IDD_BGAPP_REPORT                207
 #define IDD_CHARGE_DLG                  211
-#define IDD_AUTO_DIALOG                 213
-#define IDD_DIALOG1                     215
 #define IDD_REPORT_DIALOG               215
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010

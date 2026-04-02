@@ -188,7 +188,6 @@
     <ClInclude Include="BatteryHelth.h" />
     <ClInclude Include="BatteryHelthDlg.h" />
     <ClInclude Include="CAppReportDlg.h" />
-    <ClInclude Include="CAutoReportDlg.h" />
     <ClInclude Include="CChargeDlg.h" />
     <ClInclude Include="CCPUProgressDlg.h" />
     <ClInclude Include="CDischargeDlg.h" />
@@ -210,7 +209,6 @@
     <ClCompile Include="BatteryHelth.cpp" />
     <ClCompile Include="BatteryHelthDlg.cpp" />
     <ClCompile Include="CAppReportDlg.cpp" />
-    <ClCompile Include="CAutoReportDlg.cpp" />
     <ClCompile Include="CChargeDlg.cpp" />
     <ClCompile Include="CCPUProgressDlg.cpp" />
     <ClCompile Include="CDischargeDlg.cpp" />
