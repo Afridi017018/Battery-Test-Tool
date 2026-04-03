@@ -337,14 +337,13 @@ BOOL CReportDlg::OnMouseWheel(UINT, short zDelta, CPoint)
 }
 
 //////////////////////////////////////////////////////////////
-// 🔹 DRAW
+//  DRAW
 //////////////////////////////////////////////////////////////
 
 void CReportDlg::OnPaint()
 {
 	CPaintDC dc(this);
 
-	// 🔥 BOTH directions applied
 	dc.SetViewportOrg(-m_scrollX, -m_scrollPos);
 
 	int x = 20, y = 20;

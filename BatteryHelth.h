@@ -38,6 +38,8 @@ struct BatteryReportData
     CString voltage;
     CString temperature;
 
+    CString cpuLoadResult;
+    CString dischargeResult;
 
 };
 
@@ -57,6 +59,7 @@ public:
 
 public:
 	int ExitInstance();
+
 };
 
 extern CBatteryHelthApp theApp;

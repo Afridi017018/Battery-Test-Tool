@@ -208,6 +208,9 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_WM_POWERBROADCAST()   // main dialog is the single logger
     ON_BN_CLICKED(IDC_BTN_BREPORT, &CBatteryHelthDlg::OnBnClickedBtnBreport)
     ON_BN_CLICKED(IDC_AUTO, &CBatteryHelthDlg::OnBnClickedAuto)
+
+    ON_MESSAGE(WM_APP + 2, &CBatteryHelthDlg::OnAutoTestCPUDone)
+
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -3940,15 +3943,331 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     m_pDischargeDlg->ShowWindow(SW_SHOW);
 }
 
+//void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
+//{
+//    if (nIDEvent == 1 || nIDEvent == 2)
+//    {
+//        if (nIDEvent == 2) {
+//            GetBatteryInfo();
+//
+//            CheckBatteryDecreaseNotify();
+//
+//        }
+//
+//        if (nIDEvent == 1) {
+//            CPoint mouse; GetCursorPos(&mouse);
+//
+//            for (UINT id : m_buttonIds) {
+//                CWnd* p = GetDlgItem(id);
+//                if (!p || !::IsWindow(p->GetSafeHwnd())) continue;
+//
+//                CRect rc; p->GetWindowRect(&rc);
+//                BOOL over = rc.PtInRect(mouse);
+//
+//                BOOL& last = m_hover[id]; // creates entry if missing
+//                if (over != last) {
+//                    last = over;
+//                    p->Invalidate(FALSE); // repaint only this button
+//                }
+//            }
+//        }
+//        CDialogEx::OnTimer(nIDEvent);
+//
+//
+//    }
+//
+//    else if (nIDEvent == m_dischargeTimerID && m_dischargeTestRunning)
+//    {
+//        m_elapsedSeconds++; // count seconds
+//
+//        SYSTEM_POWER_STATUS sps;
+//        if (GetSystemPowerStatus(&sps) && sps.BatteryLifePercent != 255)
+//        {
+//            int drop = m_initialBatteryPercent - sps.BatteryLifePercent;
+//
+//            // Calculate progress in percentage
+//            int totalSeconds = m_dischargeDurationMinutes * 60;
+//            double progressPercent = 100.0 * m_elapsedSeconds / totalSeconds;
+//            if (progressPercent > 100) progressPercent = 100;
+//
+//            // Calculate drain rate per minute (optional)
+//            double drainRate = 0.0;
+//            if (m_elapsedSeconds > 0)
+//                drainRate = static_cast<double>(drop) / (m_elapsedSeconds / 60.0); // % per min
+//
+//            CString msg;
+//            //msg.Format(L"Time elapsed: %d sec\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
+//            //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
+//
+//            if (m_lang == Lang::EN) {
+//                msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)", progressPercent);
+//            }
+//            else {
+//                msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
+//            }
+//
+//            //// Create dialog if needed
+//            //if (!m_pDischargeDlg)
+//            //{
+//            //    m_pDischargeDlg = new CDischargeProgressDlg(this);
+//            //    m_pDischargeDlg->Create(IDD_DISCHARGE_PROGRESS_DLG, this);
+//            //}
+//
+//            //// Center it
+//            //m_pDischargeDlg->CenterWindow();
+//
+//            //// Show dialog
+//            //m_pDischargeDlg->ShowWindow(SW_SHOW);
+//
+//
+//
+//            /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
+//
+//
+//     /*       UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
+//
+//            m_discharge_progress.SetPos(progressPercent);*/
+//
+//            if (m_pDischargeDlg)
+//            {
+//                m_pDischargeDlg->UpdateProgress(
+//                    (int)progressPercent,
+//                    msg
+//                );
+//            }
+//
+//
+//
+//            if (sps.ACLineStatus == 1) {
+//                KillTimer(m_dischargeTimerID);
+//                m_dischargeTestRunning = false;
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
+//
+//                if (m_lang == Lang::EN) {
+//                    AfxMessageBox(L"Charger connected. Discharge test stopped.");
+//                }
+//                else {
+//                    AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
+//                }
+//
+//                StopDischargeTest();
+//                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+//                m_discharge_progress.ShowWindow(SW_HIDE);
+//
+//            }
+//
+//            else if (sps.SystemStatusFlag & 1) // Battery saver ON
+//            {
+//                m_discharge_progress.ShowWindow(SW_HIDE);
+//
+//                /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
+//
+//                KillTimer(m_dischargeTimerID);
+//                m_dischargeTestRunning = false;
+//
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
+//
+//                CString msg;
+//
+//                if (m_lang == Lang::EN) {
+//                    msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+//                }
+//                else {
+//                    msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
+//                }
+//
+//
+//
+//                ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+//
+//                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+//
+//
+//                return;
+//            }
+//            // Stop the test after duration
+//            else if (m_elapsedSeconds >= totalSeconds)
+//            {
+//                KillTimer(m_dischargeTimerID);
+//                m_dischargeTestRunning = false;
+//
+//                m_dischargeClick = true;
+//                m_discharge_progress.ShowWindow(SW_HIDE);
+//
+//                // Store final result
+//                if (m_lang == Lang::EN) {
+//                    m_dischargeResult.Format(L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
+//                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+//                }
+//                else {
+//                    m_dischargeResult.Format(L"初期チャージ: %d%%、最終チャージ: %d%%、ドロップ: %d%%、ドレイン率: %.2f %%/分",
+//                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+//                }
+//
+//
+//
+//                //msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
+//                //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
+//
+//                if (m_lang == Lang::EN) {
+//                    msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
+//                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+//                }
+//                else {
+//                    msg.Format(L"初期充電: %d%%\n現在の充電: %d%%\nドロップ: %d%%\n排出速度: %.2f %%/分",
+//                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+//                }
+//
+//                {
+//                    // ---- Static values for learning/demo ----
+//                    float initial = static_cast<float>(m_initialBatteryPercent);
+//                    float current = static_cast<float>(sps.BatteryLifePercent);
+//                    float rate = static_cast<float>(drainRate);     // %/min
+//
+//
+//                    // Build (time, %) series
+//                    std::vector<float> tt, yy;
+//                    BuildSeries(initial, current, rate, tt, yy);
+//
+//                    // Show the graph dialog
+//                    CDischargeDlg dlg;
+//
+//                    if (m_lang == Lang::EN)
+//                    {
+//                        dlg.eng_lang = true;
+//                    }
+//                    else {
+//                        dlg.eng_lang = false;
+//                    }
+//
+//                    dlg.SetData(initial, current, rate, tt, yy);
+//                    dlg.DoModal();
+//                }
+//
+//                /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
+//             /*   UpdateLabel(this, IDC_BATT_DISCHARGR, msg);*/
+//
+//                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+//
+//                if (m_lang == Lang::EN) {
+//                    SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
+//                }
+//                else {
+//                    SetDlgItemText(IDC_BTN_DISCHARGE, L"放電試験を開始する");
+//                }
+//
+//
+//
+//                /* AfxMessageBox(L"Discharge Test Completed!");*/
+//            }
+//        }
+//        else
+//        {
+//            /*SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");*/
+//            if (m_lang == Lang::EN) {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
+//            }
+//            else {
+//                UpdateLabel(this, IDC_BATT_DISCHARGR, L"バッテリー残量を読み取ることができません。");
+//            }
+//
+//
+//        }
+//    }
+//
+//
+//    if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
+//    {
+//        m_CPU_Progress.ShowWindow(SW_SHOW);
+//
+//        m_cpuLoadElapsed++;
+//
+//        //Count up instead of down
+//        double percentDone = 100.0 * ((double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
+//        if (percentDone > 100) percentDone = 100;
+//
+//        CString msg;
+//        /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
+//
+//
+//
+//        if (m_lang == Lang::EN) {
+//            msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", percentDone);
+//        }
+//        else {
+//            msg.Format(L"完了するまで 1 分ほどお待ちください。(%.0f%%)", percentDone);
+//        }
+//
+//
+//
+//
+//        ///*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
+//        //UpdateLabel(this, IDC_BATT_CPULOAD, msg);
+//
+//        //m_CPU_Progress.SetPos(percentDone);
+//
+//        if (m_pCpuDlg)
+//        {
+//            m_pCpuDlg->UpdateProgress(
+//                (int)percentDone,
+//                msg
+//            );
+//        }
+//
+//
+//
+//
+//        // Stop if requested
+//        if (m_stopCpuLoad.load())
+//        {
+//
+//
+//            if (m_pCpuDlg)
+//                m_pCpuDlg->ShowWindow(SW_HIDE);
+//
+//
+//            m_cpuLoadTestRunning = false;
+//            KillTimer(m_cpuLoadTimerID);
+//
+//            if (m_lang == Lang::EN) {
+//                SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
+//            }
+//            else {
+//                SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テスト");
+//            }
+//
+//
+//
+//            /*SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");*/
+//
+//            if (m_lang == Lang::EN) {
+//                UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
+//            }
+//            else {
+//                UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU負荷テストが停止しました！");
+//            }
+//
+//            m_CPU_Progress.ShowWindow(SW_HIDE);
+//        }
+//
+//
+//    }
+//
+//    if (nIDEvent == IDT_NOTIFY_LONGRUN) {
+//        CheckAndNotifyTopLongRunning();
+//    }
+//
+//    CDialogEx::OnTimer(nIDEvent);
+//}
+
+
 void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 {
     if (nIDEvent == 1 || nIDEvent == 2)
     {
         if (nIDEvent == 2) {
             GetBatteryInfo();
-
             CheckBatteryDecreaseNotify();
-
         }
 
         if (nIDEvent == 1) {
@@ -3961,295 +4280,231 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 CRect rc; p->GetWindowRect(&rc);
                 BOOL over = rc.PtInRect(mouse);
 
-                BOOL& last = m_hover[id]; // creates entry if missing
+                BOOL& last = m_hover[id];
                 if (over != last) {
                     last = over;
-                    p->Invalidate(FALSE); // repaint only this button
+                    p->Invalidate(FALSE);
                 }
             }
         }
         CDialogEx::OnTimer(nIDEvent);
-
-
     }
 
+    // ── Discharge timer ───────────────────────────────────────────────────────
     else if (nIDEvent == m_dischargeTimerID && m_dischargeTestRunning)
     {
-        m_elapsedSeconds++; // count seconds
+        m_elapsedSeconds++;
 
         SYSTEM_POWER_STATUS sps;
         if (GetSystemPowerStatus(&sps) && sps.BatteryLifePercent != 255)
         {
             int drop = m_initialBatteryPercent - sps.BatteryLifePercent;
 
-            // Calculate progress in percentage
-            int totalSeconds = m_dischargeDurationMinutes * 60;
+            int    totalSeconds = m_dischargeDurationMinutes * 60;
             double progressPercent = 100.0 * m_elapsedSeconds / totalSeconds;
             if (progressPercent > 100) progressPercent = 100;
 
-            // Calculate drain rate per minute (optional)
             double drainRate = 0.0;
             if (m_elapsedSeconds > 0)
-                drainRate = static_cast<double>(drop) / (m_elapsedSeconds / 60.0); // % per min
+                drainRate = static_cast<double>(drop) / (m_elapsedSeconds / 60.0);
 
             CString msg;
-            //msg.Format(L"Time elapsed: %d sec\nInitial: %d%%\nCurrent: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
-            //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
-
-            if (m_lang == Lang::EN) {
+            if (m_lang == Lang::EN)
                 msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)", progressPercent);
-            }
-            else {
+            else
                 msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
-            }
 
-            //// Create dialog if needed
-            //if (!m_pDischargeDlg)
-            //{
-            //    m_pDischargeDlg = new CDischargeProgressDlg(this);
-            //    m_pDischargeDlg->Create(IDD_DISCHARGE_PROGRESS_DLG, this);
-            //}
-
-            //// Center it
-            //m_pDischargeDlg->CenterWindow();
-
-            //// Show dialog
-            //m_pDischargeDlg->ShowWindow(SW_SHOW);
-
-
-
-            /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
-
-
-     /*       UpdateLabel(this, IDC_BATT_DISCHARGR, msg);
-
-            m_discharge_progress.SetPos(progressPercent);*/
-
-            if (m_pDischargeDlg)
+            // ── show progress in the RIGHT dialog depending on mode ───────────
+            if (m_autoTestRunning)
             {
-                m_pDischargeDlg->UpdateProgress(
-                    (int)progressPercent,
-                    msg
-                );
+                // auto mode: update the dedicated auto dialog only
+                if (m_pAutoDlg)
+                    m_pAutoDlg->UpdateProgress(
+                        (int)(37 + progressPercent * 63 / 100),  // 37–100% range
+                        2, msg);
+            }
+            else
+            {
+                // normal mode: update the existing discharge dialog
+                if (m_pDischargeDlg)
+                    m_pDischargeDlg->UpdateProgress((int)progressPercent, msg);
             }
 
-
-
-            if (sps.ACLineStatus == 1) {
+            // ── charger plugged in ────────────────────────────────────────────
+            // ── charger plugged in mid-test ───────────────────────────────────────────
+            if (sps.ACLineStatus == 1)
+            {
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
 
-                if (m_lang == Lang::EN) {
+                if (m_lang == Lang::EN)
                     AfxMessageBox(L"Charger connected. Discharge test stopped.");
-                }
-                else {
+                else
                     AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
+
+                if (m_autoTestRunning)
+                    _FinishAutoTest(false);   // cancelled — no report
+                else
+                {
+                    StopDischargeTest();
+                    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+                    m_discharge_progress.ShowWindow(SW_HIDE);
                 }
-
-                StopDischargeTest();
-                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-                m_discharge_progress.ShowWindow(SW_HIDE);
-
             }
 
-            else if (sps.SystemStatusFlag & 1) // Battery saver ON
+            // ── battery saver turned on mid-test ─────────────────────────────────────
+            else if (sps.SystemStatusFlag & 1)
             {
                 m_discharge_progress.ShowWindow(SW_HIDE);
-
-                /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger!");*/
-
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
-
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
 
-                CString msg;
+                CString warnMsg;
+                if (m_lang == Lang::EN)
+                    warnMsg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
+                else
+                    warnMsg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
 
-                if (m_lang == Lang::EN) {
-                    msg = L"Turn off your Battery Saver.\n\n=> WINDOWS:\n  Settings -> System -> Power & Battery -> Battery saver -> Turn Off\n\n";
-                }
-                else {
-                    msg = L"バッテリーセーバーをオフにしてください。\n\n = > Windows:\n  設定->システム->電源とバッテリー->バッテリーセーバー->オフ\n\n";
-                }
+                ::MessageBox(this->m_hWnd, warnMsg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
 
-
-
-                ::MessageBox(this->m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
-
-                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-
+                if (m_autoTestRunning)
+                    _FinishAutoTest(false);   // cancelled — no report
+                else
+                    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
                 return;
             }
-            // Stop the test after duration
+
+            // ── both phases finished naturally ───────────────────────────────────────
             else if (m_elapsedSeconds >= totalSeconds)
             {
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
-
                 m_dischargeClick = true;
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
-                // Store final result
-                if (m_lang == Lang::EN) {
-                    m_dischargeResult.Format(L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
-                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
-                }
-                else {
-                    m_dischargeResult.Format(L"初期チャージ: %d%%、最終チャージ: %d%%、ドロップ: %d%%、ドレイン率: %.2f %%/分",
-                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
-                }
-
-
-
-                //msg.Format(L"Time elapsed: %d sec\nInitial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min\nProgress: %.0f%%",
-                //    m_elapsedSeconds, m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate, progressPercent);
-
-                if (m_lang == Lang::EN) {
-                    msg.Format(L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nDrain Rate: %.2f %%/min",
-                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
-                }
-                else {
-                    msg.Format(L"初期充電: %d%%\n現在の充電: %d%%\nドロップ: %d%%\n排出速度: %.2f %%/分",
-                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
-                }
-
+                // build m_dischargeResult (same as your original)
+                if (m_lang == Lang::EN)
                 {
-                    // ---- Static values for learning/demo ----
-                    float initial = static_cast<float>(m_initialBatteryPercent);
-                    float current = static_cast<float>(sps.BatteryLifePercent);
-                    float rate = static_cast<float>(drainRate);     // %/min
+                    m_dischargeResult.Format(
+                        L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
+                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+                }
+                else
+                {
+                    m_dischargeResult.Format(
+                        L"初期チャージ: %d%%、最終チャージ: %d%%、ドロップ: %d%%、ドレイン率: %.2f %%/分",
+                        m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+                }
 
+                float initial = static_cast<float>(m_initialBatteryPercent);
+                float current = static_cast<float>(sps.BatteryLifePercent);
+                float rate = static_cast<float>(drainRate);
 
-                    // Build (time, %) series
-                    std::vector<float> tt, yy;
-                    BuildSeries(initial, current, rate, tt, yy);
+                std::vector<float> tt, yy;
+                BuildSeries(initial, current, rate, tt, yy);
 
-                    // Show the graph dialog
+                if (m_autoTestRunning)
+                {
+                    _FinishAutoTest(true);    // completed — opens CReportDlg
+                }
+                else
+                {
+                    // normal standalone discharge — original graph dialog unchanged
                     CDischargeDlg dlg;
-
-                    if (m_lang == Lang::EN)
-                    {
-                        dlg.eng_lang = true;
-                    }
-                    else {
-                        dlg.eng_lang = false;
-                    }
-
+                    dlg.eng_lang = (m_lang == Lang::EN);
                     dlg.SetData(initial, current, rate, tt, yy);
                     dlg.DoModal();
+
+                    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+
+                    if (m_lang == Lang::EN)
+                        SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
+                    else
+                        SetDlgItemText(IDC_BTN_DISCHARGE, L"放電試験を開始する");
                 }
-
-                /*SetDlgItemText(IDC_BATT_DISCHARGR, msg);*/
-             /*   UpdateLabel(this, IDC_BATT_DISCHARGR, msg);*/
-
-                GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-
-                if (m_lang == Lang::EN) {
-                    SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
-                }
-                else {
-                    SetDlgItemText(IDC_BTN_DISCHARGE, L"放電試験を開始する");
-                }
-
-
-
-                /* AfxMessageBox(L"Discharge Test Completed!");*/
             }
         }
         else
         {
-            /*SetDlgItemText(IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");*/
-            if (m_lang == Lang::EN) {
+            if (m_lang == Lang::EN)
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"Cannot read battery percentage.");
-            }
-            else {
+            else
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"バッテリー残量を読み取ることができません。");
-            }
-
-
         }
     }
 
-
+    // ── CPU load timer ────────────────────────────────────────────────────────
     if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
     {
         m_CPU_Progress.ShowWindow(SW_SHOW);
-
         m_cpuLoadElapsed++;
 
-        //Count up instead of down
         double percentDone = 100.0 * ((double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
         if (percentDone > 100) percentDone = 100;
 
         CString msg;
-        /*msg.Format(L"CPU Load Test Running... %.0f%% completed", percentDone);*/
-
-
-
-        if (m_lang == Lang::EN) {
+        if (m_lang == Lang::EN)
             msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", percentDone);
-        }
-        else {
+        else
             msg.Format(L"完了するまで 1 分ほどお待ちください。(%.0f%%)", percentDone);
-        }
 
-
-
-
-        ///*SetDlgItemText(IDC_BATT_CPULOAD, msg);*/
-        //UpdateLabel(this, IDC_BATT_CPULOAD, msg);
-
-        //m_CPU_Progress.SetPos(percentDone);
-
-        if (m_pCpuDlg)
+        // only update m_pCpuDlg if NOT in auto mode (auto has its own dialog)
+        if (!m_autoTestRunning)
         {
-            m_pCpuDlg->UpdateProgress(
-                (int)percentDone,
-                msg
-            );
+            if (m_pCpuDlg)
+                m_pCpuDlg->UpdateProgress((int)percentDone, msg);
         }
 
-
-
-
-        // Stop if requested
         if (m_stopCpuLoad.load())
         {
-
-
             if (m_pCpuDlg)
                 m_pCpuDlg->ShowWindow(SW_HIDE);
-
 
             m_cpuLoadTestRunning = false;
             KillTimer(m_cpuLoadTimerID);
 
-            if (m_lang == Lang::EN) {
+            if (m_lang == Lang::EN)
                 SetDlgItemText(IDC_BTN_CPULOAD, L"CPU Load Test");
-            }
-            else {
+            else
                 SetDlgItemText(IDC_BTN_CPULOAD, L"CPU負荷テスト");
-            }
 
-
-
-            /*SetDlgItemText(IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");*/
-
-            if (m_lang == Lang::EN) {
+            if (m_lang == Lang::EN)
                 UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU Load Test Stopped!");
-            }
-            else {
+            else
                 UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU負荷テストが停止しました！");
-            }
 
             m_CPU_Progress.ShowWindow(SW_HIDE);
         }
-
-
     }
 
+    // ── Auto test overall progress timer ──────────────────────────────────────
+    if (nIDEvent == m_autoTimerID && m_autoTestRunning)
+    {
+        m_autoElapsed++;
+        double pct = 100.0 * m_autoElapsed / m_autoTotalSeconds;
+        if (pct > 100.0) pct = 100.0;
+
+        CString msg;
+        if (m_autoPhase == L"CPU")
+            msg.Format(m_lang == Lang::EN
+                ? L"%.0f%% done"
+                : L"%.0f%% 完了", pct);
+        else
+            msg.Format(m_lang == Lang::EN
+                ? L"%.0f%% done"
+                : L"%.0f%% 完了", pct);
+
+        if (m_pAutoDlg)
+            m_pAutoDlg->UpdateProgress(
+                (int)pct,
+                (m_autoPhase == L"CPU") ? 1 : 2,
+                msg);
+    }
+
+    // ── Notify timer ──────────────────────────────────────────────────────────
     if (nIDEvent == IDT_NOTIFY_LONGRUN) {
         CheckAndNotifyTopLongRunning();
     }
@@ -6978,12 +7233,422 @@ void CBatteryHelthDlg::OnBnClickedBtnBreport()
         SW_SHOWNORMAL
     );
 }
+//void CBatteryHelthDlg::OnBnClickedAuto()
+//{
+//    // TODO: Add your control notification handler code here
+// 
+//
+//    CReportDlg dlg(m_reportData, this);
+//    dlg.DoModal();
+//
+//}
+
+
+
+//void CBatteryHelthDlg::OnBnClickedAuto()
+//{
+//    if (m_autoTestRunning)
+//    {
+//        AfxMessageBox(L"Auto test is already running.");
+//        return;
+//    }
+//
+//    if (HasBattery() == false)
+//    {
+//        AfxMessageBox(m_lang == Lang::EN
+//            ? L"No battery detected. Auto Test requires a battery."
+//            : L"バッテリーが検出されません。");
+//        return;
+//    }
+//
+//    if (IsCharging())
+//    {
+//        AfxMessageBox(m_lang == Lang::EN
+//            ? L"Please unplug the charger before starting the Auto Test."
+//            : L"充電器を抜いてからオートテストを開始してください。");
+//        return;
+//    }
+//
+//    SYSTEM_POWER_STATUS sps;
+//    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+//    {
+//        AfxMessageBox(m_lang == Lang::EN
+//            ? L"Cannot read battery percentage."
+//            : L"バッテリー残量を読み取ることができません。");
+//        return;
+//    }
+//
+//    // Battery saver check
+//    {
+//        HKEY  hKey;
+//        DWORD value = 0, size = sizeof(DWORD);
+//        if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+//            L"SYSTEM\\CurrentControlSet\\Control\\Power",
+//            0, KEY_READ, &hKey) == ERROR_SUCCESS)
+//        {
+//            RegQueryValueEx(hKey, L"EnergySaverState",
+//                NULL, NULL, (LPBYTE)&value, &size);
+//            RegCloseKey(hKey);
+//        }
+//        if (value == 1)
+//        {
+//            CString msg = (m_lang == Lang::EN)
+//                ? L"Turn off Battery Saver before starting.\n\nSettings -> System -> Power & Battery -> Energy saver -> Turn Off"
+//                : L"バッテリーセーバーをオフにしてください。\n\n設定->システム->電源とバッテリー->バッテリーセーバー->オフ";
+//            ::MessageBox(m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+//            return;
+//        }
+//    }
+//
+//    // ── Setup ────────────────────────────────────────────────────────────────
+//    m_autoTestRunning = true;
+//    m_autoElapsed = 0;
+//    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480s
+//    m_autoPhase = L"CPU";
+//    m_cpuLoadDurationSeconds = 3 * 60;                // 3 min for auto
+//
+//    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+//    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+//    /*GetDlgItem(IDC_BTN_AUTO)->EnableWindow(FALSE);*/
+//
+//    // ── Create dedicated auto progress dialog ─────────────────────────────────
+//    if (!m_pAutoDlg)
+//    {
+//        m_pAutoDlg = new CAutoProgressDlg(this);
+//        m_pAutoDlg->Create(IDD_AUTO_PROGRESS_DLG, this);
+//    }
+//    m_pAutoDlg->CenterWindow();
+//    m_pAutoDlg->ShowWindow(SW_SHOW);
+//    m_pAutoDlg->UpdateProgress(0, 1,
+//        m_lang == Lang::EN ? L"Starting..." : L"開始中...");
+//
+//    // ── Start overall 8-min timer ─────────────────────────────────────────────
+//    SetTimer(m_autoTimerID, 1000, NULL);
+//
+//    // ── Phase 1: CPU load thread ──────────────────────────────────────────────
+//    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
+//    m_cpuLoadTestRunning = true;
+//    m_stopCpuLoad.store(false);
+//
+//    std::thread([this]()
+//        {
+//            int numCores = std::thread::hardware_concurrency();
+//            if (numCores == 0) numCores = 1;
+//
+//            std::vector<std::thread> threads;
+//            std::atomic<long long>   totalFlops(0);
+//            auto startTime = std::chrono::high_resolution_clock::now();
+//
+//            for (int i = 0; i < numCores; i++)
+//            {
+//                threads.emplace_back([this, &totalFlops, i]()
+//                    {
+//                        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+//                        SetThreadAffinityMask(GetCurrentThread(), 1ULL << i);
+//                        RunCPULoadRemaining(this, m_cpuLoadDurationSeconds,
+//                            &totalFlops, &m_stopCpuLoad);
+//                    });
+//            }
+//            for (auto& t : threads) t.join();
+//
+//            auto endTime = std::chrono::high_resolution_clock::now();
+//            double durSec = std::chrono::duration<double>(endTime - startTime).count();
+//            double gflops = totalFlops.load() / durSec / 1e9;
+//
+//            SYSTEM_POWER_STATUS spsEnd;
+//            CString resultMsg;
+//            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
+//            {
+//                int    drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
+//                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
+//                resultMsg.Format(
+//                    L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+//                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
+//                    drop, (drop == 0 ? 0.0 : rate), gflops);
+//            }
+//            else
+//            {
+//                resultMsg = (m_lang == Lang::EN)
+//                    ? L"Cannot read battery percentage."
+//                    : L"バッテリー残量を読み取ることができません。";
+//            }
+//
+//            m_cpuLoadTestRunning = false;
+//            this->PostMessage(WM_APP + 2, 0, (LPARAM)new CString(resultMsg));
+//
+//        }).detach();
+//}
+//
+//
+//LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
+//{
+//    CString* pResult = (CString*)lParam;
+//    m_cpuLoadResult = *pResult;
+//    delete pResult;
+//
+//    if (!m_autoTestRunning) { _FinishAutoTest(); return 0; }
+//
+//    // Transition to Phase 2: Discharge
+//    m_autoPhase = L"DISCHARGE";
+//
+//    SYSTEM_POWER_STATUS sps;
+//    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255 || sps.ACLineStatus == 1)
+//    {
+//        AfxMessageBox(m_lang == Lang::EN
+//            ? L"Cannot start Discharge phase. Check battery / charger."
+//            : L"放電フェーズを開始できません。バッテリー/充電器を確認してください。");
+//        _FinishAutoTest();
+//        return 0;
+//    }
+//
+//    m_initialBatteryPercent = sps.BatteryLifePercent;
+//    m_elapsedSeconds = 0;
+//    m_elapsedMinutes = 0;
+//    m_dischargeDurationMinutes = 5;
+//    m_dischargeTestRunning = true;
+//
+//    // Update progress dialog to show phase 2 starting at 37%
+//    if (m_pAutoDlg)
+//        m_pAutoDlg->UpdateProgress(37, 2,
+//            m_lang == Lang::EN ? L"Starting discharge..." : L"放電開始中...");
+//
+//    SetTimer(m_dischargeTimerID, 1000, NULL);
+//    return 0;
+//}
+//
+//
+//void CBatteryHelthDlg::_FinishAutoTest()
+//{
+//    KillTimer(m_autoTimerID);
+//    m_autoTestRunning = false;
+//    m_dischargeTestRunning = false;
+//    m_cpuLoadTestRunning = false;
+//
+//    if (m_pAutoDlg)
+//        m_pAutoDlg->ShowWindow(SW_HIDE);
+//
+//    // DO NOT touch m_pCpuDlg or m_pDischargeDlg here
+//    // they are untouched — no collision
+//
+//    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+//    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+// /*   GetDlgItem(IDC_BTN_AUTO)->EnableWindow(TRUE);*/
+//}
+
+
+
 void CBatteryHelthDlg::OnBnClickedAuto()
 {
-    // TODO: Add your control notification handler code here
- 
+    if (m_autoTestRunning)
+    {
+        AfxMessageBox(L"Auto test is already running.");
+        return;
+    }
 
-    CReportDlg dlg(m_reportData, this);
-    dlg.DoModal();
+    if (HasBattery() == false)
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"No battery detected. Auto Test requires a battery."
+            : L"バッテリーが検出されません。");
+        return;
+    }
 
+    if (IsCharging())
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Please unplug the charger before starting the Auto Test."
+            : L"充電器を抜いてからオートテストを開始してください。");
+        return;
+    }
+
+    SYSTEM_POWER_STATUS sps;
+    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Cannot read battery percentage."
+            : L"バッテリー残量を読み取ることができません。");
+        return;
+    }
+
+    // Battery saver check
+    {
+        HKEY  hKey;
+        DWORD value = 0, size = sizeof(DWORD);
+        if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\Power",
+            0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        {
+            RegQueryValueEx(hKey, L"EnergySaverState",
+                NULL, NULL, (LPBYTE)&value, &size);
+            RegCloseKey(hKey);
+        }
+        if (value == 1)
+        {
+            CString msg = (m_lang == Lang::EN)
+                ? L"Turn off Battery Saver before starting.\n\nSettings -> System -> Power & Battery -> Energy saver -> Turn Off"
+                : L"バッテリーセーバーをオフにしてください。\n\n設定->システム->電源とバッテリー->バッテリーセーバー->オフ";
+            ::MessageBox(m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+            return;
+        }
+    }
+
+    // ── Setup ────────────────────────────────────────────────────────────────
+    m_autoTestRunning = true;
+    m_autoElapsed = 0;
+    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480s
+    m_autoPhase = L"CPU";
+    m_cpuLoadDurationSeconds = 3 * 60;
+    m_autoCancelled = false;   // NEW: reset cancel flag
+
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+
+    // ── Create dedicated auto progress dialog ─────────────────────────────────
+    if (!m_pAutoDlg)
+    {
+        m_pAutoDlg = new CAutoProgressDlg(this);
+        m_pAutoDlg->Create(IDD_AUTO_PROGRESS_DLG, this);
+    }
+    m_pAutoDlg->CenterWindow();
+    m_pAutoDlg->ShowWindow(SW_SHOW);
+    m_pAutoDlg->UpdateProgress(0, 1,
+        m_lang == Lang::EN ? L"Starting..." : L"開始中...");
+
+    // ── Start overall 8-min timer ─────────────────────────────────────────────
+    SetTimer(m_autoTimerID, 1000, NULL);
+
+    // ── Phase 1: CPU load thread ──────────────────────────────────────────────
+    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
+    m_cpuLoadTestRunning = true;
+    m_stopCpuLoad.store(false);
+
+    std::thread([this]()
+        {
+            int numCores = std::thread::hardware_concurrency();
+            if (numCores == 0) numCores = 1;
+
+            std::vector<std::thread> threads;
+            std::atomic<long long>   totalFlops(0);
+            auto startTime = std::chrono::high_resolution_clock::now();
+
+            for (int i = 0; i < numCores; i++)
+            {
+                threads.emplace_back([this, &totalFlops, i]()
+                    {
+                        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+                        SetThreadAffinityMask(GetCurrentThread(), 1ULL << i);
+                        RunCPULoadRemaining(this, m_cpuLoadDurationSeconds,
+                            &totalFlops, &m_stopCpuLoad);
+                    });
+            }
+            for (auto& t : threads) t.join();
+
+            auto endTime = std::chrono::high_resolution_clock::now();
+            double durSec = std::chrono::duration<double>(endTime - startTime).count();
+            double gflops = totalFlops.load() / durSec / 1e9;
+
+            SYSTEM_POWER_STATUS spsEnd;
+            CString resultMsg;
+            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
+            {
+                int    drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
+                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
+                resultMsg.Format(
+                    L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
+                    drop, (drop == 0 ? 0.0 : rate), gflops);
+            }
+            else
+            {
+                resultMsg = (m_lang == Lang::EN)
+                    ? L"Cannot read battery percentage."
+                    : L"バッテリー残量を読み取ることができません。";
+            }
+
+            m_cpuLoadTestRunning = false;
+            this->PostMessage(WM_APP + 2, 0, (LPARAM)new CString(resultMsg));
+
+        }).detach();
 }
+
+
+LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
+{
+    CString* pResult = (CString*)lParam;
+    m_cpuLoadResult = *pResult;
+    delete pResult;
+
+    // CPU phase was cancelled — do not proceed
+    if (!m_autoTestRunning || m_autoCancelled)
+    {
+        _FinishAutoTest(false);  // false = cancelled, don't open report
+        return 0;
+    }
+
+    // Transition to Phase 2: Discharge
+    m_autoPhase = L"DISCHARGE";
+
+    SYSTEM_POWER_STATUS sps;
+    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255 || sps.ACLineStatus == 1)
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Cannot start Discharge phase. Check battery / charger."
+            : L"放電フェーズを開始できません。バッテリー/充電器を確認してください。");
+        _FinishAutoTest(false);
+        return 0;
+    }
+
+    m_initialBatteryPercent = sps.BatteryLifePercent;
+    m_elapsedSeconds = 0;
+    m_elapsedMinutes = 0;
+    m_dischargeDurationMinutes = 5;
+    m_dischargeTestRunning = true;
+
+    if (m_pAutoDlg)
+        m_pAutoDlg->UpdateProgress(37, 2,
+            m_lang == Lang::EN ? L"Starting discharge..." : L"放電開始中...");
+
+    SetTimer(m_dischargeTimerID, 1000, NULL);
+    return 0;
+}
+
+
+void CBatteryHelthDlg::_FinishAutoTest(bool completed)
+{
+    KillTimer(m_autoTimerID);
+    m_autoTestRunning = false;
+    m_dischargeTestRunning = false;
+    m_cpuLoadTestRunning = false;
+
+    if (m_pAutoDlg)
+        m_pAutoDlg->ShowWindow(SW_HIDE);
+
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
+
+    // Only open report if both phases finished naturally
+    if (completed)
+    {
+        // Inject auto test results into m_reportData
+        // so CReportDlg can display them alongside existing data.
+        // Adjust field names below to match your actual ReportData struct.
+        m_reportData.cpuLoadResult = m_cpuLoadResult;    // CString field
+        m_reportData.dischargeResult = m_dischargeResult;  // CString field
+
+        AfxMessageBox(m_dischargeResult);
+
+        // If your struct uses different field names, replace the two lines
+        // above with whatever members ReportData actually has, e.g.:
+        //   m_reportData.strCpuTest  = m_cpuLoadResult;
+        //   m_reportData.strDischarge = m_dischargeResult;
+
+        CReportDlg dlg(m_reportData, this);
+        dlg.DoModal();
+    }
+}
+
+
+
+
+
+//////////////////okokokok

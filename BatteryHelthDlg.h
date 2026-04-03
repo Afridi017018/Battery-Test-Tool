@@ -1,4 +1,4 @@
-
+﻿
 // BatteryHelthDlg.h : header file
 //
 
@@ -22,6 +22,9 @@
 
 
 #include <PowerSetting.h> 
+
+#include "CAutoProgressDlg.h"
+
 #pragma comment(lib, "User32.lib")
 
 
@@ -377,8 +380,26 @@ public:
 	afx_msg void OnBnClickedAuto();
 
 	BatteryReportData m_reportData;
+
+	// Auto Test members
+	bool              m_autoTestRunning = false;
+	int               m_autoTotalSeconds = 480;
+	int               m_autoElapsed = 0;
+	UINT_PTR          m_autoTimerID = 5;     // confirm 5 is unused
+	CString           m_autoPhase;                 // L"CPU" or L"DISCHARGE"
+	CAutoProgressDlg* m_pAutoDlg = nullptr;
+
+	// message handler + helper
+	afx_msg LRESULT OnAutoTestCPUDone(WPARAM wParam, LPARAM lParam);
+
+	// to this:
+	void _FinishAutoTest(bool completed);
+
+	// add this new member:
+	bool m_autoCancelled = false;
+
 };
 
 
-
+//////////////////okokokok
 
