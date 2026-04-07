@@ -4389,8 +4389,14 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 if (m_lang == Lang::EN)
                 {
                     m_dischargeResult.Format(
-                        L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
+                        L"Initial Charge2: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                         m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
+
+                    m_reportData.disInitial = m_initialBatteryPercent;
+                    m_reportData.disFinal = sps.BatteryLifePercent;
+                    m_reportData.disDrop = drop;
+                    m_reportData.disRate = drainRate;
+
                 }
                 else
                 {
@@ -7554,9 +7560,16 @@ void CBatteryHelthDlg::OnBnClickedAuto()
                 int    drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
                 double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
                 resultMsg.Format(
-                    L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                    L"Initial Charge1: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
                     m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
                     drop, (drop == 0 ? 0.0 : rate), gflops);
+
+                // ADD THESE:
+                m_reportData.cpuInitial = m_initialBatteryCPUPercent;
+                m_reportData.cpuCurrent = spsEnd.BatteryLifePercent;
+                m_reportData.cpuDrop = drop;
+                m_reportData.cpuRate = (drop == 0 ? 0.0 : rate);
+                m_reportData.cpuGflops = gflops;
             }
             else
             {
@@ -7635,7 +7648,16 @@ void CBatteryHelthDlg::_FinishAutoTest(bool completed)
         m_reportData.cpuLoadResult = m_cpuLoadResult;    // CString field
         m_reportData.dischargeResult = m_dischargeResult;  // CString field
 
-        AfxMessageBox(m_dischargeResult);
+        m_reportData.cpuInitial;
+        m_reportData.cpuCurrent;
+        m_reportData.cpuDrop;
+        m_reportData.cpuRate;
+        m_reportData.cpuGflops;
+
+        m_reportData.disInitial;
+        m_reportData.disFinal;
+        m_reportData.disDrop;
+        m_reportData.disRate;
 
         // If your struct uses different field names, replace the two lines
         // above with whatever members ReportData actually has, e.g.:

@@ -115,7 +115,6 @@ static bool GetUsageHistory(std::vector<CReportDlg::UsageHistoryRow>& outRows, c
 
 static bool GetBatteryCapacity(std::vector<CReportDlg::BatteryCapacityRow>& out, const CString& html)
 {
-
 	std::wregex re(LR"(BATTERY\s*CAPACITY\s*HISTORY[\s\S]*?<table[^>]*>([\s\S]*?)</table>)", std::regex_constants::icase);
 	std::wsmatch mh;
 	std::wstring H = html.GetString();
@@ -158,6 +157,8 @@ static bool GetBatteryCapacity(std::vector<CReportDlg::BatteryCapacityRow>& out,
 	}
 	return true;
 }
+
+
 
 static bool GetBatteryLife(std::vector<CReportDlg::BatteryLifeRow>& out, const CString& html)
 {
@@ -224,8 +225,6 @@ BOOL CReportDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	//ModifyStyle(0, WS_VSCROLL | WS_HSCROLL);
-
 	wchar_t tempPath[MAX_PATH];
 	GetTempPath(MAX_PATH, tempPath);
 
@@ -238,11 +237,11 @@ BOOL CReportDlg::OnInitDialog()
 	GetBatteryCapacity(m_capacity, m_htmlCache);
 	GetBatteryLife(m_life, m_htmlCache);
 
-	// 🔹 Calculate basic info block height:
-	// 1 headline row + 13 data rows + 1 separator gap
-	m_basicInfoHeight = m_rowHeight + 13 * m_rowHeight + 20;
+	m_basicInfoHeight = m_rowHeight + 15 * m_rowHeight + 20;
 
 	UpdateScrollBar();
+
+	AfxMessageBox(m_reportData.dischargeResult);
 
 	return TRUE;
 }
@@ -252,10 +251,11 @@ void CReportDlg::UpdateScrollBar()
 	CRect r;
 	GetClientRect(&r);
 
-	// Total height includes the basic info section at the top
 	int totalHeight = m_basicInfoHeight
+		+ 7 * m_rowHeight
+		+ 6 * m_rowHeight
 		+ (m_rows.size() + m_capacity.size() + m_life.size()) * m_rowHeight
-		+ 300;
+		+ 500;
 
 	SCROLLINFO vsi = { sizeof(vsi), SIF_RANGE | SIF_PAGE };
 	vsi.nMin = 0;
@@ -281,10 +281,10 @@ void CReportDlg::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar*)
 
 	switch (nSBCode)
 	{
-	case SB_LINEUP: pos -= m_rowHeight; break;
-	case SB_LINEDOWN: pos += m_rowHeight; break;
-	case SB_PAGEUP: pos -= si.nPage; break;
-	case SB_PAGEDOWN: pos += si.nPage; break;
+	case SB_LINEUP:     pos -= m_rowHeight; break;
+	case SB_LINEDOWN:   pos += m_rowHeight; break;
+	case SB_PAGEUP:     pos -= si.nPage;    break;
+	case SB_PAGEDOWN:   pos += si.nPage;    break;
 	case SB_THUMBTRACK: pos = si.nTrackPos; break;
 	}
 
@@ -304,10 +304,10 @@ void CReportDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar*)
 
 	switch (nSBCode)
 	{
-	case SB_LINELEFT: pos -= 30; break;
-	case SB_LINERIGHT: pos += 30; break;
-	case SB_PAGELEFT: pos -= si.nPage; break;
-	case SB_PAGERIGHT: pos += si.nPage; break;
+	case SB_LINELEFT:   pos -= 30;       break;
+	case SB_LINERIGHT:  pos += 30;       break;
+	case SB_PAGELEFT:   pos -= si.nPage; break;
+	case SB_PAGERIGHT:  pos += si.nPage; break;
 	case SB_THUMBTRACK: pos = si.nTrackPos; break;
 	}
 
@@ -329,7 +329,6 @@ BOOL CReportDlg::OnMouseWheel(UINT, short zDelta, CPoint)
 	pos = max(si.nMin, min(pos, si.nMax - (int)si.nPage + 1));
 
 	m_scrollPos = pos;
-
 	SetScrollPos(SB_VERT, pos);
 	Invalidate();
 
@@ -337,7 +336,7 @@ BOOL CReportDlg::OnMouseWheel(UINT, short zDelta, CPoint)
 }
 
 //////////////////////////////////////////////////////////////
-//  DRAW
+// 🔹 DRAW
 //////////////////////////////////////////////////////////////
 
 void CReportDlg::OnPaint()
@@ -351,10 +350,9 @@ void CReportDlg::OnPaint()
 	int col = 180;
 
 	//----------------------------------------------------------
-	// 🔹 BASIC BATTERY INFO SECTION
+	// 🔹 FONTS
 	//----------------------------------------------------------
 
-	// Bold font for headline and all section headers
 	CFont fontBold;
 	fontBold.CreateFont(
 		18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
@@ -362,7 +360,6 @@ void CReportDlg::OnPaint()
 		DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
 	);
 
-	// Normal font for data rows
 	CFont fontNormal;
 	fontNormal.CreateFont(
 		16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
@@ -370,16 +367,18 @@ void CReportDlg::OnPaint()
 		DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI"
 	);
 
-	// --- Headline: "BATTERY INFO" ---
-	CFont* pOldFont = dc.SelectObject(&fontBold);
+	int labelCol = 220;
+	CFont* pOldFont = nullptr;
+
+	//----------------------------------------------------------
+	// 🔹 BASIC BATTERY INFO
+	//----------------------------------------------------------
+
+	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"BATTERY INFO");
 	dc.SelectObject(pOldFont);
 	y += m_rowHeight + 5;
 
-	// --- Label column width ---
-	int labelCol = 220;
-
-	// Helper lambda to draw one info row (label bold, value normal)
 	auto DrawInfoRow = [&](const wchar_t* label, const CString& value)
 		{
 			pOldFont = dc.SelectObject(&fontBold);
@@ -389,8 +388,6 @@ void CReportDlg::OnPaint()
 			dc.SelectObject(pOldFont);
 			y += m_rowHeight;
 		};
-
-	dc.SelectObject(&fontNormal);
 
 	DrawInfoRow(L"Manufacturer:", m_reportData.bid);
 	DrawInfoRow(L"Name:", m_reportData.name);
@@ -405,17 +402,85 @@ void CReportDlg::OnPaint()
 	DrawInfoRow(L"Status:", m_reportData.status);
 	DrawInfoRow(L"Percentage:", m_reportData.percentage);
 	DrawInfoRow(L"Time Remaining:", m_reportData.remainingTime);
+	DrawInfoRow(L"Discharge Result:", m_reportData.dischargeResult);
+	DrawInfoRow(L"CPU Load Result:", m_reportData.cpuLoadResult);
 
 	dc.SelectObject(pOldFont);
-
-	// ✅ No horizontal separator line — just spacing before next section
 	y += 20;
+
+	//----------------------------------------------------------
+	// 🔹 CPU LOAD TEST RESULTS
+	//----------------------------------------------------------
+
+	auto DrawResultRow = [&](const wchar_t* label, const CString& value)
+		{
+			pOldFont = dc.SelectObject(&fontBold);
+			dc.TextOut(x, y, label);
+			dc.SelectObject(&fontNormal);
+			dc.TextOut(x + colPeriod, y, value);
+			dc.SelectObject(pOldFont);
+			y += m_rowHeight;
+		};
+
+	pOldFont = dc.SelectObject(&fontBold);
+	dc.TextOut(x, y, L"CPU LOAD TEST RESULTS");
+	y += m_rowHeight;
+
+	dc.TextOut(x, y, L"Metric");
+	dc.TextOut(x + colPeriod, y, L"Value");
+	dc.SelectObject(pOldFont);
+	y += m_rowHeight;
+
+	CString val;
+
+	val.Format(L"%d%%", m_reportData.cpuInitial);
+	DrawResultRow(L"Initial Charge:", val);
+
+	val.Format(L"%d%%", m_reportData.cpuCurrent);
+	DrawResultRow(L"Current Charge:", val);
+
+	val.Format(L"%d%%", m_reportData.cpuDrop);
+	DrawResultRow(L"Drop:", val);
+
+	val.Format(L"%.2f%% / min", m_reportData.cpuRate);
+	DrawResultRow(L"Rate:", val);
+
+	/*val.Format(L"%.3f GFLOPS", m_reportData.cpuGflops);
+	DrawResultRow(L"GFLOPS:", val);*/
+
+	y += 40;
+
+	//----------------------------------------------------------
+	// 🔹 DISCHARGE TEST RESULTS
+	//----------------------------------------------------------
+
+	pOldFont = dc.SelectObject(&fontBold);
+	dc.TextOut(x, y, L"DISCHARGE TEST RESULTS");
+	y += m_rowHeight;
+
+	dc.TextOut(x, y, L"Metric");
+	dc.TextOut(x + colPeriod, y, L"Value");
+	dc.SelectObject(pOldFont);
+	y += m_rowHeight;
+
+	val.Format(L"%d%%", m_reportData.disInitial);
+	DrawResultRow(L"Initial Charge:", val);
+
+	val.Format(L"%d%%", m_reportData.disFinal);
+	DrawResultRow(L"Final Charge:", val);
+
+	val.Format(L"%d%%", m_reportData.disDrop);
+	DrawResultRow(L"Drop:", val);
+
+	val.Format(L"%.2f%% / min", m_reportData.disRate);
+	DrawResultRow(L"Drain Rate:", val);
+
+	y += 40;
 
 	//----------------------------------------------------------
 	// 🔹 USAGE HISTORY
 	//----------------------------------------------------------
 
-	// Bold section header + column headers
 	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"USAGE HISTORY");
 	y += m_rowHeight;
@@ -426,7 +491,6 @@ void CReportDlg::OnPaint()
 	dc.TextOut(x + colPeriod + col * 2, y, L"AC Active");
 	dc.TextOut(x + colPeriod + col * 3, y, L"AC Standby");
 	dc.SelectObject(pOldFont);
-
 	y += m_rowHeight;
 
 	for (auto& r : m_rows)
@@ -452,7 +516,6 @@ void CReportDlg::OnPaint()
 	// 🔹 BATTERY CAPACITY HISTORY
 	//----------------------------------------------------------
 
-	// Bold section header + column headers
 	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"BATTERY CAPACITY HISTORY");
 	y += m_rowHeight;
@@ -461,7 +524,6 @@ void CReportDlg::OnPaint()
 	dc.TextOut(x + colPeriod, y, L"Full Charge Capacity");
 	dc.TextOut(x + colPeriod + col, y, L"Design Capacity");
 	dc.SelectObject(pOldFont);
-
 	y += m_rowHeight;
 
 	for (auto& r : m_capacity)
@@ -479,7 +541,6 @@ void CReportDlg::OnPaint()
 	// 🔹 BATTERY LIFE ESTIMATES
 	//----------------------------------------------------------
 
-	// Bold section header + column headers
 	pOldFont = dc.SelectObject(&fontBold);
 	dc.TextOut(x, y, L"BATTERY LIFE ESTIMATES");
 	y += m_rowHeight;
@@ -490,13 +551,11 @@ void CReportDlg::OnPaint()
 	dc.TextOut(x + colPeriod + col * 2, y, L"Full Active");
 	dc.TextOut(x + colPeriod + col * 3, y, L"Full Connected");
 	dc.SelectObject(pOldFont);
-
 	y += m_rowHeight;
 
 	for (auto& r : m_life)
 	{
 		CString a, b, c, d;
-
 		a.Format(L"%.2f", r.designActive);
 		b.Format(L"%.2f", r.designConnected);
 		c.Format(L"%.2f", r.fullActive);

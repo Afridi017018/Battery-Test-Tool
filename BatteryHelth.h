@@ -34,13 +34,26 @@ struct BatteryReportData
     CString status;
     CString percentage;
     CString remainingTime;
-    CString     currentCapacity;
+    CString currentCapacity;
     CString voltage;
     CString temperature;
 
     CString cpuLoadResult;
     CString dischargeResult;
 
+
+    // CPU fields
+    int cpuInitial = 0;
+    int cpuCurrent = 0;
+    int cpuDrop = 0;
+    double cpuRate = 0;
+    double cpuGflops = 0;
+
+    // Discharge fields
+    int disInitial = 0;
+    int disFinal = 0;
+    int disDrop = 0;
+    double disRate = 0;
 };
 
 class CBatteryHelthApp : public CWinApp
