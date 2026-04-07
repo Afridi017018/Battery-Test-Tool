@@ -3931,7 +3931,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         SetDlgItemText(IDC_BTN_DISCHARGE, L"放電テスト停止");
     }
 
-    SetTimer(m_dischargeTimerID, 1000, NULL); // 1-second interval
+    SetTimer(m_dischargeTimerID, 1000, NULL); 
 
     if (!m_pDischargeDlg)
     {
@@ -3972,7 +3972,6 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 //            }
 //        }
 //        CDialogEx::OnTimer(nIDEvent);
-//
 //
 //    }
 //
@@ -4261,8 +4260,10 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 //}
 
 
+
 void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 {
+    // ── Original hover / battery-info timers ─────────────────────────────────
     if (nIDEvent == 1 || nIDEvent == 2)
     {
         if (nIDEvent == 2) {
@@ -4298,8 +4299,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         SYSTEM_POWER_STATUS sps;
         if (GetSystemPowerStatus(&sps) && sps.BatteryLifePercent != 255)
         {
-            int drop = m_initialBatteryPercent - sps.BatteryLifePercent;
-
+            int    drop = m_initialBatteryPercent - sps.BatteryLifePercent;
             int    totalSeconds = m_dischargeDurationMinutes * 60;
             double progressPercent = 100.0 * m_elapsedSeconds / totalSeconds;
             if (progressPercent > 100) progressPercent = 100;
@@ -4314,24 +4314,20 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             else
                 msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
 
-            // ── show progress in the RIGHT dialog depending on mode ───────────
             if (m_autoTestRunning)
             {
-                // auto mode: update the dedicated auto dialog only
                 if (m_pAutoDlg)
                     m_pAutoDlg->UpdateProgress(
-                        (int)(37 + progressPercent * 63 / 100),  // 37–100% range
+                        (int)(37 + progressPercent * 63.0 / 100.0),
                         2, msg);
             }
             else
             {
-                // normal mode: update the existing discharge dialog
                 if (m_pDischargeDlg)
                     m_pDischargeDlg->UpdateProgress((int)progressPercent, msg);
             }
 
-            // ── charger plugged in ────────────────────────────────────────────
-            // ── charger plugged in mid-test ───────────────────────────────────────────
+            // ── Charger plugged in mid-test ───────────────────────────────────
             if (sps.ACLineStatus == 1)
             {
                 KillTimer(m_dischargeTimerID);
@@ -4344,16 +4340,17 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     AfxMessageBox(L"充電器を接続しました。放電テストを停止しました。");
 
                 if (m_autoTestRunning)
-                    _FinishAutoTest(false);   // cancelled — no report
+                    _FinishAutoTest(false);
                 else
                 {
                     StopDischargeTest();
                     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
                     m_discharge_progress.ShowWindow(SW_HIDE);
                 }
+                return;
             }
 
-            // ── battery saver turned on mid-test ─────────────────────────────────────
+            // ── Battery saver turned on mid-test ─────────────────────────────
             else if (sps.SystemStatusFlag & 1)
             {
                 m_discharge_progress.ShowWindow(SW_HIDE);
@@ -4370,14 +4367,14 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 ::MessageBox(this->m_hWnd, warnMsg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
 
                 if (m_autoTestRunning)
-                    _FinishAutoTest(false);   // cancelled — no report
+                    _FinishAutoTest(false);
                 else
                     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
                 return;
             }
 
-            // ── both phases finished naturally ───────────────────────────────────────
+            // ── Both phases finished naturally ────────────────────────────────
             else if (m_elapsedSeconds >= totalSeconds)
             {
                 KillTimer(m_dischargeTimerID);
@@ -4385,7 +4382,6 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 m_dischargeClick = true;
                 m_discharge_progress.ShowWindow(SW_HIDE);
 
-                // build m_dischargeResult (same as your original)
                 if (m_lang == Lang::EN)
                 {
                     m_dischargeResult.Format(
@@ -4396,7 +4392,6 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     m_reportData.disFinal = sps.BatteryLifePercent;
                     m_reportData.disDrop = drop;
                     m_reportData.disRate = drainRate;
-
                 }
                 else
                 {
@@ -4414,11 +4409,10 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
                 if (m_autoTestRunning)
                 {
-                    _FinishAutoTest(true);    // completed — opens CReportDlg
+                    _FinishAutoTest(true);
                 }
                 else
                 {
-                    // normal standalone discharge — original graph dialog unchanged
                     CDischargeDlg dlg;
                     dlg.eng_lang = (m_lang == Lang::EN);
                     dlg.SetData(initial, current, rate, tt, yy);
@@ -4431,6 +4425,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     else
                         SetDlgItemText(IDC_BTN_DISCHARGE, L"放電試験を開始する");
                 }
+                return;
             }
         }
         else
@@ -4457,7 +4452,6 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         else
             msg.Format(L"完了するまで 1 分ほどお待ちください。(%.0f%%)", percentDone);
 
-        // only update m_pCpuDlg if NOT in auto mode (auto has its own dialog)
         if (!m_autoTestRunning)
         {
             if (m_pCpuDlg)
@@ -4490,24 +4484,28 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     if (nIDEvent == m_autoTimerID && m_autoTestRunning)
     {
         m_autoElapsed++;
-        double pct = 100.0 * m_autoElapsed / m_autoTotalSeconds;
-        if (pct > 100.0) pct = 100.0;
 
-        CString msg;
+        // Only update the dialog when in the CPU phase.
+        // During the discharge phase the discharge timer drives the dialog.
         if (m_autoPhase == L"CPU")
-            msg.Format(m_lang == Lang::EN
-                ? L"%.0f%% done"
-                : L"%.0f%% 完了", pct);
-        else
-            msg.Format(m_lang == Lang::EN
-                ? L"%.0f%% done"
-                : L"%.0f%% 完了", pct);
+        {
+            // CPU phase occupies 0-37% of the overall bar (3 min out of 8 min)
+            double cpuPct = 100.0 * m_autoElapsed / m_cpuLoadDurationSeconds;
+            if (cpuPct > 100.0) cpuPct = 100.0;
 
-        if (m_pAutoDlg)
-            m_pAutoDlg->UpdateProgress(
-                (int)pct,
-                (m_autoPhase == L"CPU") ? 1 : 2,
-                msg);
+            // Map CPU 0-100% into overall bar 0-37%
+            int overallPct = (int)(cpuPct * 37.0 / 100.0);
+
+            CString msg;
+            if (m_lang == Lang::EN)
+                msg.Format(L"Please wait 3 minutes to complete. (%.0f%%)", cpuPct);
+            else
+                msg.Format(L"完了まで 3 分お待ちください。（ %.0f%%）", cpuPct);
+
+            if (m_pAutoDlg)
+                m_pAutoDlg->UpdateProgress(overallPct, 1, msg);
+        }
+        // Phase 2: do nothing here — discharge timer owns the dialog.
     }
 
     // ── Notify timer ──────────────────────────────────────────────────────────
@@ -7501,10 +7499,10 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     // ── Setup ────────────────────────────────────────────────────────────────
     m_autoTestRunning = true;
     m_autoElapsed = 0;
-    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480s
+    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480 s
     m_autoPhase = L"CPU";
     m_cpuLoadDurationSeconds = 3 * 60;
-    m_autoCancelled = false;   // NEW: reset cancel flag
+    m_autoCancelled = false;
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
@@ -7518,9 +7516,11 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     m_pAutoDlg->CenterWindow();
     m_pAutoDlg->ShowWindow(SW_SHOW);
     m_pAutoDlg->UpdateProgress(0, 1,
-        m_lang == Lang::EN ? L"Starting..." : L"開始中...");
+        m_lang == Lang::EN
+        ? L"Please wait 3 minutes to complete. (0%)"
+        : L"完了まで 3 分お待ちください。（ 0%）");
 
-    // ── Start overall 8-min timer ─────────────────────────────────────────────
+    // ── Start overall progress timer ──────────────────────────────────────────
     SetTimer(m_autoTimerID, 1000, NULL);
 
     // ── Phase 1: CPU load thread ──────────────────────────────────────────────
@@ -7564,7 +7564,6 @@ void CBatteryHelthDlg::OnBnClickedAuto()
                     m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
                     drop, (drop == 0 ? 0.0 : rate), gflops);
 
-                // ADD THESE:
                 m_reportData.cpuInitial = m_initialBatteryCPUPercent;
                 m_reportData.cpuCurrent = spsEnd.BatteryLifePercent;
                 m_reportData.cpuDrop = drop;
@@ -7585,16 +7584,18 @@ void CBatteryHelthDlg::OnBnClickedAuto()
 }
 
 
+// ---------------------------------------------------------------------------
+//  OnAutoTestCPUDone  — unchanged logic
+// ---------------------------------------------------------------------------
 LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
 {
     CString* pResult = (CString*)lParam;
     m_cpuLoadResult = *pResult;
     delete pResult;
 
-    // CPU phase was cancelled — do not proceed
     if (!m_autoTestRunning || m_autoCancelled)
     {
-        _FinishAutoTest(false);  // false = cancelled, don't open report
+        _FinishAutoTest(false);
         return 0;
     }
 
@@ -7626,9 +7627,14 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
 }
 
 
+// ---------------------------------------------------------------------------
+//  _FinishAutoTest
+// ---------------------------------------------------------------------------
 void CBatteryHelthDlg::_FinishAutoTest(bool completed)
 {
     KillTimer(m_autoTimerID);
+    KillTimer(m_dischargeTimerID);  // belt-and-suspenders: always kill both
+
     m_autoTestRunning = false;
     m_dischargeTestRunning = false;
     m_cpuLoadTestRunning = false;
@@ -7639,30 +7645,14 @@ void CBatteryHelthDlg::_FinishAutoTest(bool completed)
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
 
-    // Only open report if both phases finished naturally
     if (completed)
     {
-        // Inject auto test results into m_reportData
-        // so CReportDlg can display them alongside existing data.
-        // Adjust field names below to match your actual ReportData struct.
-        m_reportData.cpuLoadResult = m_cpuLoadResult;    // CString field
-        m_reportData.dischargeResult = m_dischargeResult;  // CString field
+        m_reportData.cpuLoadResult = m_cpuLoadResult;
+        m_reportData.dischargeResult = m_dischargeResult;
 
-        m_reportData.cpuInitial;
-        m_reportData.cpuCurrent;
-        m_reportData.cpuDrop;
-        m_reportData.cpuRate;
-        m_reportData.cpuGflops;
-
-        m_reportData.disInitial;
-        m_reportData.disFinal;
-        m_reportData.disDrop;
-        m_reportData.disRate;
-
-        // If your struct uses different field names, replace the two lines
-        // above with whatever members ReportData actually has, e.g.:
-        //   m_reportData.strCpuTest  = m_cpuLoadResult;
-        //   m_reportData.strDischarge = m_dischargeResult;
+        // Numeric fields are already filled by the timer / CPU thread.
+        // (cpuInitial, cpuCurrent, cpuDrop, cpuRate, cpuGflops,
+        //  disInitial, disFinal, disDrop, disRate)
 
         CReportDlg dlg(m_reportData, this);
         dlg.DoModal();
@@ -7670,7 +7660,22 @@ void CBatteryHelthDlg::_FinishAutoTest(bool completed)
 }
 
 
+void CBatteryHelthDlg::CancelAutoTest()
+{
+    if (!m_autoTestRunning)
+        return;
 
+    m_autoCancelled = true;
+
+    // Stop the CPU worker thread if still running
+    m_stopCpuLoad.store(true);
+
+    // Stop discharge timer immediately
+    KillTimer(m_dischargeTimerID);
+
+    // _FinishAutoTest(false) will also kill m_autoTimerID
+    _FinishAutoTest(false);
+}
 
 
 //////////////////okokokok

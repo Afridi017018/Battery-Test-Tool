@@ -23,6 +23,7 @@
 
 #include <PowerSetting.h> 
 
+#include "BatteryHelth.h"        
 #include "CAutoProgressDlg.h"
 
 #pragma comment(lib, "User32.lib")
@@ -397,6 +398,9 @@ public:
 
 	// add this new member:
 	bool m_autoCancelled = false;
+
+	public:
+      void CancelAutoTest();
 
 };
 

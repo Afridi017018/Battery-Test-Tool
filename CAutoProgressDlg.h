@@ -17,6 +17,14 @@ public:
 protected:
     virtual void DoDataExchange(CDataExchange* pDX);
     virtual BOOL OnInitDialog();
+
+    // FIX 1: Intercept the X (close) button so it cancels the test
+    //        instead of just destroying the dialog mid-run.
+    afx_msg void OnClose();
+
+    // FIX 1: Also intercept Escape key (which calls OnCancel by default).
+    virtual void OnCancel();
+
     DECLARE_MESSAGE_MAP()
 
 private:
