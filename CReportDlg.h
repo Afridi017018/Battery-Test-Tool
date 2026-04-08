@@ -3,6 +3,7 @@
 #include <vector>
 #include "BatteryHelth.h"
 #include "resource.h"
+
 class CReportDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CReportDlg)
@@ -41,18 +42,27 @@ protected:
 	afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	// ── NEW: painted-button hit-test ──────────────────────────────────
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	DECLARE_MESSAGE_MAP()
 private:
-	std::vector<UsageHistoryRow> m_rows;
+	std::vector<UsageHistoryRow>    m_rows;
 	std::vector<BatteryCapacityRow> m_capacity;
-	std::vector<BatteryLifeRow> m_life;
+	std::vector<BatteryLifeRow>     m_life;
 	CString m_htmlCache;
 	int m_scrollPos = 0;
 	int m_rowHeight = 25;
-	int m_basicInfoHeight = 0;   // ✅ tracks painted height of basic info block
+	int m_basicInfoHeight = 0;
 	void LoadUsageHistory();
 	void UpdateScrollBar();
 	int m_scrollX = 0;
+
+	// ── NEW: export helpers ───────────────────────────────────────────
+	CRect   m_exportBtnRect;          // screen rect of the painted Export button
+	CString BuildHtmlReport() const;  // assembles the full HTML string
+	void    ExportHtmlReport(const CString& destPath = L"") const;
+	bool    ExportPrintToPdf(CString& outPdfPath) const;
+
 public:
 	BatteryReportData m_reportData;
 };

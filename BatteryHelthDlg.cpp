@@ -7499,9 +7499,9 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     // ── Setup ────────────────────────────────────────────────────────────────
     m_autoTestRunning = true;
     m_autoElapsed = 0;
-    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480 s
+    m_autoTotalSeconds = (1 * 60) + (1 * 60);  // 480 s
     m_autoPhase = L"CPU";
-    m_cpuLoadDurationSeconds = 3 * 60;
+    m_cpuLoadDurationSeconds = 1 * 60;
     m_autoCancelled = false;
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
@@ -7615,7 +7615,7 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
     m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedSeconds = 0;
     m_elapsedMinutes = 0;
-    m_dischargeDurationMinutes = 5;
+    m_dischargeDurationMinutes = 1;
     m_dischargeTestRunning = true;
 
     if (m_pAutoDlg)
