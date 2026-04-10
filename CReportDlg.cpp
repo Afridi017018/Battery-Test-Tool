@@ -3,8 +3,12 @@
 #include "afxdialogex.h"
 #include <afxcmn.h>
 #include <regex>
+#include <vector>
+#include <utility>
 #include <shellapi.h>   // ShellExecute  (for opening the HTML / PDF)
+#include <winspool.h>   // OpenPrinter, GetPrinter, DocumentProperties
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "winspool.lib")
 
 IMPLEMENT_DYNAMIC(CReportDlg, CDialogEx)
 
@@ -395,21 +399,27 @@ void CReportDlg::OnPaint()
 			y += m_rowHeight;
 		};
 
+	DrawInfoRow(L"UUID:", m_reportData.uuid);
 	DrawInfoRow(L"Manufacturer:", m_reportData.bid);
 	DrawInfoRow(L"Name:", m_reportData.name);
-	DrawInfoRow(L"UUID:", m_reportData.uuid);
-	DrawInfoRow(L"Design Capacity:", m_reportData.designCapacity + L" mWh");
-	DrawInfoRow(L"Full Charge Cap.:", m_reportData.fullChargeCapacity + L" mWh");
-	DrawInfoRow(L"Current Capacity:", m_reportData.currentCapacity + L" mWh");
-	DrawInfoRow(L"Health:", m_reportData.health);
-	DrawInfoRow(L"Cycles:", m_reportData.cycles);
-	DrawInfoRow(L"Voltage:", m_reportData.voltage);
-	DrawInfoRow(L"Temperature:", m_reportData.temperature);
 	DrawInfoRow(L"Status:", m_reportData.status);
 	DrawInfoRow(L"Percentage:", m_reportData.percentage);
 	DrawInfoRow(L"Time Remaining:", m_reportData.remainingTime);
-	DrawInfoRow(L"Discharge Result:", m_reportData.dischargeResult);
-	DrawInfoRow(L"CPU Load Result:", m_reportData.cpuLoadResult);
+
+
+	DrawInfoRow(L"Voltage:", m_reportData.voltage);
+	DrawInfoRow(L"Temperature:", m_reportData.temperature);
+	DrawInfoRow(L"Design Capacity:", m_reportData.designCapacity + L"");
+	DrawInfoRow(L"Full Charge Cap.:", m_reportData.fullChargeCapacity + L"");
+	DrawInfoRow(L"Current Capacity:", m_reportData.currentCapacity + L"");
+	DrawInfoRow(L"Cycles:", m_reportData.cycles);
+	DrawInfoRow(L"Health:", m_reportData.health);
+
+
+
+
+	/*DrawInfoRow(L"Discharge Result:", m_reportData.dischargeResult);
+	DrawInfoRow(L"CPU Load Result:", m_reportData.cpuLoadResult);*/
 
 	dc.SelectObject(pOldFont);
 	y += 20;
@@ -429,7 +439,7 @@ void CReportDlg::OnPaint()
 		};
 
 	pOldFont = dc.SelectObject(&fontBold);
-	dc.TextOut(x, y, L"CPU LOAD TEST RESULTS");
+	dc.TextOut(x, y, L"CPU LOAD TEST RESULTS (3 min)");
 	y += m_rowHeight;
 
 	dc.TextOut(x, y, L"Metric");
@@ -458,7 +468,7 @@ void CReportDlg::OnPaint()
 	//----------------------------------------------------------
 
 	pOldFont = dc.SelectObject(&fontBold);
-	dc.TextOut(x, y, L"DISCHARGE TEST RESULTS");
+	dc.TextOut(x, y, L"DISCHARGE TEST RESULTS (5 min)");
 	y += m_rowHeight;
 
 	dc.TextOut(x, y, L"Metric");
@@ -690,25 +700,30 @@ CString CReportDlg::BuildHtmlReport() const
 		L"</style>\n</head>\n<body>\n"
 		L"<h1 style='color:#0078d4;'>Battery Report</h1>\n";
 
+
+
 	html += L"<h2>Battery Info</h2>\n<table>\n";
+	html += TR2(L"UUID", m_reportData.uuid);
 	html += TR2(L"Manufacturer", m_reportData.bid);
 	html += TR2(L"Name", m_reportData.name);
-	html += TR2(L"UUID", m_reportData.uuid);
-	html += TR2(L"Design Capacity", m_reportData.designCapacity + L" mWh");
-	html += TR2(L"Full Charge Cap.", m_reportData.fullChargeCapacity + L" mWh");
-	html += TR2(L"Current Capacity", m_reportData.currentCapacity + L" mWh");
-	html += TR2(L"Health", m_reportData.health);
-	html += TR2(L"Cycles", m_reportData.cycles);
-	html += TR2(L"Voltage", m_reportData.voltage);
-	html += TR2(L"Temperature", m_reportData.temperature);
 	html += TR2(L"Status", m_reportData.status);
 	html += TR2(L"Percentage", m_reportData.percentage);
 	html += TR2(L"Time Remaining", m_reportData.remainingTime);
-	html += TR2(L"Discharge Result", m_reportData.dischargeResult);
-	html += TR2(L"CPU Load Result", m_reportData.cpuLoadResult);
+
+	html += TR2(L"Voltage", m_reportData.voltage);
+	html += TR2(L"Temperature", m_reportData.temperature);
+	html += TR2(L"Design Capacity", m_reportData.designCapacity + L"");
+	html += TR2(L"Full Charge Cap.", m_reportData.fullChargeCapacity + L"");
+	html += TR2(L"Current Capacity", m_reportData.currentCapacity + L"");
+	html += TR2(L"Cycles", m_reportData.cycles);
+	html += TR2(L"Health", m_reportData.health);
+
+
+	/*html += TR2(L"Discharge Result", m_reportData.dischargeResult);
+	html += TR2(L"CPU Load Result", m_reportData.cpuLoadResult);*/
 	html += L"</table>\n";
 
-	html += L"<h2>CPU Load Test Results</h2>\n<table>\n";
+	html += L"<h2>CPU Load Test Results (3 min)</h2>\n<table>\n";
 	html += TH(L"Metric"); html += TH(L"Value"); html += L"\n";
 
 	CString val;
@@ -718,7 +733,7 @@ CString CReportDlg::BuildHtmlReport() const
 	val.Format(L"%.2f%% / min", m_reportData.cpuRate); html += TR2(L"Rate", val);
 	html += L"</table>\n";
 
-	html += L"<h2>Discharge Test Results</h2>\n<table>\n";
+	html += L"<h2>Discharge Test Results (5 min)</h2>\n<table>\n";
 	html += TH(L"Metric"); html += TH(L"Value"); html += L"\n";
 
 	val.Format(L"%d%%", m_reportData.disInitial);       html += TR2(L"Initial Charge", val);
@@ -835,35 +850,397 @@ void CReportDlg::ExportHtmlReport(const CString& destPath) const
 }
 
 //////////////////////////////////////////////////////////////
-// 🔹 ExportPrintToPdf  –  prints HTML via "Microsoft Print to PDF"
+// 🔹 HELPER: enumerate local printers, return first name that
+//            contains all given keywords (case-insensitive).
+//////////////////////////////////////////////////////////////
+
+static CString FindPrinterByKeywords(std::initializer_list<const wchar_t*> keywords)
+{
+	DWORD needed = 0, returned = 0;
+	EnumPrintersW(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+		nullptr, 2, nullptr, 0, &needed, &returned);
+
+	if (needed == 0) return L"";
+
+	std::vector<BYTE> buf(needed);
+	if (!EnumPrintersW(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+		nullptr, 2, buf.data(), needed, &needed, &returned))
+		return L"";
+
+	PRINTER_INFO_2W* pi = reinterpret_cast<PRINTER_INFO_2W*>(buf.data());
+
+	for (DWORD i = 0; i < returned; ++i)
+	{
+		CString nameUpper(pi[i].pPrinterName);
+		nameUpper.MakeUpper();
+
+		bool allMatch = true;
+		for (const wchar_t* kw : keywords)
+		{
+			CString kwU(kw);
+			kwU.MakeUpper();
+			if (nameUpper.Find(kwU) < 0) { allMatch = false; break; }
+		}
+		if (allMatch)
+			return CString(pi[i].pPrinterName);
+	}
+	return L"";
+}
+
+//////////////////////////////////////////////////////////////
+// 🔹 HELPER: shared GDI rendering — styled to match HTML design
+//
+//  HTML design replicated:
+//   • Blue (#0078D4) H1 title "Battery Report"
+//   • Blue H2 section headings with 2px blue underline
+//   • Tables: blue filled header row (white bold text)
+//   • Data rows: alternating white / #F4F8FF background
+//   • 1px #DDDDDD bottom border on every data row
+//   • Bold label column in info/result tables
+//   • Text padding matches HTML (6px header, 5px data)
+//////////////////////////////////////////////////////////////
+
+void CReportDlg::RenderReportToDC(HDC hDC, int pageW, int pageH,
+	int marginX, int marginY, float scaleX, float scaleY) const
+{
+	const COLORREF clrBlue = RGB(0, 120, 212);
+	const COLORREF clrWhite = RGB(255, 255, 255);
+	const COLORREF clrBlack = RGB(0, 0, 0);
+	const COLORREF clrDark = RGB(34, 34, 34);
+	const COLORREF clrAltRow = RGB(244, 248, 255);
+	const COLORREF clrBorder = RGB(221, 221, 221);
+
+	int rowH = (int)(22 * scaleY);
+	int hdrH = (int)(26 * scaleY);
+	int padX = (int)(10 * scaleX);
+	int padY = (int)(5 * scaleY);
+	int padYHdr = (int)(6 * scaleY);
+	int h2Gap = (int)(32 * scaleY);
+	int h2Under = (int)(2 * scaleY);
+
+	int tableW = pageW - 2 * marginX;
+
+	// --- Columns for 2-col and 3-col tables (unchanged) ---
+	int col1 = (int)(220 * scaleX);
+	int colPeriod = (int)(320 * scaleX);
+	int col = (int)(180 * scaleX);
+
+	// --- Narrower columns ONLY for 5-column wide tables ---
+	int colPeriod5 = (int)(200 * scaleX);
+	int col5 = (int)(120 * scaleX);
+
+	int fontBody = -(int)(13 * scaleY);
+	int fontH1 = -(int)(22 * scaleY);
+	int fontH2 = -(int)(15 * scaleY);
+
+	HFONT hFontBody = CreateFontW(fontBody, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+	HFONT hFontBold = CreateFontW(fontBody, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+	HFONT hFontH1 = CreateFontW(fontH1, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+	HFONT hFontH2 = CreateFontW(fontH2, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+		DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+		CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+
+	HBRUSH hBrBlue = CreateSolidBrush(clrBlue);
+	HBRUSH hBrAlt = CreateSolidBrush(clrAltRow);
+	HBRUSH hBrWhite = CreateSolidBrush(clrWhite);
+	HPEN   hPenBorder = CreatePen(PS_SOLID, max(1, (int)scaleY), clrBorder);
+	HPEN   hPenBlue = CreatePen(PS_SOLID, h2Under, clrBlue);
+	HPEN   hPenNull = (HPEN)GetStockObject(NULL_PEN);
+
+	SetBkMode(hDC, TRANSPARENT);
+
+	int x = marginX;
+	int y = marginY;
+
+	bool onPrinter = (pageH > 0);
+
+	auto CheckBreak = [&](int neededH)
+		{
+			if (onPrinter && pageH > 0 && y + neededH > pageH - marginY)
+			{
+				EndPage(hDC);
+				StartPage(hDC);
+				y = marginY;
+				SetBkMode(hDC, TRANSPARENT);
+			}
+		};
+
+	auto FillRect2 = [&](int rx, int ry, int rw, int rh, HBRUSH br)
+		{
+			RECT rc = { rx, ry, rx + rw, ry + rh };
+			FillRect(hDC, &rc, br);
+		};
+
+	auto DrawBottomBorder = [&](int rx, int ry, int rw, int rh)
+		{
+			HPEN old = (HPEN)SelectObject(hDC, hPenBorder);
+			MoveToEx(hDC, rx, ry + rh - 1, nullptr);
+			LineTo(hDC, rx + rw, ry + rh - 1);
+			SelectObject(hDC, old);
+		};
+
+	auto CellText = [&](int cx, int cy, int cw, int ch,
+		const wchar_t* txt, HFONT fnt, COLORREF clr, int pxOff = 0)
+		{
+			SelectObject(hDC, fnt);
+			SetTextColor(hDC, clr);
+			RECT rc = { cx + padX + pxOff, cy + padY, cx + cw, cy + ch };
+			DrawTextW(hDC, txt, -1, &rc, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+		};
+
+	auto CellTextHdr = [&](int cx, int cy, int cw, int ch,
+		const wchar_t* txt, HFONT fnt, COLORREF clr)
+		{
+			SelectObject(hDC, fnt);
+			SetTextColor(hDC, clr);
+			RECT rc = { cx + padX, cy + padYHdr, cx + cw, cy + ch };
+			DrawTextW(hDC, txt, -1, &rc, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
+		};
+
+	// ── H1 ─────────────────────────────────────────────────────────────
+	{
+		int h1H = (int)(30 * scaleY);
+		CheckBreak(h1H);
+		SelectObject(hDC, hFontH1);
+		SetTextColor(hDC, clrBlue);
+		RECT rc = { x, y, x + tableW, y + h1H };
+		DrawTextW(hDC, L"Battery Report", -1, &rc,
+			DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+		y += h1H + (int)(10 * scaleY);
+	}
+
+	struct ColDef { const wchar_t* hdr; int xOff; int w; };
+
+	auto DrawH2 = [&](const wchar_t* title)
+		{
+			int h2H = (int)(20 * scaleY);
+			CheckBreak(h2H + h2Under + (int)(6 * scaleY));
+			y += (int)(h2Gap * 0.5f);
+
+			SelectObject(hDC, hFontH2);
+			SetTextColor(hDC, clrBlue);
+			RECT rc = { x, y, x + tableW, y + h2H };
+			DrawTextW(hDC, title, -1, &rc, DT_LEFT | DT_BOTTOM | DT_SINGLELINE | DT_NOPREFIX);
+			y += h2H + (int)(4 * scaleY);
+
+			HPEN old = (HPEN)SelectObject(hDC, hPenBlue);
+			MoveToEx(hDC, x, y, nullptr);
+			LineTo(hDC, x + tableW, y);
+			SelectObject(hDC, old);
+			y += h2Under + (int)(6 * scaleY);
+		};
+
+	auto DrawTableHeader = [&](const std::vector<ColDef>& cols)
+		{
+			CheckBreak(hdrH);
+			FillRect2(x, y, tableW, hdrH, hBrBlue);
+			for (const auto& c : cols)
+				CellTextHdr(x + c.xOff, y, c.w, hdrH, c.hdr, hFontBold, clrWhite);
+			y += hdrH;
+		};
+
+	int dataRowIdx = 0;
+	auto DrawDataRow = [&](const std::vector<std::pair<int, CString>>& cells,
+		bool boldFirst = false)
+		{
+			CheckBreak(rowH);
+			HBRUSH bg = (dataRowIdx % 2 == 1) ? hBrAlt : hBrWhite;
+			FillRect2(x, y, tableW, rowH, bg);
+			DrawBottomBorder(x, y, tableW, rowH);
+
+			for (int i = 0; i < (int)cells.size(); ++i)
+			{
+				HFONT f = (i == 0 && boldFirst) ? hFontBold : hFontBody;
+				CellText(x + cells[i].first, y,
+					(i + 1 < (int)cells.size()) ? (cells[i + 1].first - cells[i].first) : (tableW - cells[i].first),
+					rowH, cells[i].second.GetString(), f, clrDark);
+			}
+			++dataRowIdx;
+			y += rowH;
+		};
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 1: Battery Info
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"Battery Info");
+	{
+		std::vector<ColDef> hdrs = {
+			{ L"Property", 0,    col1 },
+			{ L"Value",    col1, tableW - col1 }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		auto InfoRow = [&](const wchar_t* lbl, const CString& val)
+			{
+				DrawDataRow({ {0, CString(lbl)}, {col1, val} }, true);
+			};
+
+		InfoRow(L"UUID", m_reportData.uuid);
+		InfoRow(L"Manufacturer", m_reportData.bid);
+		InfoRow(L"Name", m_reportData.name);
+		InfoRow(L"Status", m_reportData.status);
+		InfoRow(L"Percentage", m_reportData.percentage);
+		InfoRow(L"Time Remaining", m_reportData.remainingTime);
+		InfoRow(L"Voltage", m_reportData.voltage);
+		InfoRow(L"Temperature", m_reportData.temperature);
+		InfoRow(L"Design Capacity", m_reportData.designCapacity);
+		InfoRow(L"Full Charge Cap.", m_reportData.fullChargeCapacity);
+		InfoRow(L"Current Capacity", m_reportData.currentCapacity);
+		InfoRow(L"Cycles", m_reportData.cycles);
+		InfoRow(L"Health", m_reportData.health);
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 2: CPU Load Test
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"CPU Load Test Results (3 min)");
+	{
+		std::vector<ColDef> hdrs = {
+			{ L"Metric", 0,         colPeriod },
+			{ L"Value",  colPeriod, tableW - colPeriod }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		CString val;
+		val.Format(L"%d%%", m_reportData.cpuInitial);
+		DrawDataRow({ {0, L"Initial Charge"}, {colPeriod, val} }, true);
+		val.Format(L"%d%%", m_reportData.cpuCurrent);
+		DrawDataRow({ {0, L"Current Charge"}, {colPeriod, val} }, true);
+		val.Format(L"%d%%", m_reportData.cpuDrop);
+		DrawDataRow({ {0, L"Drop"          }, {colPeriod, val} }, true);
+		val.Format(L"%.2f%% / min", m_reportData.cpuRate);
+		DrawDataRow({ {0, L"Rate"          }, {colPeriod, val} }, true);
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 3: Discharge Test
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"Discharge Test Results (5 min)");
+	{
+		std::vector<ColDef> hdrs = {
+			{ L"Metric", 0,         colPeriod },
+			{ L"Value",  colPeriod, tableW - colPeriod }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		CString val;
+		val.Format(L"%d%%", m_reportData.disInitial);
+		DrawDataRow({ {0, L"Initial Charge"}, {colPeriod, val} }, true);
+		val.Format(L"%d%%", m_reportData.disFinal);
+		DrawDataRow({ {0, L"Final Charge"  }, {colPeriod, val} }, true);
+		val.Format(L"%d%%", m_reportData.disDrop);
+		DrawDataRow({ {0, L"Drop"          }, {colPeriod, val} }, true);
+		val.Format(L"%.2f%% / min", m_reportData.disRate);
+		DrawDataRow({ {0, L"Drain Rate"    }, {colPeriod, val} }, true);
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 4: Usage History  — 5 columns, uses col5/colPeriod5
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"Usage History");
+	{
+		int c0 = 0, c1 = colPeriod5, c2 = c1 + col5, c3 = c2 + col5, c4 = c3 + col5;
+		std::vector<ColDef> hdrs = {
+			{ L"Period",          c0, colPeriod5 },
+			{ L"Battery Active",  c1, col5 },
+			{ L"Battery Standby", c2, col5 },
+			{ L"AC Active",       c3, col5 },
+			{ L"AC Standby",      c4, tableW - c4 }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		for (const auto& r : m_rows)
+		{
+			CString a, b, c, d;
+			a.Format(L"%.2f h", r.battActiveHrs);
+			b.Format(L"%.2f h", r.battStandbyHrs);
+			c.Format(L"%.2f h", r.acActiveHrs);
+			d.Format(L"%.2f h", r.acStandbyHrs);
+			DrawDataRow({ {c0, r.period}, {c1, a}, {c2, b}, {c3, c}, {c4, d} });
+		}
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 5: Battery Capacity History  — 3 columns (unchanged)
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"Battery Capacity History");
+	{
+		int c0 = 0, c1 = colPeriod, c2 = c1 + col;
+		std::vector<ColDef> hdrs = {
+			{ L"Period",               c0, colPeriod },
+			{ L"Full Charge Capacity", c1, col },
+			{ L"Design Capacity",      c2, tableW - c2 }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		for (const auto& r : m_capacity)
+			DrawDataRow({ {c0, r.period}, {c1, r.fullCharge}, {c2, r.designCapacity} });
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// SECTION 6: Battery Life Estimates  — 5 columns, uses col5/colPeriod5
+	// ══════════════════════════════════════════════════════════════════
+	DrawH2(L"Battery Life Estimates");
+	{
+		int c0 = 0, c1 = colPeriod5, c2 = c1 + col5, c3 = c2 + col5, c4 = c3 + col5;
+		std::vector<ColDef> hdrs = {
+			{ L"Period",           c0, colPeriod5 },
+			{ L"Design Active",    c1, col5 },
+			{ L"Design Connected", c2, col5 },
+			{ L"Full Active",      c3, col5 },
+			{ L"Full Connected",   c4, tableW - c4 }
+		};
+		DrawTableHeader(hdrs);
+		dataRowIdx = 0;
+
+		for (const auto& r : m_life)
+		{
+			CString a, b, c, d;
+			a.Format(L"%.2f h", r.designActive);
+			b.Format(L"%.2f h", r.designConnected);
+			c.Format(L"%.2f h", r.fullActive);
+			d.Format(L"%.2f h", r.fullConnected);
+			DrawDataRow({ {c0, r.period}, {c1, a}, {c2, b}, {c3, c}, {c4, d} });
+		}
+	}
+
+	// ── Cleanup ────────────────────────────────────────────────────────
+	DeleteObject(hFontBody);
+	DeleteObject(hFontBold);
+	DeleteObject(hFontH1);
+	DeleteObject(hFontH2);
+	DeleteObject(hBrBlue);
+	DeleteObject(hBrAlt);
+	DeleteObject(hBrWhite);
+	DeleteObject(hPenBorder);
+	DeleteObject(hPenBlue);
+}
+
+//////////////////////////////////////////////////////////////
+// 🔹 ExportPrintToPdf  –  no admin rights required
+//
+//  Key insight: "Microsoft Print to PDF" honours DOCINFO.lpszOutput
+//  as the destination file path — no SetPrinterW / port redirect needed.
+//  We just CreateDC for the printer, set di.lpszOutput = chosen path,
+//  call StartDoc, render, EndDoc.  Works for any standard user.
 //////////////////////////////////////////////////////////////
 
 bool CReportDlg::ExportPrintToPdf(CString& outPdfPath) const
 {
-	wchar_t tempDir[MAX_PATH];
-	GetTempPath(MAX_PATH, tempDir);
-
-	CString htmlTemp;
-	htmlTemp.Format(L"%sbattery_export_tmp.html", tempDir);
-
-	CString htmlW = BuildHtmlReport();
-	int bytes = WideCharToMultiByte(CP_UTF8, 0, htmlW, -1, nullptr, 0, nullptr, nullptr);
-	std::string utf8(bytes, '\0');
-	WideCharToMultiByte(CP_UTF8, 0, htmlW, -1, &utf8[0], bytes, nullptr, nullptr);
-
-	{
-		CStdioFile f;
-		if (!f.Open(htmlTemp, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
-		{
-			AfxMessageBox(L"Could not write temporary HTML file.", MB_ICONERROR);
-			return false;
-		}
-		f.Write(utf8.c_str(), (UINT)utf8.size() - 1);
-		f.Close();
-	}
-
-	wchar_t filter[] = L"PDF Files (*.pdf)\0*.pdf\0All Files (*.*)\0*.*\0\0";
+	// ── 1. SaveFileDialog ───────────────────────────────────────────────
 	wchar_t szFile[MAX_PATH] = L"battery_report.pdf";
+	wchar_t filter[] = L"PDF Files (*.pdf)\0*.pdf\0All Files (*.*)\0*.*\0\0";
 
 	OPENFILENAME ofn = {};
 	ofn.lStructSize = sizeof(ofn);
@@ -875,51 +1252,94 @@ bool CReportDlg::ExportPrintToPdf(CString& outPdfPath) const
 	ofn.lpstrDefExt = L"pdf";
 
 	if (!GetSaveFileName(&ofn))
-		return false;
+		return false;   // cancelled
 
 	outPdfPath = szFile;
 
-	HINSTANCE hi = ShellExecute(
-		GetSafeHwnd(),
-		L"printto",
-		htmlTemp,
-		L"Microsoft Print to PDF",
-		nullptr,
-		SW_HIDE
-	);
+	// ── 2. Find "Microsoft Print to PDF" (locale-safe) ──────────────────
+	//    Try the most-specific match first, then broaden.
+	CString printerName = FindPrinterByKeywords({ L"Microsoft", L"PDF" });
+	if (printerName.IsEmpty())
+		printerName = FindPrinterByKeywords({ L"PDF" });
 
-	if ((INT_PTR)hi <= 32)
+	if (printerName.IsEmpty())
 	{
-		ShellExecute(GetSafeHwnd(), L"print", htmlTemp, nullptr, nullptr, SW_SHOWNORMAL);
 		AfxMessageBox(
-			L"Could not auto-print to PDF.\n"
-			L"The report has been opened in your browser.\n"
-			L"Please use Ctrl+P → 'Save as PDF' to export.",
-			MB_ICONINFORMATION
-		);
-		outPdfPath.Empty();
+			L"'Microsoft Print to PDF' was not found on this PC.\n\n"
+			L"Enable it via:\n"
+			L"  Settings \u2192 Devices \u2192 Printers & scanners\n"
+			L"  \u2192 Add a printer \u2192 Microsoft Print to PDF",
+			MB_ICONWARNING);
 		return false;
 	}
 
-	Sleep(3000);
+	// ── 3. Get DEVMODE for the printer ──────────────────────────────────
+	HANDLE hPrinter = nullptr;
+	OpenPrinterW(const_cast<LPWSTR>(printerName.GetString()), &hPrinter, nullptr);
 
-	wchar_t docsPath[MAX_PATH];
-	if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, docsPath)))
+	std::vector<BYTE> dmBuf;
+	DEVMODEW* pDM = nullptr;
+
+	if (hPrinter)
 	{
-		CString autoSaved;
-		autoSaved.Format(L"%s\\battery_export_tmp.pdf", docsPath);
-
-		if (::MoveFileEx(autoSaved, outPdfPath, MOVEFILE_REPLACE_EXISTING))
-			return true;
+		LONG dmSz = DocumentPropertiesW(GetSafeHwnd(), hPrinter,
+			const_cast<LPWSTR>(printerName.GetString()),
+			nullptr, nullptr, 0);
+		if (dmSz > 0)
+		{
+			dmBuf.resize(dmSz);
+			pDM = reinterpret_cast<DEVMODEW*>(dmBuf.data());
+			if (DocumentPropertiesW(GetSafeHwnd(), hPrinter,
+				const_cast<LPWSTR>(printerName.GetString()),
+				pDM, nullptr, DM_OUT_BUFFER) < 0)
+				pDM = nullptr;
+		}
+		ClosePrinter(hPrinter);
 	}
 
-	if (::GetFileAttributes(outPdfPath) != INVALID_FILE_ATTRIBUTES)
-		return true;
+	// ── 4. Create a DC for the PDF printer ──────────────────────────────
+	HDC hDC = CreateDCW(nullptr, printerName.GetString(), nullptr, pDM);
+	if (!hDC)
+	{
+		AfxMessageBox(L"Could not create a DC for the PDF printer.", MB_ICONERROR);
+		return false;
+	}
 
-	AfxMessageBox(
-		L"PDF may have been saved to your Documents folder as 'battery_export_tmp.pdf'.\n"
-		L"Please move it manually to your desired location.",
-		MB_ICONINFORMATION
-	);
-	return false;
+	// ── 5. StartDoc — pass the output path via lpszOutput ───────────────
+	//       This is the standard, no-admin way to control where the PDF lands.
+	DOCINFOW di = {};
+	di.cbSize = sizeof(di);
+	di.lpszDocName = L"Battery Report";
+	di.lpszOutput = outPdfPath.GetString();   // ← THE KEY FIX
+
+	if (StartDocW(hDC, &di) <= 0)
+	{
+		DWORD err = GetLastError();
+		DeleteDC(hDC);
+		CString msg;
+		msg.Format(L"StartDoc failed (error %lu).\nCould not create PDF.", err);
+		AfxMessageBox(msg, MB_ICONERROR);
+		return false;
+	}
+
+	StartPage(hDC);
+
+	// ── 6. Render all content onto the printer DC ────────────────────────
+	int pageW = GetDeviceCaps(hDC, HORZRES);
+	int pageH = GetDeviceCaps(hDC, VERTRES);
+	int dpiX = GetDeviceCaps(hDC, LOGPIXELSX);
+	int dpiY = GetDeviceCaps(hDC, LOGPIXELSY);
+
+	int   marginX = (dpiX * 3) / 4;   // ~0.75 inch left/right
+	int   marginY = (dpiY * 3) / 4;   // ~0.75 inch top/bottom
+	float scaleX = (float)dpiX / 96.0f;
+	float scaleY = (float)dpiY / 96.0f;
+
+	RenderReportToDC(hDC, pageW, pageH, marginX, marginY, scaleX, scaleY);
+
+	EndPage(hDC);
+	EndDoc(hDC);
+	DeleteDC(hDC);
+
+	return true;
 }

@@ -3,7 +3,6 @@
 #include <vector>
 #include "BatteryHelth.h"
 #include "resource.h"
-
 class CReportDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CReportDlg)
@@ -56,13 +55,13 @@ private:
 	void LoadUsageHistory();
 	void UpdateScrollBar();
 	int m_scrollX = 0;
-
 	// ── NEW: export helpers ───────────────────────────────────────────
 	CRect   m_exportBtnRect;          // screen rect of the painted Export button
 	CString BuildHtmlReport() const;  // assembles the full HTML string
 	void    ExportHtmlReport(const CString& destPath = L"") const;
 	bool    ExportPrintToPdf(CString& outPdfPath) const;
-
+	void    RenderReportToDC(HDC hDC, int pageW, int pageH,
+		int marginX, int marginY, float scaleX, float scaleY) const;
 public:
 	BatteryReportData m_reportData;
 };

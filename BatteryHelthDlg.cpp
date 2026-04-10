@@ -86,9 +86,6 @@
 #include <ShlObj.h>
 #include <shellapi.h>
 
-#include <batclass.h>
-#include <devguid.h>
-#include <setupapi.h>
 #pragma comment(lib, "setupapi.lib")
 
 #include <PowrProf.h>
@@ -143,8 +140,8 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 
-// CBatteryHelthDlg dialog
 
+// CBatteryHelthDlg dialog
 
 
 CBatteryHelthDlg::CBatteryHelthDlg(CWnd* pParent /*=nullptr*/)
@@ -1147,7 +1144,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
-IDC_STATIC_CAPHIS
+IDC_STATIC_CAPHIS, IDC_AUTO
     };
 
     for (auto id : ids)
@@ -1208,6 +1205,7 @@ IDC_STATIC_CAPHIS
     // === Make the two buttons owner-drawn so we can color them ===
     if (CWnd* p = GetDlgItem(IDC_BTN_JP)) p->ModifyStyle(0, BS_OWNERDRAW);
     if (CWnd* p = GetDlgItem(IDC_BTN_EN)) p->ModifyStyle(0, BS_OWNERDRAW);
+    if (CWnd* p = GetDlgItem(IDC_AUTO)) p->ModifyStyle(0, BS_OWNERDRAW);
 
     // Initial visual state (default EN active)
     RedrawToggleButtons();
@@ -1337,7 +1335,16 @@ void CBatteryHelthDlg::InitToolTips()
   L"Battery manufacturer reported by the device.",
   L"デバイスによって報告されたバッテリーメーカー。" },
 
+        {
+            IDC_AUTO,
+            L"Auto Test",
+            L"デバイスによって報告されたバッテリーメーカー。"
+    }
+
+
     };
+
+
 
     // Common tooltips based on language
     for (size_t i = 0; i < _countof(tips); ++i)
@@ -4440,6 +4447,44 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     // ── CPU load timer ────────────────────────────────────────────────────────
     if (nIDEvent == m_cpuLoadTimerID && m_cpuLoadTestRunning)
     {
+
+        SYSTEM_POWER_STATUS sps;
+        if (GetSystemPowerStatus(&sps) && sps.ACLineStatus == 1)
+        {
+            m_cpuLoadTestRunning = false;
+            KillTimer(m_cpuLoadTimerID);
+            /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"");*/
+
+
+            m_stopCpuLoad.store(true);
+            m_cpuLoadTestRunning = false;
+
+            if (m_lang == Lang::EN)
+                AfxMessageBox(L"Charger connected. CPU Load test stopped.");
+            else
+                AfxMessageBox(L"充電器が接続されました。CPU負荷テストが停止しました。");
+
+            if (m_autoTestRunning) {
+                _FinishAutoTest(false);
+                m_autoTestRunning = false;
+            }
+
+          
+
+            /*  StopCpuLoadTest();*/
+              /*  else
+                {
+                    StopDischargeTest();
+                    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+                    m_discharge_progress.ShowWindow(SW_HIDE);
+                }*/
+
+                /* CancelAutoTest();*/
+
+            return;
+        }
+
+
         m_CPU_Progress.ShowWindow(SW_SHOW);
         m_cpuLoadElapsed++;
 
@@ -4478,6 +4523,30 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
 
             m_CPU_Progress.ShowWindow(SW_HIDE);
         }
+
+        //SYSTEM_POWER_STATUS sps;
+        //if (GetSystemPowerStatus(&sps) && sps.ACLineStatus == 1)
+        //{
+        //    m_cpuLoadTestRunning = false;
+        //    KillTimer(m_cpuLoadTimerID);
+        //   /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"");*/
+
+        //    if (m_lang == Lang::EN)
+        //        AfxMessageBox(L"Charger connected. CPU Load test stopped.");
+        //    else
+        //        AfxMessageBox(L"充電器が接続されました。CPU負荷テストが停止しました。");
+
+        //    if (m_autoTestRunning)
+        //        _FinishAutoTest(false);
+        //  /*  else
+        //    {
+        //        StopDischargeTest();
+        //        GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+        //        m_discharge_progress.ShowWindow(SW_HIDE);
+        //    }*/
+        //    return;
+        //}
+
     }
 
     // ── Auto test overall progress timer ──────────────────────────────────────
@@ -4485,10 +4554,47 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
     {
         m_autoElapsed++;
 
+
+
         // Only update the dialog when in the CPU phase.
         // During the discharge phase the discharge timer drives the dialog.
         if (m_autoPhase == L"CPU")
         {
+
+            SYSTEM_POWER_STATUS sps;
+            if (GetSystemPowerStatus(&sps) && sps.ACLineStatus == 1)
+            {
+                m_cpuLoadTestRunning = false;
+                KillTimer(m_autoTimerID);
+                /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"");*/
+
+                if (m_lang == Lang::EN)
+                    AfxMessageBox(L"Charger connected. CPU Load test stopped.");
+                else
+                    AfxMessageBox(L"充電器が接続されました。CPU負荷テストが停止しました。");
+
+                if (m_autoTestRunning) {
+                    _FinishAutoTest(false);
+                    m_autoTestRunning = false;
+                }
+
+                m_stopCpuLoad.store(true);
+                m_cpuLoadTestRunning = false;
+
+              /*  StopCpuLoadTest();*/
+                /*  else
+                  {
+                      StopDischargeTest();
+                      GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
+                      m_discharge_progress.ShowWindow(SW_HIDE);
+                  }*/
+
+               /* CancelAutoTest();*/
+
+                return;
+            }
+
+
             // CPU phase occupies 0-37% of the overall bar (3 min out of 8 min)
             double cpuPct = 100.0 * m_autoElapsed / m_cpuLoadDurationSeconds;
             if (cpuPct > 100.0) cpuPct = 100.0;
@@ -4948,9 +5054,6 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
         KillTimer(m_cpuLoadTimerID);
 
     }
-
-
-
 
 
     m_CPU_Progress.ShowWindow(SW_HIDE);
@@ -5583,11 +5686,20 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
 
     const bool isJP = (nIDCtl == IDC_BTN_JP);
     const bool isEN = (nIDCtl == IDC_BTN_EN);
+    const bool isAUTO = (nIDCtl == IDC_AUTO);
 
     if (isJP || isEN)
     {
         const bool active = (isJP && m_lang == Lang::JP) || (isEN && m_lang == Lang::EN);
         DrawToggleButton(lpDrawItemStruct, active, isJP ? L"JP" : L"EN");
+        return; // handled
+    }
+
+
+    if (isAUTO)
+    {
+        const bool active = (isJP && m_lang == Lang::JP) || (isEN && m_lang == Lang::EN);
+        DrawToggleButton(lpDrawItemStruct, active, isAUTO ? L"Auto Test" : L"Auto Test");
         return; // handled
     }
 
@@ -5605,6 +5717,7 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
         || pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP
         || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP || pWnd->GetDlgCtrlID() == IDC_BTN_BREPORT
+        || pWnd->GetDlgCtrlID() == IDC_AUTO
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
@@ -6915,6 +7028,8 @@ void CBatteryHelthDlg::RedrawToggleButtons()
 {
     if (CWnd* p = GetDlgItem(IDC_BTN_JP)) p->Invalidate();
     if (CWnd* p = GetDlgItem(IDC_BTN_EN)) p->Invalidate();
+
+    if (CWnd* p = GetDlgItem(IDC_AUTO)) p->Invalidate();
     UpdateWindow();
 }
 

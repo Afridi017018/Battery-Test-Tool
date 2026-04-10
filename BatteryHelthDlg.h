@@ -203,7 +203,8 @@ public:
 		    { IDC_BTN_RATEINFO, IDB_PNG11 },	
 			{IDC_BTN_BGAPP, IDB_PNG12},
 			{IDC_BTN_SLEEP, IDB_PNG13},
-			{IDC_BTN_BREPORT, IDB_PNG14}
+			{IDC_BTN_BREPORT, IDB_PNG14},
+		/*	{IDC_AUTO, IDB_PNG11 }*/
 		};
 
 		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
