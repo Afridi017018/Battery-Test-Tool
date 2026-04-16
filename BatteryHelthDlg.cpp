@@ -65,6 +65,8 @@
 
 #include "CReportDlg.h"
 
+#include "CSOHDlg.h"
+
 
 #include <string>
 #include <map>
@@ -208,6 +210,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_MESSAGE(WM_APP + 2, &CBatteryHelthDlg::OnAutoTestCPUDone)
 
+    ON_BN_CLICKED(IDC_SOH, &CBatteryHelthDlg::OnBnClickedSoh)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -7794,3 +7797,9 @@ void CBatteryHelthDlg::CancelAutoTest()
 
 
 //////////////////okokokok
+void CBatteryHelthDlg::OnBnClickedSoh()
+{
+    // TODO: Add your control notification handler code here
+    CSOHDlg dlg;
+    dlg.DoModal();
+}

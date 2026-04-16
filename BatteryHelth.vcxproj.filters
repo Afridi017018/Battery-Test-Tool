@@ -75,6 +75,9 @@
     <ClInclude Include="CAutoProgressDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CSOHDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -126,6 +129,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CAutoProgressDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CSOHDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -41,6 +41,7 @@
 #define IDD_CHARGE_DLG                  211
 #define IDD_REPORT_DIALOG               215
 #define IDD_AUTO_PROGRESS_DLG           217
+#define IDD_SOH                         221
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -123,15 +124,16 @@
 #define IDC_AUTO_PROGRESS_BAR           1090
 #define IDC_AUTO_PROGRESS_LABEL         1091
 #define IDC_AUTO_PHASE_LABEL            1092
+#define IDC_SOH                         1094
 #define ID_ACCELERATOR32771             32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        221
+#define _APS_NEXT_RESOURCE_VALUE        223
 #define _APS_NEXT_COMMAND_VALUE         32775
-#define _APS_NEXT_CONTROL_VALUE         1093
+#define _APS_NEXT_CONTROL_VALUE         1095
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

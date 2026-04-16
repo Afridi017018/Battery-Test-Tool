@@ -403,6 +403,7 @@ public:
 	public:
       void CancelAutoTest();
 
+	  afx_msg void OnBnClickedSoh();
 };
 
 
