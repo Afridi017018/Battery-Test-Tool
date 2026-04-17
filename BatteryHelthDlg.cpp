@@ -67,6 +67,8 @@
 
 #include "CSOHDlg.h"
 
+#include "CSOHResultDlg.h"
+
 
 #include <string>
 #include <map>
@@ -211,6 +213,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_MESSAGE(WM_APP + 2, &CBatteryHelthDlg::OnAutoTestCPUDone)
 
     ON_BN_CLICKED(IDC_SOH, &CBatteryHelthDlg::OnBnClickedSoh)
+    ON_BN_CLICKED(IDC_RESULT, &CBatteryHelthDlg::OnBnClickedResult)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -7801,5 +7804,12 @@ void CBatteryHelthDlg::OnBnClickedSoh()
 {
     // TODO: Add your control notification handler code here
     CSOHDlg dlg;
+    dlg.DoModal();
+}
+
+void CBatteryHelthDlg::OnBnClickedResult()
+{
+    // TODO: Add your control notification handler code here
+    CSOHResultDlg dlg;
     dlg.DoModal();
 }

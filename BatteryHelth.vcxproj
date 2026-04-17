@@ -200,6 +200,7 @@
     <ClInclude Include="CReportDlg.h" />
     <ClInclude Include="CSleepDataDlg.h" />
     <ClInclude Include="CSOHDlg.h" />
+    <ClInclude Include="CSOHResultDlg.h" />
     <ClInclude Include="CTrendDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
@@ -223,6 +224,7 @@
     <ClCompile Include="CReportDlg.cpp" />
     <ClCompile Include="CSleepDataDlg.cpp" />
     <ClCompile Include="CSOHDlg.cpp" />
+    <ClCompile Include="CSOHResultDlg.cpp" />
     <ClCompile Include="CTrendDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

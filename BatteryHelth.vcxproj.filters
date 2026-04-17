@@ -78,6 +78,9 @@
     <ClInclude Include="CSOHDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CSOHResultDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -132,6 +135,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CSOHDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CSOHResultDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

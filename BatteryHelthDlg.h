@@ -404,6 +404,7 @@ public:
       void CancelAutoTest();
 
 	  afx_msg void OnBnClickedSoh();
+	  afx_msg void OnBnClickedResult();
 };
 
 
