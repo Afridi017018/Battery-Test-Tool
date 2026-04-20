@@ -9,6 +9,7 @@ CSOHResultDlg::CSOHResultDlg(CWnd* pParent)
     : CDialogEx(IDD_RESULT, pParent)
     , m_totalTimeMs(0)
     , m_showAll(false)
+    , m_showChart(false)
 {
 }
 
@@ -23,6 +24,8 @@ void CSOHResultDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CSOHResultDlg, CDialogEx)
     ON_BN_CLICKED(3001, &CSOHResultDlg::OnToggleView)
+    ON_BN_CLICKED(3002, &CSOHResultDlg::OnShowChart)
+    ON_WM_PAINT()
 END_MESSAGE_MAP()
 
 BOOL CSOHResultDlg::OnInitDialog()
@@ -39,6 +42,15 @@ BOOL CSOHResultDlg::OnInitDialog()
         CRect(10, 10, 120, 40),
         this,
         3001
+    );
+
+    // Chart Button
+    m_btnChart.Create(
+        _T("Show Chart"),
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+        CRect(130, 10, 260, 40),
+        this,
+        3002
     );
 
     // List Control
@@ -62,6 +74,9 @@ BOOL CSOHResultDlg::OnInitDialog()
     return TRUE;
 }
 
+// ─────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────
 CString CSOHResultDlg::GetExeFolder()
 {
     char path[MAX_PATH];
@@ -103,7 +118,6 @@ void CSOHResultDlg::LoadLogFile()
         {
             size_t pos = s.find("TEST_ID:");
             lastTestID = s.substr(pos + 8);
-
             lastTestID.erase(0, lastTestID.find_first_not_of(" \t"));
             lastTestID.erase(lastTestID.find_last_not_of(" \t") + 1);
 
@@ -114,10 +128,8 @@ void CSOHResultDlg::LoadLogFile()
                 {
                     size_t tpos = next.find("Start Time:");
                     lastStartTime = next.substr(tpos + 11);
-
                     lastStartTime.erase(0, lastStartTime.find_first_not_of(" \t"));
                     lastStartTime.erase(lastStartTime.find_last_not_of(" \t") + 1);
-
                     currentStartTime = lastStartTime;
                 }
             }
@@ -150,7 +162,6 @@ void CSOHResultDlg::LoadLogFile()
 
     // Filter latest test
     std::string matchTag = "[" + lastTestID + "]";
-    std::vector<SOHEntry> filtered;
 
     m_entries.clear();
     m_totalTimeMs = 0;
@@ -158,7 +169,6 @@ void CSOHResultDlg::LoadLogFile()
     for (const auto& wline : allLines)
     {
         std::string s(wline.begin(), wline.end());
-
         if (s.find(matchTag) != std::string::npos &&
             s.find("Percent:") != std::string::npos)
         {
@@ -211,7 +221,6 @@ void CSOHResultDlg::DisplayData()
     }
 
     ULONGLONG totalSec = m_totalTimeMs / 1000;
-
     int hrs = (int)(totalSec / 3600);
     int mins = (int)((totalSec % 3600) / 60);
     int secs = (int)(totalSec % 60);
@@ -221,13 +230,24 @@ void CSOHResultDlg::DisplayData()
         _T("Test ID: %s | Start: %s | Total: %02d:%02d:%02d"),
         m_testIDStr, m_startTimeStr, hrs, mins, secs
     );
-
     m_lblSummary.SetWindowText(summary);
 }
 
+// ─────────────────────────────────────────────
+//  Toggle (See All / Show Latest)  — unchanged
+// ─────────────────────────────────────────────
 void CSOHResultDlg::OnToggleView()
 {
     m_showAll = !m_showAll;
+
+    // If chart is visible, hide it and show list again
+    if (m_showChart)
+    {
+        m_showChart = false;
+        m_btnChart.SetWindowText(_T("Show Chart"));
+        m_list.ShowWindow(SW_SHOW);
+        Invalidate();
+    }
 
     m_list.DeleteAllItems();
     while (m_list.DeleteColumn(0));
@@ -272,23 +292,17 @@ void CSOHResultDlg::OnToggleView()
             index++;
         }
 
-       
         ULONGLONG totalMs = 0;
-
         for (const auto& e : m_allEntries)
-        {
             totalMs += e.durationMs;
-        }
 
         ULONGLONG totalSec = totalMs / 1000;
-
         int hrs = (int)(totalSec / 3600);
         int mins = (int)((totalSec % 3600) / 60);
         int secs = (int)(totalSec % 60);
 
         CString summary;
         summary.Format(_T("Total Duration: %02d:%02d:%02d"), hrs, mins, secs);
-
         m_lblSummary.SetWindowText(summary);
     }
     else
@@ -300,6 +314,243 @@ void CSOHResultDlg::OnToggleView()
         m_list.InsertColumn(2, _T("Duration(ms)"), LVCFMT_CENTER, 120);
         m_list.InsertColumn(3, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
 
-        DisplayData(); // back to original summary
+        DisplayData();
     }
+}
+
+// ─────────────────────────────────────────────
+//  Chart Button
+// ─────────────────────────────────────────────
+void CSOHResultDlg::OnShowChart()
+{
+    // Chart only works for latest-test view
+    if (m_showAll)
+    {
+        MessageBox(_T("Switch to 'Show Latest' view to see the chart."),
+            _T("Chart"), MB_ICONINFORMATION);
+        return;
+    }
+
+    m_showChart = !m_showChart;
+
+    if (m_showChart)
+    {
+        m_btnChart.SetWindowText(_T("Hide Chart"));
+        m_list.ShowWindow(SW_HIDE);
+    }
+    else
+    {
+        m_btnChart.SetWindowText(_T("Show Chart"));
+        m_list.ShowWindow(SW_SHOW);
+    }
+
+    Invalidate();
+}
+
+// ─────────────────────────────────────────────
+//  OnPaint — draws the chart when m_showChart
+// ─────────────────────────────────────────────
+void CSOHResultDlg::OnPaint()
+{
+    if (!m_showChart || m_entries.empty())
+    {
+        CDialogEx::OnPaint();
+        return;
+    }
+
+    CPaintDC dc(this);
+
+    CRect rc;
+    GetClientRect(&rc);
+
+    const int LEFT = 80;
+    const int RIGHT = rc.Width() - 40;
+    const int TOP = 65;
+    const int BOTTOM = rc.Height() - 110; // more space for rotated text
+
+    int chartW = RIGHT - LEFT;
+    int chartH = BOTTOM - TOP;
+
+    // Background
+    dc.FillSolidRect(&rc, RGB(30, 30, 40));
+    CRect chartRect(LEFT, TOP, RIGHT, BOTTOM);
+    dc.FillSolidRect(&chartRect, RGB(20, 20, 30));
+
+    int n = (int)m_entries.size();
+
+    // ─────────────────────────────────────────────
+    // Build cumulative duration
+    // ─────────────────────────────────────────────
+    std::vector<double> cumulative;
+    cumulative.reserve(n);
+
+    double totalTime = 0.0;
+    for (const auto& e : m_entries)
+    {
+        totalTime += (double)e.durationMs;
+        cumulative.push_back(totalTime);
+    }
+
+    double maxTime = cumulative.back();
+
+    // ── Y Grid ───────────────────────────────────
+    CPen penGrid(PS_DOT, 1, RGB(60, 60, 80));
+    CPen* pOldPen = dc.SelectObject(&penGrid);
+
+    CFont fontSmall;
+    fontSmall.CreatePointFont(70, _T("Segoe UI"));
+    CFont* pOldFont = dc.SelectObject(&fontSmall);
+
+    dc.SetBkMode(TRANSPARENT);
+    dc.SetTextColor(RGB(160, 160, 180));
+
+    for (int pct = 0; pct <= 100; pct += 10)
+    {
+        int y = BOTTOM - (int)((double)pct / 100.0 * chartH);
+        dc.MoveTo(LEFT, y);
+        dc.LineTo(RIGHT, y);
+
+        CString lbl;
+        lbl.Format(_T("%d%%"), pct);
+        dc.TextOut(LEFT - 40, y - 7, lbl);
+    }
+
+    dc.SelectObject(pOldPen);
+
+    // ── Axes ─────────────────────────────────────
+    CPen penAxis(PS_SOLID, 2, RGB(180, 180, 200));
+    pOldPen = dc.SelectObject(&penAxis);
+
+    dc.MoveTo(LEFT, TOP);
+    dc.LineTo(LEFT, BOTTOM);
+    dc.LineTo(RIGHT, BOTTOM);
+
+    dc.SelectObject(pOldPen);
+
+    // ── Filled area ─────────────────────────────
+    if (n >= 2)
+    {
+        std::vector<POINT> poly;
+        poly.reserve(n + 2);
+
+        poly.push_back({ LEFT, BOTTOM });
+
+        for (int i = 0; i < n; ++i)
+        {
+            int x = LEFT + (int)((cumulative[i] / maxTime) * chartW);
+            int y = BOTTOM - (int)((double)m_entries[i].percent / 100.0 * chartH);
+            poly.push_back({ x, y });
+        }
+
+        poly.push_back({ LEFT + chartW, BOTTOM });
+
+        CBrush brushFill(RGB(0, 80, 160));
+        CBrush* pOldBrush = dc.SelectObject(&brushFill);
+
+        CPen penNone(PS_NULL, 0, RGB(0, 0, 0));
+        CPen* pOldPen2 = dc.SelectObject(&penNone);
+
+        dc.Polygon(poly.data(), (int)poly.size());
+
+        dc.SelectObject(pOldPen2);
+        dc.SelectObject(pOldBrush);
+    }
+
+    // ── Line ────────────────────────────────────
+    CPen penLine(PS_SOLID, 2, RGB(0, 180, 255));
+    pOldPen = dc.SelectObject(&penLine);
+
+    for (int i = 0; i < n; ++i)
+    {
+        int x = LEFT + (int)((cumulative[i] / maxTime) * chartW);
+        int y = BOTTOM - (int)((double)m_entries[i].percent / 100.0 * chartH);
+
+        if (i == 0)
+            dc.MoveTo(x, y);
+        else
+            dc.LineTo(x, y);
+    }
+
+    dc.SelectObject(pOldPen);
+
+    // ── Dots ────────────────────────────────────
+    CBrush brushDot(RGB(0, 220, 255));
+    for (int i = 0; i < n; ++i)
+    {
+        int x = LEFT + (int)((cumulative[i] / maxTime) * chartW);
+        int y = BOTTOM - (int)((double)m_entries[i].percent / 100.0 * chartH);
+
+        CRect dotRc(x - 4, y - 4, x + 4, y + 4);
+        dc.FillRect(&dotRc, &brushDot);
+    }
+
+    // ─────────────────────────────────────────────
+    // ✅ X-axis: ALL durations with rotation
+    // ─────────────────────────────────────────────
+    dc.SetTextColor(RGB(200, 200, 220));
+
+    CFont fontRot;
+    LOGFONT lfRot = {};
+    _tcscpy_s(lfRot.lfFaceName, _T("Segoe UI"));
+    lfRot.lfHeight = -12;
+    lfRot.lfEscapement = 450;   // 45°
+    lfRot.lfOrientation = 450;
+
+    fontRot.CreateFontIndirect(&lfRot);
+    CFont* oldFont = dc.SelectObject(&fontRot);
+
+    for (int i = 0; i < n; ++i)
+    {
+        int x = LEFT + (int)((cumulative[i] / maxTime) * chartW);
+
+        // tick
+        dc.MoveTo(x, BOTTOM);
+        dc.LineTo(x, BOTTOM + 5);
+
+        double sec = m_entries[i].durationMs / 1000.0;
+
+        CString lbl;
+        lbl.Format(_T("%.0fs"), sec);
+
+        dc.TextOut(x - 5, BOTTOM + 25, lbl);
+    }
+
+    dc.SelectObject(oldFont);
+
+    // ── Axis labels ─────────────────────────────
+    CFont fontLabel;
+    fontLabel.CreatePointFont(85, _T("Segoe UI"));
+    dc.SelectObject(&fontLabel);
+
+    // Y-axis
+    CFont fontVert;
+    LOGFONT lf = {};
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    lf.lfHeight = -14;
+    lf.lfEscapement = 900;
+    lf.lfOrientation = 900;
+
+    fontVert.CreateFontIndirect(&lf);
+    dc.SelectObject(&fontVert);
+
+    dc.TextOut(15, BOTTOM - chartH / 2 + 30, _T("Percent (%)"));
+
+    // X-axis title
+    dc.SelectObject(&fontLabel);
+    dc.TextOut(LEFT + chartW / 2 - 70, BOTTOM + 70, _T("Step Duration (seconds)"));
+
+    // Title
+    CFont fontTitle;
+    fontTitle.CreatePointFont(95, _T("Segoe UI"));
+    dc.SelectObject(&fontTitle);
+
+    dc.SetTextColor(RGB(220, 220, 255));
+
+    CString title;
+    title.Format(_T("SOH — Duration per Step [%s]"), m_testIDStr);
+
+    CSize sz = dc.GetTextExtent(title);
+    dc.TextOut(LEFT + (chartW - sz.cx) / 2, TOP - 22, title);
+
+    dc.SelectObject(pOldFont);
 }

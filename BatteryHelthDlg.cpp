@@ -162,9 +162,9 @@ void CBatteryHelthDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_STATIC_ABT, m_abt);
     DDX_Control(pDX, IDC_STATIC_DH, m_dh);
     DDX_Control(pDX, IDC_STATIC_HEADER, m_header);
-    DDX_Control(pDX, IDC_PROGRESS4, m_CPU_Progress);
+    /*DDX_Control(pDX, IDC_PROGRESS4, m_CPU_Progress);*/
 
-    DDX_Control(pDX, IDC_PROGRESS5, m_discharge_progress);
+    /*DDX_Control(pDX, IDC_PROGRESS5, m_discharge_progress);*/
     DDX_Control(pDX, IDC_BTN_CPULOAD, Button1);
 }
 
@@ -454,7 +454,7 @@ void CBatteryHelthDlg::ApplyScaledFonts()
 
     // Apply bold font to labels
     UINT boldIds[] = {
-        IDC_BATT_STATUS, IDC_BATT_TIME, IDC_BATT_PERCENTAGE,
+            IDC_BATT_STATUS, IDC_BATT_TIME, IDC_BATT_PERCENTAGE,
             IDC_BATT_CAPACITY, IDC_BATT_NAME, IDC_BATT_DCAPACITY,
             IDC_BATT_MANUFAC, IDC_BATT_CYCLE, IDC_BATT_HEALTH,
             IDC_BATT_VOLTAGE, IDC_BATT_TEMP, IDC_BATT_CURRCAPACITY,
@@ -528,7 +528,7 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
-IDC_STATIC_CAPHIS
+IDC_STATIC_CAPHIS, IDC_SOH, IDC_RESULT
     };
 
     for (auto id : ids)
@@ -1071,25 +1071,25 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     m_BatteryProgress.SetRange(0, 100);
     m_BatteryProgress.SetPos(0);
 
-    // CPU progress
-    m_CPU_Progress.SetRange(0, 100);
-    m_CPU_Progress.SetPos(0);
-    m_CPU_Progress.SetStep(1);
-    m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
-    ::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
-    m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
-    m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
-    m_CPU_Progress.ShowWindow(SW_HIDE);
+    //// CPU progress
+    //m_CPU_Progress.SetRange(0, 100);
+    //m_CPU_Progress.SetPos(0);
+    //m_CPU_Progress.SetStep(1);
+    //m_CPU_Progress.ModifyStyle(0, PBS_SMOOTH);
+    //::SetWindowTheme(m_CPU_Progress.GetSafeHwnd(), L"", L"");
+    //m_CPU_Progress.SetBarColor(RGB(0, 122, 204));
+    //m_CPU_Progress.SetBkColor(RGB(220, 220, 220));
+    //m_CPU_Progress.ShowWindow(SW_HIDE);
 
-    // Discharge progress
-    m_discharge_progress.SetRange(0, 100);
-    m_discharge_progress.SetPos(0);
-    m_discharge_progress.SetStep(1);
-    m_discharge_progress.ModifyStyle(0, PBS_SMOOTH);
-    ::SetWindowTheme(m_discharge_progress.GetSafeHwnd(), L"", L"");
-    m_discharge_progress.SetBarColor(RGB(0, 122, 204));
-    m_discharge_progress.SetBkColor(RGB(220, 220, 220));
-    m_discharge_progress.ShowWindow(SW_HIDE);
+    //// Discharge progress
+    //m_discharge_progress.SetRange(0, 100);
+    //m_discharge_progress.SetPos(0);
+    //m_discharge_progress.SetStep(1);
+    //m_discharge_progress.ModifyStyle(0, PBS_SMOOTH);
+    //::SetWindowTheme(m_discharge_progress.GetSafeHwnd(), L"", L"");
+    //m_discharge_progress.SetBarColor(RGB(0, 122, 204));
+    //m_discharge_progress.SetBkColor(RGB(220, 220, 220));
+    //m_discharge_progress.ShowWindow(SW_HIDE);
 
     m_stopCpuLoad.store(false);
 
@@ -1134,7 +1134,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
     CRect dialogRect;
     GetClientRect(&dialogRect);
     m_origDialogSize = CSize(dialogRect.Width(), dialogRect.Height());
-
+    //btn_responsiveness
     UINT ids[] = {
         IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF,
         IDC_STATIC_STATUS, IDC_BATT_STATUS, IDC_STATIC_TIME, IDC_BATT_TIME,
@@ -1150,7 +1150,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
-IDC_STATIC_CAPHIS, IDC_AUTO
+IDC_STATIC_CAPHIS, IDC_AUTO, IDC_SOH, IDC_RESULT
     };
 
     for (auto id : ids)
@@ -1256,6 +1256,7 @@ void CBatteryHelthDlg::InitToolTips()
         m_toolTip.SetDelayTime(TTDT_AUTOPOP, 8000);
     }
 
+    //tooltip
     struct Tip
     {
         UINT id;
@@ -1345,7 +1346,17 @@ void CBatteryHelthDlg::InitToolTips()
             IDC_AUTO,
             L"Auto Test",
             L"デバイスによって報告されたバッテリーメーカー。"
-    }
+    },
+
+        {IDC_SOH, 
+        L"Check Power State",
+		L"電源状態の確認"
+    },
+        {
+            IDC_RESULT,
+            L"View Power state Logs",
+			L"電源状態のログを表示"
+}
 
 
     };
@@ -3593,7 +3604,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
     {
         /* GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);*/
          /*   GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);*/
-        m_discharge_progress.ShowWindow(SW_HIDE);
+        /*m_discharge_progress.ShowWindow(SW_HIDE);*/
 
         /* UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
 
@@ -5723,7 +5734,7 @@ BOOL CBatteryHelthDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
         || pWnd->GetDlgCtrlID() == IDC_BTN_STANDBY || pWnd->GetDlgCtrlID() == IDC_BTN_USAGE || pWnd->GetDlgCtrlID() == IDC_BTN_MANIPULATIOIN
         || pWnd->GetDlgCtrlID() == IDC_BTN_RATEINFO || pWnd->GetDlgCtrlID() == IDC_BTN_BGAPP || pWnd->GetDlgCtrlID() == IDC_BTN_JP
         || pWnd->GetDlgCtrlID() == IDC_BTN_EN || pWnd->GetDlgCtrlID() == IDC_BTN_SLEEP || pWnd->GetDlgCtrlID() == IDC_BTN_BREPORT
-        || pWnd->GetDlgCtrlID() == IDC_AUTO
+        || pWnd->GetDlgCtrlID() == IDC_AUTO || pWnd->GetDlgCtrlID() == IDC_RESULT || pWnd->GetDlgCtrlID() == IDC_SOH
         )
     {
         ::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));

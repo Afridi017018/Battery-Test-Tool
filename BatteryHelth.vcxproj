@@ -288,12 +288,14 @@
     <Image Include="res\BatteryHelth.ico" />
     <Image Include="res\caphis.png" />
     <Image Include="res\cdr.png" />
+    <Image Include="res\check logs.png" />
     <Image Include="res\cpuload1.png" />
     <Image Include="res\discharge1.png" />
     <Image Include="res\es.png" />
     <Image Include="res\ExportCsv.png" />
     <Image Include="res\icon1.ico" />
     <Image Include="res\manip_ss.png" />
+    <Image Include="res\PowerTest.png" />
     <Image Include="res\prediction.png" />
     <Image Include="res\report-icon.png" />
     <Image Include="res\sleep.png" />

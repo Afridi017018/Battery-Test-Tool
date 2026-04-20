@@ -326,5 +326,11 @@
     <Image Include="res\batteryHealthIcon.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="res\PowerTest.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\check logs.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
