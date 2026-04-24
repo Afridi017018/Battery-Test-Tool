@@ -9,6 +9,8 @@
 #include <cmath>
 #include <algorithm>
 #include <windows.h>
+#include <shlobj.h>
+#pragma comment(lib, "shell32.lib")
 
 IMPLEMENT_DYNAMIC(CSOHDlg, CDialogEx)
 
@@ -40,19 +42,41 @@ BEGIN_MESSAGE_MAP(CSOHDlg, CDialogEx)
     ON_WM_TIMER()
     ON_WM_CLOSE()
     ON_WM_DESTROY()
+    ON_WM_ERASEBKGND()
 END_MESSAGE_MAP()
+
+
+BOOL CSOHDlg::OnEraseBkgnd(CDC* pDC)
+{
+    CRect rect;
+    GetClientRect(&rect);
+    CBrush br(RGB(245, 247, 250));
+    pDC->FillRect(&rect, &br);
+    return TRUE;
+}
 
 BOOL CSOHDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
-    char path[MAX_PATH];
+ /*   char path[MAX_PATH];
     GetModuleFileNameA(NULL, path, MAX_PATH);
     std::string exePath(path);
     size_t pos = exePath.find_last_of("\\/");
     std::string folder = exePath.substr(0, pos);
     std::string fullPath = folder + "\\soh_log.txt";
+    m_logFile.open(fullPath, std::ios::out | std::ios::app);*/
+
+
+    // NEW
+    wchar_t appDataPath[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath);
+    std::wstring folder = std::wstring(appDataPath) + L"\\SOHTool";
+    CreateDirectoryW(folder.c_str(), NULL); // creates folder if not exists
+    std::wstring fullPath = folder + L"\\soh_log.txt";
     m_logFile.open(fullPath, std::ios::out | std::ios::app);
+
+
 
     time_t now = time(NULL);
     CString temp;
@@ -114,7 +138,7 @@ BOOL CSOHDlg::OnInitDialog()
 void CSOHDlg::OnTimer(UINT_PTR nIDEvent)
 {
     UpdateBatteryStatus();
-    Invalidate();
+    //Invalidate();
     CDialogEx::OnTimer(nIDEvent);
 }
 

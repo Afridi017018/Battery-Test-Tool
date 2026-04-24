@@ -65,4 +65,8 @@ private:
     CString   m_testIDStr;
     CString   m_startTimeStr;
     ULONGLONG m_totalTimeMs;
+
+    afx_msg void OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult);
+    // Also add:
+    std::vector<bool> m_groupEnd; // same size as m_entries, set in DisplayData
 };

@@ -51,4 +51,6 @@ private:
 
     std::vector<std::thread>  m_stressThreads;
     std::atomic<bool>         m_stressRunning;
+
+    afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 };

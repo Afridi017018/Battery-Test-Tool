@@ -5,8 +5,8 @@
 #include <regex>
 #include <vector>
 #include <utility>
-#include <shellapi.h>   // ShellExecute  (for opening the HTML / PDF)
-#include <winspool.h>   // OpenPrinter, GetPrinter, DocumentProperties
+#include <shellapi.h>   
+#include <winspool.h>   
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "winspool.lib")
 
@@ -246,7 +246,7 @@ BOOL CReportDlg::OnInitDialog()
 
 	UpdateScrollBar();
 
-	AfxMessageBox(m_reportData.dischargeResult);
+	/*AfxMessageBox(m_reportData.dischargeResult);*/
 
 	return TRUE;
 }
@@ -559,10 +559,10 @@ void CReportDlg::OnPaint()
 	y += m_rowHeight;
 
 	dc.TextOut(x, y, L"Period");
-	dc.TextOut(x + colPeriod, y, L"Design Active");
-	dc.TextOut(x + colPeriod + col, y, L"Design Connected");
-	dc.TextOut(x + colPeriod + col * 2, y, L"Full Active");
-	dc.TextOut(x + colPeriod + col * 3, y, L"Full Connected");
+	dc.TextOut(x + colPeriod + col * 2, y, L"Design Active");
+	dc.TextOut(x + colPeriod + col * 3, y, L"Design Connected");
+	dc.TextOut(x + colPeriod, y, L"Full Active");
+	dc.TextOut(x + colPeriod + col, y, L"Full Connected");
 	dc.SelectObject(pOldFont);
 	y += m_rowHeight;
 
@@ -779,10 +779,10 @@ CString CReportDlg::BuildHtmlReport() const
 
 	html += L"<h2>Battery Life Estimates</h2>\n<table>\n<tr>";
 	html += TH(L"Period");
-	html += TH(L"Design Active (h)");
-	html += TH(L"Design Connected (h)");
 	html += TH(L"Full Active (h)");
 	html += TH(L"Full Connected (h)");
+	html += TH(L"Design Active (h)");
+	html += TH(L"Design Connected (h)");
 	html += L"</tr>\n";
 	for (const auto& r : m_life)
 	{
@@ -1195,11 +1195,11 @@ void CReportDlg::RenderReportToDC(HDC hDC, int pageW, int pageH,
 	{
 		int c0 = 0, c1 = colPeriod5, c2 = c1 + col5, c3 = c2 + col5, c4 = c3 + col5;
 		std::vector<ColDef> hdrs = {
-			{ L"Period",           c0, colPeriod5 },
-			{ L"Design Active",    c1, col5 },
-			{ L"Design Connected", c2, col5 },
-			{ L"Full Active",      c3, col5 },
-			{ L"Full Connected",   c4, tableW - c4 }
+	{ L"Period",           c0, colPeriod5 },
+	{ L"Design Active",    c3, col5 },
+	{ L"Design Connected", c4, tableW - c4 },
+	{ L"Full Active",      c1, col5 },
+	{ L"Full Connected",   c2, col5 },
 		};
 		DrawTableHeader(hdrs);
 		dataRowIdx = 0;
@@ -1207,10 +1207,10 @@ void CReportDlg::RenderReportToDC(HDC hDC, int pageW, int pageH,
 		for (const auto& r : m_life)
 		{
 			CString a, b, c, d;
-			a.Format(L"%.2f h", r.designActive);
-			b.Format(L"%.2f h", r.designConnected);
 			c.Format(L"%.2f h", r.fullActive);
 			d.Format(L"%.2f h", r.fullConnected);
+			a.Format(L"%.2f h", r.designActive);
+			b.Format(L"%.2f h", r.designConnected);
 			DrawDataRow({ {c0, r.period}, {c1, a}, {c2, b}, {c3, c}, {c4, d} });
 		}
 	}
@@ -1227,14 +1227,7 @@ void CReportDlg::RenderReportToDC(HDC hDC, int pageW, int pageH,
 	DeleteObject(hPenBlue);
 }
 
-//////////////////////////////////////////////////////////////
-// 🔹 ExportPrintToPdf  –  no admin rights required
-//
-//  Key insight: "Microsoft Print to PDF" honours DOCINFO.lpszOutput
-//  as the destination file path — no SetPrinterW / port redirect needed.
-//  We just CreateDC for the printer, set di.lpszOutput = chosen path,
-//  call StartDoc, render, EndDoc.  Works for any standard user.
-//////////////////////////////////////////////////////////////
+
 
 bool CReportDlg::ExportPrintToPdf(CString& outPdfPath) const
 {

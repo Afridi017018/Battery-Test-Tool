@@ -528,7 +528,7 @@ void CBatteryHelthDlg::ScaleDialog()
         IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_USAGE, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
-IDC_STATIC_CAPHIS, IDC_SOH, IDC_RESULT
+IDC_STATIC_CAPHIS, IDC_SOH, IDC_RESULT, IDC_STATIC_SOH, IDC_STATIC_RESULT
     };
 
     for (auto id : ids)
@@ -1150,7 +1150,7 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         IDC_BTN_RATEINFO, IDC_BTN_BGAPP, IDC_BTN_EN, IDC_BTN_JP, IDC_BTN_SLEEP, IDC_BTN_BREPORT,
         IDC_STATIC_CPU, IDC_STATIC_ACTIVE, IDC_STATIC_STANDBY, IDC_STATIC_BGAPP, IDC_STATIC_RATEINFO, IDC_STATIC_MANIPULATION,
 IDC_STATIC_DISCHARGE, IDC_STATIC_HISTORY, IDC_STATIC_UPLOADPDF, IDC_STATIC_SLEEP, IDC_STATIC_USAGE, IDC_STATIC_BREPORT,
-IDC_STATIC_CAPHIS, IDC_AUTO, IDC_SOH, IDC_RESULT
+IDC_STATIC_CAPHIS, IDC_AUTO, IDC_SOH, IDC_RESULT, IDC_STATIC_SOH, IDC_STATIC_RESULT
     };
 
     for (auto id : ids)
@@ -3615,7 +3615,7 @@ void CBatteryHelthDlg::UpdateDischargeButtonStatus()
             KillTimer(m_dischargeTimerID);
             m_dischargeTestRunning = false;
 
-            m_discharge_progress.ShowWindow(SW_HIDE);
+           /* m_discharge_progress.ShowWindow(SW_HIDE);*/
             /*  SetDlgItemText(IDC_BATT_DISCHARGR, L"Discharge Test Stopped");*/
       /*      UpdateLabel(this, IDC_BATT_DISCHARGR, L"Unplug the charger");*/
         }
@@ -3880,7 +3880,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     if (batterySaverOn)
     {
 
-        m_discharge_progress.ShowWindow(SW_HIDE);
+       /* m_discharge_progress.ShowWindow(SW_HIDE);*/
         KillTimer(m_dischargeTimerID);
         m_dischargeTestRunning = false;
 
@@ -3901,7 +3901,7 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
     if (m_dischargeTestRunning)
     {
         m_dischargeTestRunning = false;
-        m_discharge_progress.ShowWindow(SW_HIDE);
+       /* m_discharge_progress.ShowWindow(SW_HIDE);*/
         KillTimer(m_dischargeTimerID);
 
         SetDlgItemText(IDC_BTN_DISCHARGE, L"Start Discharge Test");
@@ -3935,8 +3935,8 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         SetButtonFont(IDC_BATT_DISCHARGR, true);
     }
 
-    GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
-    m_discharge_progress.ShowWindow(SW_SHOW);
+    /*GetDlgItem(IDC_BATT_DISCHARGR)->ShowWindow(SW_HIDE);
+    m_discharge_progress.ShowWindow(SW_SHOW);*/
 
     // Start discharge test
     m_initialBatteryPercent = sps.BatteryLifePercent;
@@ -4369,7 +4369,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 {
                     StopDischargeTest();
                     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
-                    m_discharge_progress.ShowWindow(SW_HIDE);
+                   /* m_discharge_progress.ShowWindow(SW_HIDE);*/
                 }
                 return;
             }
@@ -4377,7 +4377,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             // ── Battery saver turned on mid-test ─────────────────────────────
             else if (sps.SystemStatusFlag & 1)
             {
-                m_discharge_progress.ShowWindow(SW_HIDE);
+               /* m_discharge_progress.ShowWindow(SW_HIDE);*/
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
                 UpdateLabel(this, IDC_BATT_DISCHARGR, L"");
@@ -4404,7 +4404,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 KillTimer(m_dischargeTimerID);
                 m_dischargeTestRunning = false;
                 m_dischargeClick = true;
-                m_discharge_progress.ShowWindow(SW_HIDE);
+               /* m_discharge_progress.ShowWindow(SW_HIDE);*/
 
                 if (m_lang == Lang::EN)
                 {
@@ -7631,9 +7631,9 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     // ── Setup ────────────────────────────────────────────────────────────────
     m_autoTestRunning = true;
     m_autoElapsed = 0;
-    m_autoTotalSeconds = (1 * 60) + (1 * 60);  // 480 s
+    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480 s
     m_autoPhase = L"CPU";
-    m_cpuLoadDurationSeconds = 1 * 60;
+    m_cpuLoadDurationSeconds = 5 * 60;
     m_autoCancelled = false;
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
@@ -7747,7 +7747,7 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
     m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedSeconds = 0;
     m_elapsedMinutes = 0;
-    m_dischargeDurationMinutes = 1;
+    m_dischargeDurationMinutes = 5;
     m_dischargeTestRunning = true;
 
     if (m_pAutoDlg)

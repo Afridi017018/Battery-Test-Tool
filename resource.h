@@ -107,6 +107,9 @@
 #define IDC_BTN_STOP                    1062
 #define IDC_BTN_CPU_STOP                1062
 #define IDC_BTN_RATEINFO                1063
+#define IDC_STATIC_SOH                  1064
+#define IDC_STATIC_MANIPULATION3        1065
+#define IDC_STATIC_RESULT               1065
 #define IDC_BTN_EN                      1066
 #define IDC_BTN_JP                      1067
 #define IDC_BTN_SLEEP                   1068

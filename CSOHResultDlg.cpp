@@ -2,6 +2,11 @@
 #include "CSOHResultDlg.h"
 #include <fstream>
 #include <sstream>
+#include <shlobj.h>
+#pragma comment(lib, "shell32.lib")
+#include <map>
+#include <vector>
+#include <algorithm>
 
 IMPLEMENT_DYNAMIC(CSOHResultDlg, CDialogEx)
 
@@ -26,6 +31,9 @@ BEGIN_MESSAGE_MAP(CSOHResultDlg, CDialogEx)
     ON_BN_CLICKED(3001, &CSOHResultDlg::OnToggleView)
     ON_BN_CLICKED(3002, &CSOHResultDlg::OnShowChart)
     ON_WM_PAINT()
+
+    ON_NOTIFY(NM_CUSTOMDRAW, 2001, &CSOHResultDlg::OnCustomDrawList)
+
 END_MESSAGE_MAP()
 
 BOOL CSOHResultDlg::OnInitDialog()
@@ -63,6 +71,9 @@ BOOL CSOHResultDlg::OnInitDialog()
     m_list.InsertColumn(2, _T("Duration(ms)"), LVCFMT_CENTER, 120);
     m_list.InsertColumn(3, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
 
+    // After inserting your existing 4 columns, add:
+    m_list.InsertColumn(4, _T("Sum/10%(h:m:s)"), LVCFMT_CENTER, 140);
+
     // Summary Label
     m_lblSummary.Create(_T(""), WS_CHILD | WS_VISIBLE | SS_CENTER,
         CRect(10, rc.Height() - 60, rc.Width() - 10, rc.Height() - 10),
@@ -77,15 +88,24 @@ BOOL CSOHResultDlg::OnInitDialog()
 // ─────────────────────────────────────────────
 //  Helpers
 // ─────────────────────────────────────────────
+//CString CSOHResultDlg::GetExeFolder()
+//{
+//    char path[MAX_PATH];
+//    GetModuleFileNameA(NULL, path, MAX_PATH);
+//
+//    std::string exePath(path);
+//    size_t pos = exePath.find_last_of("\\/");
+//    std::string folder = exePath.substr(0, pos);
+//
+//    return CString(folder.c_str());
+//}
+
 CString CSOHResultDlg::GetExeFolder()
 {
-    char path[MAX_PATH];
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-
-    std::string exePath(path);
-    size_t pos = exePath.find_last_of("\\/");
-    std::string folder = exePath.substr(0, pos);
-
+    wchar_t appDataPath[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath);
+    std::wstring folder = std::wstring(appDataPath) + L"\\SOHTool";
+    CreateDirectoryW(folder.c_str(), NULL);
     return CString(folder.c_str());
 }
 
@@ -202,40 +222,242 @@ void CSOHResultDlg::DisplayData()
 {
     m_list.DeleteAllItems();
 
-    int index = 0;
-    for (const auto& e : m_entries)
+    int n = (int)m_entries.size();
+
+    std::vector<bool>       groupEnd(n, false);
+    std::vector<ULONGLONG>  groupSum(n, 0);
+    std::vector<int>        groupFirst(n, 0);
+
+    if (n == 0)
     {
-        m_list.InsertItem(index, e.time);
+        // ── Summary label ───────────────────────────────────────────
+        ULONGLONG totalSec = m_totalTimeMs / 1000;
+        int hrs = (int)(totalSec / 3600);
+        int mins = (int)((totalSec % 3600) / 60);
+        int secs = (int)(totalSec % 60);
+        CString summary;
+        summary.Format(_T("Test ID: %s | Start: %s | Total: %02d:%02d:%02d"),
+            m_testIDStr, m_startTimeStr, hrs, mins, secs);
+        m_lblSummary.SetWindowText(summary);
+        m_groupEnd = groupEnd;
+        return;
+    }
+
+    // ── Dynamic top-down 10% grouping ───────────────────────────────
+    // First percent seen becomes the top of group 1.
+    // Each group spans exactly 10 percentage points downward.
+    // e.g. start=100 → groups: [100..91], [90..81], [80..remainder]
+    // e.g. start=95  → groups: [95..86],  [85..76], [75..remainder]
+
+    int firstPct = m_entries[0].percent;
+    int bucketFloor = firstPct - 9;   // lowest percent still in group 1
+    // group 1 = [firstPct .. firstPct-9]
+
+    int       startRow = 0;
+    ULONGLONG bucketMs = 0;
+
+    for (int i = 0; i < n; ++i)
+    {
+        int pct = m_entries[i].percent;
+
+        // Has this row crossed below the current bucket floor?
+        while (pct < bucketFloor && i > startRow)
+        {
+            // Flush the just-finished bucket (rows startRow..i-1)
+            groupEnd[i - 1] = true;
+            groupSum[i - 1] = bucketMs;
+            for (int r = startRow; r <= i - 1; ++r)
+                groupFirst[r] = startRow;
+
+            // Advance to next bucket (floor drops by 10)
+            bucketFloor -= 10;
+            startRow = i;
+            bucketMs = 0;
+        }
+
+        bucketMs += m_entries[i].durationMs;
+
+        // Last row — always flush whatever bucket is open
+        if (i == n - 1)
+        {
+            groupEnd[i] = true;
+            groupSum[i] = bucketMs;
+            for (int r = startRow; r <= i; ++r)
+                groupFirst[r] = startRow;
+        }
+    }
+
+    // ── Insert rows ─────────────────────────────────────────────────
+    for (int i = 0; i < n; ++i)
+    {
+        const auto& e = m_entries[i];
+
+        m_list.InsertItem(i, e.time);
 
         CString pct;
         pct.Format(_T("%d%%"), e.percent);
-        m_list.SetItemText(index, 1, pct);
+        m_list.SetItemText(i, 1, pct);
 
         CString durMs;
         durMs.Format(_T("%llu"), e.durationMs);
-        m_list.SetItemText(index, 2, durMs);
+        m_list.SetItemText(i, 2, durMs);
 
-        m_list.SetItemText(index, 3, e.durationHMS);
+        m_list.SetItemText(i, 3, e.durationHMS);
 
-        index++;
+        // Find the last row of this row's group
+        int first = groupFirst[i];
+        int last = i;
+        for (int k = i; k < n; ++k) { if (groupEnd[k]) { last = k; break; } }
+
+        // Show sum only on the vertically-centered row of the group
+        int midRow = (first + last) / 2;
+        if (i == midRow)
+        {
+            ULONGLONG totalSec = groupSum[last] / 1000;
+            int hrs = (int)(totalSec / 3600);
+            int mins = (int)((totalSec % 3600) / 60);
+            int secs = (int)(totalSec % 60);
+
+            CString sumHMS;
+            sumHMS.Format(_T("%02d:%02d:%02d"), hrs, mins, secs);
+            m_list.SetItemText(i, 4, sumHMS);
+        }
     }
 
+    // ── Summary label ───────────────────────────────────────────────
     ULONGLONG totalSec = m_totalTimeMs / 1000;
     int hrs = (int)(totalSec / 3600);
     int mins = (int)((totalSec % 3600) / 60);
     int secs = (int)(totalSec % 60);
 
     CString summary;
-    summary.Format(
-        _T("Test ID: %s | Start: %s | Total: %02d:%02d:%02d"),
-        m_testIDStr, m_startTimeStr, hrs, mins, secs
-    );
+    summary.Format(_T("Test ID: %s | Start: %s | Total: %02d:%02d:%02d"),
+        m_testIDStr, m_startTimeStr, hrs, mins, secs);
     m_lblSummary.SetWindowText(summary);
-}
 
+    m_groupEnd = groupEnd;  // save for custom draw separator lines
+}
 // ─────────────────────────────────────────────
 //  Toggle (See All / Show Latest)  — unchanged
 // ─────────────────────────────────────────────
+//void CSOHResultDlg::OnToggleView()
+//{
+//    m_showAll = !m_showAll;
+//
+//    // If chart is visible, hide it and show list again
+//    if (m_showChart)
+//    {
+//        m_showChart = false;
+//        m_btnChart.SetWindowText(_T("Show Chart"));
+//        m_list.ShowWindow(SW_SHOW);
+//        Invalidate();
+//    }
+//
+//    m_list.DeleteAllItems();
+//    while (m_list.DeleteColumn(0));
+//
+//    if (m_showAll)
+//    {
+//        m_btnToggle.SetWindowText(_T("Show Latest"));
+//
+//        m_list.InsertColumn(0, _T("Test ID"), LVCFMT_LEFT, 100);
+//        m_list.InsertColumn(1, _T("Start"), LVCFMT_LEFT, 140);
+//        m_list.InsertColumn(2, _T("Time"), LVCFMT_LEFT, 80);
+//        m_list.InsertColumn(3, _T("Percent"), LVCFMT_CENTER, 80);
+//        m_list.InsertColumn(4, _T("Duration(ms)"), LVCFMT_CENTER, 120);
+//        m_list.InsertColumn(5, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
+//
+//        CString lastTestID;
+//        int index = 0;
+//
+//        /*for (const auto& e : m_allEntries)
+//        {
+//            m_list.InsertItem(index, _T(""));
+//
+//            if (e.testID != lastTestID)
+//            {
+//                m_list.SetItemText(index, 0, e.testID);
+//                m_list.SetItemText(index, 1, e.startTime);
+//                lastTestID = e.testID;
+//            }
+//
+//            m_list.SetItemText(index, 2, e.time);
+//
+//            CString pct;
+//            pct.Format(_T("%d%%"), e.percent);
+//            m_list.SetItemText(index, 3, pct);
+//
+//            CString dur;
+//            dur.Format(_T("%llu"), e.durationMs);
+//            m_list.SetItemText(index, 4, dur);
+//
+//            m_list.SetItemText(index, 5, e.durationHMS);
+//
+//            index++;
+//        }*/
+//
+//
+//
+//        for (auto it = m_allEntries.rbegin(); it != m_allEntries.rend(); ++it)
+//        {
+//            const auto& e = *it;
+//
+//            m_list.InsertItem(index, _T(""));
+//
+//            if (e.testID != lastTestID)
+//            {
+//                m_list.SetItemText(index, 0, e.testID);
+//                m_list.SetItemText(index, 1, e.startTime);
+//                lastTestID = e.testID;
+//            }
+//
+//            m_list.SetItemText(index, 2, e.time);
+//
+//            CString pct;
+//            pct.Format(_T("%d%%"), e.percent);
+//            m_list.SetItemText(index, 3, pct);
+//
+//            CString dur;
+//            dur.Format(_T("%llu"), e.durationMs);
+//            m_list.SetItemText(index, 4, dur);
+//
+//            m_list.SetItemText(index, 5, e.durationHMS);
+//
+//            index++;
+//        }
+//
+//
+//        ULONGLONG totalMs = 0;
+//        for (const auto& e : m_allEntries)
+//            totalMs += e.durationMs;
+//
+//        ULONGLONG totalSec = totalMs / 1000;
+//        int hrs = (int)(totalSec / 3600);
+//        int mins = (int)((totalSec % 3600) / 60);
+//        int secs = (int)(totalSec % 60);
+//
+//        CString summary;
+//        summary.Format(_T("Total Duration: %02d:%02d:%02d"), hrs, mins, secs);
+//        m_lblSummary.SetWindowText(summary);
+//    }
+//    else
+//    {
+//        m_btnToggle.SetWindowText(_T("See All"));
+//
+//        m_list.InsertColumn(0, _T("Time"), LVCFMT_LEFT, 100);
+//        m_list.InsertColumn(1, _T("Percent"), LVCFMT_CENTER, 80);
+//        m_list.InsertColumn(2, _T("Duration(ms)"), LVCFMT_CENTER, 120);
+//        m_list.InsertColumn(3, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
+//
+//        DisplayData();
+//    }
+//}
+
+
+
+
+
+
 void CSOHResultDlg::OnToggleView()
 {
     m_showAll = !m_showAll;
@@ -254,6 +476,8 @@ void CSOHResultDlg::OnToggleView()
 
     if (m_showAll)
     {
+        m_groupEnd.clear();
+
         m_btnToggle.SetWindowText(_T("Show Latest"));
 
         m_list.InsertColumn(0, _T("Test ID"), LVCFMT_LEFT, 100);
@@ -263,35 +487,67 @@ void CSOHResultDlg::OnToggleView()
         m_list.InsertColumn(4, _T("Duration(ms)"), LVCFMT_CENTER, 120);
         m_list.InsertColumn(5, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
 
-        CString lastTestID;
-        int index = 0;
+        // ─────────────────────────────────────────────
+        // Group entries by TestID
+        // ─────────────────────────────────────────────
+        std::map<CString, std::vector<SOHFullEntry>> grouped;
 
         for (const auto& e : m_allEntries)
         {
-            m_list.InsertItem(index, _T(""));
-
-            if (e.testID != lastTestID)
-            {
-                m_list.SetItemText(index, 0, e.testID);
-                m_list.SetItemText(index, 1, e.startTime);
-                lastTestID = e.testID;
-            }
-
-            m_list.SetItemText(index, 2, e.time);
-
-            CString pct;
-            pct.Format(_T("%d%%"), e.percent);
-            m_list.SetItemText(index, 3, pct);
-
-            CString dur;
-            dur.Format(_T("%llu"), e.durationMs);
-            m_list.SetItemText(index, 4, dur);
-
-            m_list.SetItemText(index, 5, e.durationHMS);
-
-            index++;
+            grouped[e.testID].push_back(e);
         }
 
+        // Maintain appearance order of Test IDs
+        std::vector<CString> order;
+        for (const auto& e : m_allEntries)
+        {
+            if (std::find(order.begin(), order.end(), e.testID) == order.end())
+                order.push_back(e.testID);
+        }
+
+        // Reverse ONLY test order (latest first)
+        std::reverse(order.begin(), order.end());
+
+        CString lastTestID;
+        int index = 0;
+
+        // ─────────────────────────────────────────────
+        // Display grouped data
+        // ─────────────────────────────────────────────
+        for (const auto& testID : order)
+        {
+            const auto& entries = grouped[testID];
+
+            for (const auto& e : entries) // keep original order inside test
+            {
+                m_list.InsertItem(index, _T(""));
+
+                if (e.testID != lastTestID)
+                {
+                    m_list.SetItemText(index, 0, e.testID);
+                    m_list.SetItemText(index, 1, e.startTime);
+                    lastTestID = e.testID;
+                }
+
+                m_list.SetItemText(index, 2, e.time);
+
+                CString pct;
+                pct.Format(_T("%d%%"), e.percent);
+                m_list.SetItemText(index, 3, pct);
+
+                CString dur;
+                dur.Format(_T("%llu"), e.durationMs);
+                m_list.SetItemText(index, 4, dur);
+
+                m_list.SetItemText(index, 5, e.durationHMS);
+
+                index++;
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // Summary (unchanged)
+        // ─────────────────────────────────────────────
         ULONGLONG totalMs = 0;
         for (const auto& e : m_allEntries)
             totalMs += e.durationMs;
@@ -313,10 +569,17 @@ void CSOHResultDlg::OnToggleView()
         m_list.InsertColumn(1, _T("Percent"), LVCFMT_CENTER, 80);
         m_list.InsertColumn(2, _T("Duration(ms)"), LVCFMT_CENTER, 120);
         m_list.InsertColumn(3, _T("Duration(h:m:s)"), LVCFMT_CENTER, 140);
+        m_list.InsertColumn(4, _T("Sum/10%(h:m:s)"), LVCFMT_CENTER, 140);  // ← add this
 
         DisplayData();
     }
 }
+
+
+
+
+
+
 
 // ─────────────────────────────────────────────
 //  Chart Button
@@ -553,4 +816,43 @@ void CSOHResultDlg::OnPaint()
     dc.TextOut(LEFT + (chartW - sz.cx) / 2, TOP - 22, title);
 
     dc.SelectObject(pOldFont);
+}
+
+
+void CSOHResultDlg::OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    NMLVCUSTOMDRAW* pCD = reinterpret_cast<NMLVCUSTOMDRAW*>(pNMHDR);
+    *pResult = CDRF_DODEFAULT;
+
+    switch (pCD->nmcd.dwDrawStage)
+    {
+    case CDDS_PREPAINT:
+        *pResult = CDRF_NOTIFYITEMDRAW;
+        break;
+
+    case CDDS_ITEMPREPAINT:
+        *pResult = CDRF_NOTIFYSUBITEMDRAW | CDRF_NOTIFYPOSTPAINT;
+        break;
+
+    case CDDS_ITEMPOSTPAINT:
+    {
+        int row = (int)pCD->nmcd.dwItemSpec;
+        if (row < (int)m_groupEnd.size() && m_groupEnd[row])
+        {
+            // Draw a separator line at the bottom of this row
+            CDC* pDC = CDC::FromHandle(pCD->nmcd.hdc);
+            CRect rcItem;
+            m_list.GetItemRect(row, &rcItem, LVIR_BOUNDS);
+
+           /* CPen pen(PS_SOLID, 2, RGB(100, 160, 220));*/
+            CPen pen(PS_SOLID, 2, RGB(0, 0, 0));
+            CPen* pOld = pDC->SelectObject(&pen);
+            pDC->MoveTo(rcItem.left, rcItem.bottom - 1);
+            pDC->LineTo(rcItem.right, rcItem.bottom - 1);
+            pDC->SelectObject(pOld);
+        }
+        *pResult = CDRF_DODEFAULT;
+        break;
+    }
+    }
 }
