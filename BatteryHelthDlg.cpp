@@ -4502,7 +4502,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         }
 
 
-        m_CPU_Progress.ShowWindow(SW_SHOW);
+       /* m_CPU_Progress.ShowWindow(SW_SHOW);*/
         m_cpuLoadElapsed++;
 
         double percentDone = 100.0 * ((double)m_cpuLoadElapsed / m_cpuLoadDurationSeconds);
@@ -4538,7 +4538,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             else
                 UpdateLabel(this, IDC_BATT_CPULOAD, L"CPU負荷テストが停止しました！");
 
-            m_CPU_Progress.ShowWindow(SW_HIDE);
+           /* m_CPU_Progress.ShowWindow(SW_HIDE);*/
         }
 
         //SYSTEM_POWER_STATUS sps;
@@ -5073,7 +5073,7 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     }
 
 
-    m_CPU_Progress.ShowWindow(SW_HIDE);
+   /* m_CPU_Progress.ShowWindow(SW_HIDE);*/
 
     CString* pMsg = (CString*)lParam;
     //SetDlgItemText(IDC_BATT_CPULOAD, *pMsg);

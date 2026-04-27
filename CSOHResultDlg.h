@@ -68,5 +68,13 @@ private:
 
     afx_msg void OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult);
     // Also add:
-    std::vector<bool> m_groupEnd; // same size as m_entries, set in DisplayData
+    std::vector<bool> m_groupEnd; 
+
+    std::vector<bool> m_anomaly;
+
+    CStatic m_lblLegend;
+
+    CBrush  m_legendBrush;
+
+    afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };
