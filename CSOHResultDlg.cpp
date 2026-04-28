@@ -42,9 +42,16 @@ HBRUSH CSOHResultDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
     HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
 
-    if (pWnd->GetSafeHwnd() == m_lblLegend.GetSafeHwnd())
+    if (pWnd->GetSafeHwnd() == m_lblLegendRed.GetSafeHwnd())
     {
-        pDC->SetTextColor(RGB(180, 30, 30));
+        pDC->SetTextColor(RGB(180, 30, 30));      // red
+        pDC->SetBkMode(TRANSPARENT);
+        return (HBRUSH)GetStockObject(NULL_BRUSH);
+    }
+
+    if (pWnd->GetSafeHwnd() == m_lblLegendOrange.GetSafeHwnd())
+    {
+        pDC->SetTextColor(RGB(200, 110, 0));      // orange
         pDC->SetBkMode(TRANSPARENT);
         return (HBRUSH)GetStockObject(NULL_BRUSH);
     }
@@ -86,14 +93,24 @@ BOOL CSOHResultDlg::OnInitDialog()
         3002
     );
 
-    // ── Legend ───────────────────────────────────────────
-    m_lblLegend.Create(
-        _T("  ⚠  Red rows = Anomaly detected (step took too long)"),
+
+ // ── Legend Red ───────────────────────────────────────────
+    m_lblLegendRed.Create(
+        _T("  ⚠  Red = Too Slow"),
         WS_CHILD | WS_VISIBLE | SS_LEFT,
-        CRect(270, 16, rc.Width() - 10, 38),
+        CRect(270, 16, 420, 38),
         this
     );
-    m_lblLegend.SetFont(GetFont());
+    m_lblLegendRed.SetFont(GetFont());
+
+    // ── Legend Orange ─────────────────────────────────────────
+    m_lblLegendOrange.Create(
+        _T("|  Orange = Too Fast  (statistical anomaly)"),
+        WS_CHILD | WS_VISIBLE | SS_LEFT,
+        CRect(420, 16, rc.Width() - 10, 38),
+        this
+    );
+    m_lblLegendOrange.SetFont(GetFont());
     // ─────────────────────────────────────────────────────
 
     // List Control
@@ -247,8 +264,19 @@ void CSOHResultDlg::ParseLine(const std::string& line)
     size_t d1 = line.find("Duration(ms):");
     entry.durationMs = _strtoui64(line.substr(d1 + 13).c_str(), nullptr, 10);
 
-    size_t d2 = line.find("Duration(h:m:s):");
-    entry.durationHMS = CString(line.substr(d2 + 18).c_str());
+  /*  size_t d2 = line.find("Duration(h:m:s):");
+    entry.durationHMS = CString(line.substr(d2 + 18).c_str());*/
+
+    // Reformat durationHMS ourselves from durationMs for consistent display
+    {
+        ULONGLONG totalSec = entry.durationMs / 1000;
+        int h = (int)(totalSec / 3600);
+        int m = (int)((totalSec % 3600) / 60);
+        int s = (int)(totalSec % 60);
+        CString hms;
+        hms.Format(_T("%02d:%02d:%02d"), h, m, s);
+        entry.durationHMS = hms;
+    }
 
     m_totalTimeMs += entry.durationMs;
     m_entries.push_back(entry);
@@ -266,7 +294,6 @@ void CSOHResultDlg::DisplayData()
 
     if (n == 0)
     {
-        // ── Summary label ───────────────────────────────────────────
         ULONGLONG totalSec = m_totalTimeMs / 1000;
         int hrs = (int)(totalSec / 3600);
         int mins = (int)((totalSec % 3600) / 60);
@@ -279,15 +306,8 @@ void CSOHResultDlg::DisplayData()
         return;
     }
 
-    // ── Dynamic top-down 10% grouping ───────────────────────────────
-    // First percent seen becomes the top of group 1.
-    // Each group spans exactly 10 percentage points downward.
-    // e.g. start=100 → groups: [100..91], [90..81], [80..remainder]
-    // e.g. start=95  → groups: [95..86],  [85..76], [75..remainder]
-
     int firstPct = m_entries[0].percent;
-    int bucketFloor = firstPct - 9;   // lowest percent still in group 1
-    // group 1 = [firstPct .. firstPct-9]
+    int bucketFloor = firstPct - 9;
 
     int       startRow = 0;
     ULONGLONG bucketMs = 0;
@@ -296,16 +316,13 @@ void CSOHResultDlg::DisplayData()
     {
         int pct = m_entries[i].percent;
 
-        // Has this row crossed below the current bucket floor?
         while (pct < bucketFloor && i > startRow)
         {
-            // Flush the just-finished bucket (rows startRow..i-1)
             groupEnd[i - 1] = true;
             groupSum[i - 1] = bucketMs;
             for (int r = startRow; r <= i - 1; ++r)
                 groupFirst[r] = startRow;
 
-            // Advance to next bucket (floor drops by 10)
             bucketFloor -= 10;
             startRow = i;
             bucketMs = 0;
@@ -313,7 +330,6 @@ void CSOHResultDlg::DisplayData()
 
         bucketMs += m_entries[i].durationMs;
 
-        // Last row — always flush whatever bucket is open
         if (i == n - 1)
         {
             groupEnd[i] = true;
@@ -342,12 +358,10 @@ void CSOHResultDlg::DisplayData()
 
         m_list.SetItemText(i, 3, e.durationHMS);
 
-        // Find the last row of this row's group
         int first = groupFirst[i];
         int last = i;
         for (int k = i; k < n; ++k) { if (groupEnd[k]) { last = k; break; } }
 
-        // Show sum only on the vertically-centered row of the group
         int midRow = (first + last) / 2;
         if (i == midRow)
         {
@@ -383,8 +397,9 @@ void CSOHResultDlg::DisplayData()
         m_testIDStr, m_startTimeStr, hrs, mins, secs);
     m_lblSummary.SetWindowText(summary);
 
-    // ── Anomaly detection ────────────────────────────────────────
+    // ── Anomaly detection (upper AND lower threshold) ────────────────
     m_anomaly.assign(n, false);
+    m_anomalyFast.assign(n, false);   // NEW: too-fast anomaly vector
 
     if (n > 1)
     {
@@ -403,20 +418,18 @@ void CSOHResultDlg::DisplayData()
         }
         double stddev = sqrt(sq / n);
 
-        double threshold = mean + 1.5 * stddev;
-
-       //// ── DEBUG: remove after checking ──
-       // CString debug;
-       // debug.Format(_T("mean=%.0f stddev=%.0f threshold=%.0f"), mean, stddev, threshold);
-       // m_lblSummary.SetWindowText(debug);
-
-       //// ── END DEBUG ──
+        double upperThreshold = mean + 1.5 * stddev;
+        double lowerThreshold = max(0.0, mean - 1.5 * stddev);
 
         for (int i = 0; i < n; ++i)
-            m_anomaly[i] = ((double)m_entries[i].durationMs > threshold);
+        {
+            double dur = (double)m_entries[i].durationMs;
+            m_anomaly[i] = (dur > upperThreshold);   // too slow  → red
+            m_anomalyFast[i] = (dur < lowerThreshold);   // too fast  → orange
+        }
     }
 
-    m_groupEnd = groupEnd;  // save for custom draw separator lines
+    m_groupEnd = groupEnd;
 }
 // ─────────────────────────────────────────────
 //  Toggle (See All / Show Latest)  — unchanged
@@ -567,7 +580,8 @@ void CSOHResultDlg::OnToggleView()
         m_showChart = false;
         m_btnChart.SetWindowText(_T("Show Chart"));
         m_list.ShowWindow(SW_SHOW);
-        m_lblLegend.ShowWindow(SW_SHOW);
+        m_lblLegendRed.ShowWindow(SW_SHOW);
+        m_lblLegendOrange.ShowWindow(SW_SHOW);
         Invalidate();
     }
 
@@ -576,10 +590,12 @@ void CSOHResultDlg::OnToggleView()
 
     if (m_showAll)
     {
-        m_lblLegend.ShowWindow(SW_HIDE);
+        m_lblLegendRed.ShowWindow(SW_HIDE);
+        m_lblLegendOrange.ShowWindow(SW_HIDE);
 
         m_groupEnd.clear();
         m_anomaly.clear();
+        m_anomalyFast.clear();
 
         m_btnToggle.SetWindowText(_T("Show Latest"));
 
@@ -664,7 +680,8 @@ void CSOHResultDlg::OnToggleView()
     }
     else
     {
-        m_lblLegend.ShowWindow(SW_SHOW);
+        m_lblLegendRed.ShowWindow(SW_SHOW);
+        m_lblLegendOrange.ShowWindow(SW_SHOW);
 
         m_btnToggle.SetWindowText(_T("See All"));
 
@@ -708,14 +725,16 @@ void CSOHResultDlg::OnShowChart()
     {
         m_btnChart.SetWindowText(_T("Hide Chart"));
         m_list.ShowWindow(SW_HIDE);
-        m_lblLegend.ShowWindow(SW_HIDE);   // ← ADD
+        m_lblLegendRed.ShowWindow(SW_HIDE);
+        m_lblLegendOrange.ShowWindow(SW_HIDE);
         m_lblSummary.ShowWindow(SW_HIDE);  // ← ADD
     }
     else
     {
         m_btnChart.SetWindowText(_T("Show Chart"));
         m_list.ShowWindow(SW_SHOW);
-        m_lblLegend.ShowWindow(SW_SHOW);   // ← ADD
+        m_lblLegendRed.ShowWindow(SW_SHOW);
+        m_lblLegendOrange.ShowWindow(SW_SHOW);
         m_lblSummary.ShowWindow(SW_SHOW);  // ← ADD
     }
 
@@ -1014,11 +1033,18 @@ void CSOHResultDlg::OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult)
     {
         int row = (int)pCD->nmcd.dwItemSpec;
 
-        // Color anomaly rows red
+        // Too slow → red background
         if (row < (int)m_anomaly.size() && m_anomaly[row])
         {
-            pCD->clrText = RGB(255, 255, 255);   // white text
-            pCD->clrTextBk = RGB(180, 30, 30);     // red background
+            pCD->clrText = RGB(255, 255, 255);
+            pCD->clrTextBk = RGB(180, 30, 30);
+            *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
+        }
+        // Too fast → orange background
+        else if (row < (int)m_anomalyFast.size() && m_anomalyFast[row])
+        {
+            pCD->clrText = RGB(255, 255, 255);
+            pCD->clrTextBk = RGB(200, 110, 0);
             *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
         }
         else
@@ -1104,7 +1130,7 @@ void CSOHResultDlg::OnPaint()
 
     const int LEFT = 80;
     const int RIGHT = rc.Width() - 40;
-    const int TOP = 65;
+    const int TOP = 95;                  // slightly more room at top for title + legend
     const int BOTTOM = rc.Height() - 120;
 
     int chartW = RIGHT - LEFT;
@@ -1117,27 +1143,26 @@ void CSOHResultDlg::OnPaint()
 
     int n = (int)m_entries.size();
 
-   
-    // ── Build cumulative duration ────────────────
-// cumulative[i] = elapsed time BEFORE entry i (so point 0 starts at 0 = Y-axis)
+    // ── Build cumulative duration ─────────────────
     std::vector<double> cumulative;
     cumulative.reserve(n);
     double totalTime = 0.0;
     for (const auto& e : m_entries)
     {
-        cumulative.push_back(totalTime);          // push BEFORE adding — starts at 0
+        cumulative.push_back(totalTime);
         totalTime += (double)e.durationMs;
     }
-    double maxTime = totalTime;                   // total is accumulated after the loop
+    double maxTime = totalTime;
 
-    // ── Pre-compute pixel X/Y for every point ────
+    // ── Pre-compute pixel X/Y for every point ─────
     std::vector<int> px(n), py(n);
     for (int i = 0; i < n; ++i)
     {
         px[i] = LEFT + (int)((cumulative[i] / maxTime) * chartW);
         py[i] = BOTTOM - (int)((double)m_entries[i].percent / 100.0 * chartH);
     }
-    // ── Y Grid ──────────────────────────────────
+
+    // ── Y Grid ───────────────────────────────────
     CFont fontSmall;
     fontSmall.CreatePointFont(70, _T("Segoe UI"));
     CFont* pOldFont = dc.SelectObject(&fontSmall);
@@ -1167,10 +1192,9 @@ void CSOHResultDlg::OnPaint()
     dc.LineTo(RIGHT, BOTTOM);
     dc.SelectObject(pOldPen);
 
-    // ── Gradient-style filled area (two-pass) ────
+    // ── Gradient filled area ──────────────────────
     if (n >= 2)
     {
-        // Build polygon
         std::vector<POINT> poly;
         poly.reserve(n + 2);
         poly.push_back({ LEFT, BOTTOM });
@@ -1226,19 +1250,38 @@ void CSOHResultDlg::OnPaint()
         dc.SelectObject(pOldPen);
     }
 
-    // ── Dots (normal = cyan, anomaly = red) ──────
+    // ── Dots (cyan = normal, red = too slow, orange = too fast) ──────
     for (int i = 0; i < n; ++i)
     {
-        bool isAnomaly = (i < (int)m_anomaly.size() && m_anomaly[i]);
-        COLORREF dotColor = isAnomaly ? RGB(220, 50, 50) : RGB(0, 210, 255);
+        bool isSlow = (i < (int)m_anomaly.size() && m_anomaly[i]);
+        bool isFast = (i < (int)m_anomalyFast.size() && m_anomalyFast[i]);
+
+        COLORREF dotColor;
+        COLORREF rimColor;
+
+        if (isSlow)
+        {
+            dotColor = RGB(220, 50, 50);
+            rimColor = RGB(255, 100, 100);
+        }
+        else if (isFast)
+        {
+            dotColor = RGB(220, 130, 0);
+            rimColor = RGB(255, 180, 60);
+        }
+        else
+        {
+            dotColor = RGB(0, 210, 255);
+            rimColor = RGB(180, 240, 255);
+        }
 
         CBrush brushDot(dotColor);
         CBrush* pOldBrush = dc.SelectObject(&brushDot);
 
-        CPen penDot(PS_SOLID, 1, isAnomaly ? RGB(255, 100, 100) : RGB(180, 240, 255));
+        CPen penDot(PS_SOLID, 1, rimColor);
         CPen* pOldPenDot = dc.SelectObject(&penDot);
 
-        int r = isAnomaly ? 6 : 4;
+        int r = (isSlow || isFast) ? 6 : 4;
         dc.Ellipse(px[i] - r, py[i] - r, px[i] + r, py[i] + r);
 
         dc.SelectObject(pOldPenDot);
@@ -1274,7 +1317,6 @@ void CSOHResultDlg::OnPaint()
             if (px[i] - lastDrawnX < MIN_GAP)
                 continue;
 
-            // ── CHANGED: use cumulative elapsed time, not per-step duration ──
             double sec = cumulative[i] / 1000.0;
             CString lbl;
             if (sec < 60.0)
@@ -1307,10 +1349,7 @@ void CSOHResultDlg::OnPaint()
         dc.SelectObject(fontSmall);
     }
 
-    // ── Axis labels ──────────────────────────────
-    CFont fontLabel;
-    fontLabel.CreatePointFont(85, _T("Segoe UI"));
-
+    // ── Y-axis vertical label ─────────────────────
     CFont fontVert;
     LOGFONT lf = {};
     _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
@@ -1322,8 +1361,11 @@ void CSOHResultDlg::OnPaint()
     dc.SetTextColor(RGB(140, 140, 165));
     dc.TextOut(15, BOTTOM - chartH / 2 + 40, _T("Percent (%)"));
 
-    // ── CHANGED: X-axis title ──
+    // ── X-axis title ─────────────────────────────
+    CFont fontLabel;
+    fontLabel.CreatePointFont(85, _T("Segoe UI"));
     dc.SelectObject(&fontLabel);
+    dc.SetTextColor(RGB(140, 140, 165));
     dc.TextOut(LEFT + chartW / 2 - 60, BOTTOM + 60, _T("Elapsed Time (seconds)"));
 
     // ── Chart title ──────────────────────────────
@@ -1335,21 +1377,46 @@ void CSOHResultDlg::OnPaint()
     CString title;
     title.Format(_T("SOH \x2014 Percent vs Elapsed Time  [%s]"), m_testIDStr);
     CSize sz = dc.GetTextExtent(title);
-    dc.TextOut(LEFT + (chartW - sz.cx) / 2, TOP - 28, title);
+    dc.TextOut(LEFT + (chartW - sz.cx) / 2, TOP - 55, title);   // raised up
 
-    // ── Legend (top-right) ───────────────────────
+    // ── Legend (centered, just below title) ───────
     dc.SelectObject(&fontSmall);
     dc.SetTextColor(RGB(170, 170, 200));
 
-    int lx = RIGHT - 140, ly = TOP - 25;
+    int ly = TOP - 10;   // row just below title
 
+    const int blockW = 10;
+    const int gap = 4;
+    const int spacing = 20;
+
+    CSize szSOH = dc.GetTextExtent(_T("SOH %"));
+    CSize szSlow = dc.GetTextExtent(_T("Too Slow"));
+    CSize szFast = dc.GetTextExtent(_T("Too Fast"));
+
+    int totalLegendW = (blockW + gap + szSOH.cx)
+        + spacing
+        + (blockW + gap + szSlow.cx)
+        + spacing
+        + (blockW + gap + szFast.cx);
+
+    int lx = LEFT + (chartW - totalLegendW) / 2;   // centered
+
+    // ■ SOH %
     CBrush bCyan(RGB(0, 185, 255));
-    dc.FillRect(CRect(lx, ly + 1, lx + 10, ly + 11), &bCyan);
-    dc.TextOut(lx + 13, ly, _T("SOH %"));
+    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bCyan);
+    dc.TextOut(lx + blockW + gap, ly, _T("SOH %"));
+    lx += blockW + gap + szSOH.cx + spacing;
 
+    // ■ Too Slow
     CBrush bRed(RGB(220, 50, 50));
-    dc.FillRect(CRect(lx + 65, ly + 1, lx + 75, ly + 11), &bRed);
-    dc.TextOut(lx + 78, ly, _T("Anomaly"));
+    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bRed);
+    dc.TextOut(lx + blockW + gap, ly, _T("Too Slow"));
+    lx += blockW + gap + szSlow.cx + spacing;
+
+    // ■ Too Fast
+    CBrush bOrange(RGB(220, 130, 0));
+    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bOrange);
+    dc.TextOut(lx + blockW + gap, ly, _T("Too Fast"));
 
     dc.SelectObject(pOldFont);
 }

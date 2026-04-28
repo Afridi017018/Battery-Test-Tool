@@ -53,4 +53,6 @@ private:
     std::atomic<bool>         m_stressRunning;
 
     afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
+    bool eng_lang;
 };

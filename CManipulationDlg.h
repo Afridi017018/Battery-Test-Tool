@@ -105,4 +105,6 @@ private:
     CRect m_exportBtnRect;   // tracks the drawn button's screen rect for hit-testing
 
     afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+
+ 
 };

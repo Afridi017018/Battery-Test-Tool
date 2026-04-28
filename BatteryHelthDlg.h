@@ -407,6 +407,7 @@ public:
 
 	  afx_msg void OnBnClickedSoh();
 	  afx_msg void OnBnClickedResult();
+	  CButton m_autoBtn;
 };
 
 

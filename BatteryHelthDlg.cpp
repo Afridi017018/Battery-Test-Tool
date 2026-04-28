@@ -166,6 +166,7 @@ void CBatteryHelthDlg::DoDataExchange(CDataExchange* pDX)
 
     /*DDX_Control(pDX, IDC_PROGRESS5, m_discharge_progress);*/
     DDX_Control(pDX, IDC_BTN_CPULOAD, Button1);
+    DDX_Control(pDX, IDC_AUTO, m_autoBtn);
 }
 
 BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
@@ -1041,6 +1042,30 @@ static WindowSearchResult GetMainWindowAndTitleByPid(DWORD targetPid) {
 }
 
 
+static HHOOK g_hMsgBoxHook = NULL;
+static bool g_isMsgBoxJP = false;
+
+static LRESULT CALLBACK MsgBoxHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HCBT_ACTIVATE)
+    {
+        HWND hMsgBox = (HWND)wParam;
+        HWND hOK = ::GetDlgItem(hMsgBox, IDOK);
+        if (hOK)
+        {
+            if (g_isMsgBoxJP)
+                ::SetWindowTextW(hOK, L"よし");  // or L"はい" or L"閉じる"
+            else
+                ::SetWindowTextW(hOK, L"OK");
+        }
+
+        UnhookWindowsHookEx(g_hMsgBoxHook);
+        g_hMsgBoxHook = NULL;
+    }
+    return CallNextHookEx(g_hMsgBoxHook, nCode, wParam, lParam);
+}
+
+
 BOOL CBatteryHelthDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
@@ -1267,20 +1292,20 @@ void CBatteryHelthDlg::InitToolTips()
     const Tip tips[] =
     {
         { IDC_BTN_CPULOAD,
-          L"Start CPU Load Test",
-          L"CPU負荷テストを開始します" },
+          L"CPU Load Test",
+          L"CPU負荷テスト"},
 
         { IDC_BTN_DISCHARGE,
-          L"Start Discharge Test",
-          L"放電試験を開始する" },
+          L"Discharge Test",
+          L"放電試験" },
 
         { IDC_BTN_HISTORY,
           L"Charge History",
           L"充電履歴" },
 
         { IDC_BTN_UPLOADPDF,
-          L"Export Report To CSV",
-          L"レポートをCSVにエクスポート" },
+          L"Export To CSV",
+          L"CSV にエクスポート" },
 
         { IDC_BATT_PERCENTAGE,
           L"Current battery percentage reported by Windows.",
@@ -1291,7 +1316,7 @@ void CBatteryHelthDlg::InitToolTips()
           L"フル充電と設計容量（健全性の推定）の比較。" },
 
         { IDC_BTN_CAPHIS,
-          L"Battery Charge Capacity History",
+          L"Capacity History",
           L"バッテリー充電容量履歴" },
 
           // { IDC_BTN_PREDICTION,
@@ -1299,12 +1324,12 @@ void CBatteryHelthDlg::InitToolTips()
           //   L"バッテリー寿命の予測" },
 
           { IDC_BTN_ACTIVE,
-            L"Active Battery Life Trend",
-            L"アクティブなバッテリー寿命の傾向" },
+            L"Active Life Trend",
+            L"アクティブライフトレンド" },
 
           { IDC_BTN_STANDBY,
-            L"Standby Battery Life Trend",
-            L"スタンバイ時のバッテリー寿命の傾向" },
+            L"Standby Life Trend",
+            L"スタンバイライフの傾向" },
 
           { IDC_BTN_USAGE,
             L"Usage History",
@@ -1315,12 +1340,12 @@ void CBatteryHelthDlg::InitToolTips()
             L"改ざん検出" },
 
           { IDC_BTN_RATEINFO,
-            L"Charge/Discharge Rate Information",
-            L"充電/放電レート情報" },
+            L"Charge/Discharge Rate",
+            L"充電/放電レート" },
 
           { IDC_BTN_BGAPP,
-            L"Long-Running Background Applications",
-            L"長時間実行されるバックグラウンドアプリケーション" },
+            L"Running Applications",
+            L"現在実行中のアプリケーション" },
 
           { IDC_BTN_EN,
             L"English Language",
@@ -1345,7 +1370,7 @@ void CBatteryHelthDlg::InitToolTips()
         {
             IDC_AUTO,
             L"Auto Test",
-            L"デバイスによって報告されたバッテリーメーカー。"
+            L"自動テスト"
     },
 
         {IDC_SOH, 
@@ -3823,6 +3848,8 @@ void CBatteryHelthDlg::StopDischargeTest()
 //    //SetDlgItemText(IDC_BATT_DISCHARGR, imsg);
 //}
 
+
+
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
     if (HasBattery() == false) {
@@ -3847,12 +3874,20 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         return;
     }
 
+
+
     if (sps.ACLineStatus == 1) // Charging
     {
-        if (m_lang == Lang::EN) {
+        if (m_lang == Lang::EN)
+        {
+            g_isMsgBoxJP = false;
+            g_hMsgBoxHook = SetWindowsHookEx(WH_CBT, MsgBoxHookProc, NULL, GetCurrentThreadId());
             AfxMessageBox(L"Please unplug the charger to start the discharge test.", MB_OK | MB_ICONWARNING);
         }
-        else {
+        else
+        {
+            g_isMsgBoxJP = true;
+            g_hMsgBoxHook = SetWindowsHookEx(WH_CBT, MsgBoxHookProc, NULL, GetCurrentThreadId());
             AfxMessageBox(L"放電テストを開始するには充電器を抜いてください。", MB_OK | MB_ICONWARNING);
         }
         return;
@@ -4793,6 +4828,11 @@ bool CBatteryHelthDlg::IsCharging()
     return false;
 }
 
+// Add this helper at the top of your .cpp file (outside any function)
+
+
+
+
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
 
@@ -4810,7 +4850,22 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
     if (IsCharging())
     {
-        AfxMessageBox(L"Please unplug the charger to start the cpu load test.");
+        if (m_lang == Lang::JP)
+        {
+            g_isMsgBoxJP = true;
+            g_hMsgBoxHook = SetWindowsHookEx(WH_CBT, MsgBoxHookProc, NULL, GetCurrentThreadId());
+            ::MessageBoxW(GetSafeHwnd(),
+                L"CPUロードテストを開始するには、充電器を抜いてください。",
+                L"警告", MB_OK);
+        }
+        else
+        {
+            g_isMsgBoxJP = false;
+            g_hMsgBoxHook = SetWindowsHookEx(WH_CBT, MsgBoxHookProc, NULL, GetCurrentThreadId());
+            ::MessageBoxW(GetSafeHwnd(),
+                L"Please unplug the charger to start the cpu load test.",
+                L"Warning", MB_OK);
+        }
         return;
     }
 
@@ -5713,11 +5768,18 @@ void CBatteryHelthDlg::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
     }
 
 
+    //if (isAUTO)
+    //{
+    //    const bool active = (isJP && m_lang == Lang::JP) || (isEN && m_lang == Lang::EN);
+    //    DrawToggleButton(lpDrawItemStruct, active, isAUTO ? L"Auto Test" : L"自動テスト");
+    //    return; // handled
+    //}
+
     if (isAUTO)
     {
-        const bool active = (isJP && m_lang == Lang::JP) || (isEN && m_lang == Lang::EN);
-        DrawToggleButton(lpDrawItemStruct, active, isAUTO ? L"Auto Test" : L"Auto Test");
-        return; // handled
+        CString caption = (m_lang == Lang::JP) ? L"自動テスト" : L"Auto Test";
+        DrawToggleButton(lpDrawItemStruct, false, caption);
+        return;
     }
 
     CDialogEx::OnDrawItem(nIDCtl, lpDrawItemStruct);
@@ -7130,6 +7192,8 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         SetDlgItemTextW(IDC_STATIC_CYCLE, _T(""));
         SetDlgItemTextW(IDC_STATIC_HEALTH, _T(""));
 
+
+
         Invalidate();
 
         //--------------------------------------
@@ -7157,6 +7221,25 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         ///////Data and History Section/////////////////////
         SetDlgItemTextW(IDC_STATIC_DH, _T("Data and History"));
 
+        ///ABI Labels
+        SetDlgItemTextW(IDC_STATIC_CPU, _T("CPU Load Test"));
+        SetDlgItemTextW(IDC_STATIC_ACTIVE, _T("Active Life Trend"));
+        SetDlgItemTextW(IDC_STATIC_RATEINFO, _T("Charge/Discharge Rate"));
+        SetDlgItemTextW(IDC_STATIC_MANIPULATION, _T("Dtect Manipulation"));
+        SetDlgItemTextW(IDC_STATIC_DISCHARGE, _T("Discharge Test")); 
+        SetDlgItemTextW(IDC_STATIC_STANDBY, _T("Standby Life Trend"));
+        SetDlgItemTextW(IDC_STATIC_BGAPP, _T("Running Application"));
+        SetDlgItemTextW(IDC_STATIC_SOH, _T("Check Power State"));
+
+        ///DH Labels
+        SetDlgItemTextW(IDC_STATIC_HISTORY, _T("Charge History"));
+        SetDlgItemTextW(IDC_STATIC_SLEEP, _T("Sleep Logs"));
+        SetDlgItemTextW(IDC_STATIC_BREPORT, _T("Battery Report"));
+        SetDlgItemTextW(IDC_STATIC_RESULT, _T("View Power State Logs"));
+        SetDlgItemTextW(IDC_STATIC_UPLOADPDF, _T("Export To CSV"));
+        SetDlgItemTextW(IDC_STATIC_USAGE, _T("Usage History"));
+        SetDlgItemTextW(IDC_STATIC_CAPHIS, _T("Capacity History"));
+
 
         CloseBalloon();
         CheckAndNotifyTopLongRunning();
@@ -7167,8 +7250,8 @@ void CBatteryHelthDlg::OnBnClickedBtnEn()
         GetBatteryInfo();
         GetStaticBatteryInfo();
 
-
         UpdateWindow();
+
     }
 }
 
@@ -7230,6 +7313,27 @@ void CBatteryHelthDlg::OnBnClickedBtnJp()
 
         ///////Data and History Section/////////////////////
         SetDlgItemTextW(IDC_STATIC_DH, _T("データと歴史"));
+
+
+        ///ABI Labels
+        SetDlgItemTextW(IDC_STATIC_CPU, _T("CPU負荷テスト"));
+        SetDlgItemTextW(IDC_STATIC_ACTIVE, _T("アクティブライフトレンド"));
+        SetDlgItemTextW(IDC_STATIC_RATEINFO, _T("充電/放電レート"));
+        SetDlgItemTextW(IDC_STATIC_MANIPULATION, _T("改ざん検出"));
+        SetDlgItemTextW(IDC_STATIC_DISCHARGE, _T("放電試験"));
+        SetDlgItemTextW(IDC_STATIC_STANDBY, _T("スタンバイライフの傾向"));
+        SetDlgItemTextW(IDC_STATIC_BGAPP, _T("現在実行中のアプリケーション"));
+        SetDlgItemTextW(IDC_STATIC_SOH, _T("電源状態の確認"));
+
+
+        ///DH Labels
+        SetDlgItemTextW(IDC_STATIC_HISTORY, _T("充電履歴"));
+        SetDlgItemTextW(IDC_STATIC_SLEEP, _T("睡眠ログ"));
+        SetDlgItemTextW(IDC_STATIC_BREPORT, _T("バッテリーレポート"));
+        SetDlgItemTextW(IDC_STATIC_RESULT, _T("電源状態のログを表示"));
+        SetDlgItemTextW(IDC_STATIC_UPLOADPDF, _T("CSV にエクスポート"));
+        SetDlgItemTextW(IDC_STATIC_USAGE, _T("利用履歴"));
+        SetDlgItemTextW(IDC_STATIC_CAPHIS, _T("バッテリー充電容量履歴"));
 
 
         GetBatteryInfo();
@@ -7815,6 +7919,7 @@ void CBatteryHelthDlg::OnBnClickedSoh()
 {
     // TODO: Add your control notification handler code here
     CSOHDlg dlg;
+
     dlg.DoModal();
 }
 

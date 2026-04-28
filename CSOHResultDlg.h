@@ -72,9 +72,12 @@ private:
 
     std::vector<bool> m_anomaly;
 
-    CStatic m_lblLegend;
+    CStatic m_lblLegendRed;
+    CStatic m_lblLegendOrange;
 
     CBrush  m_legendBrush;
 
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+
+    std::vector<bool> m_anomalyFast;  // NEW
 };
