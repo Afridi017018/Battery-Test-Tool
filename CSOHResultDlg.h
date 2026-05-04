@@ -27,7 +27,7 @@ class CSOHResultDlg : public CDialogEx
 {
     DECLARE_DYNAMIC(CSOHResultDlg)
 public:
-    CSOHResultDlg(CWnd* pParent = nullptr);
+    CSOHResultDlg(CWnd* pParent = nullptr, bool engLang = true);   // ← added engLang
     virtual ~CSOHResultDlg();
     enum { IDD = IDD_RESULT };
 
@@ -41,6 +41,13 @@ private:
     void ParseLine(const std::string& line);
     void DisplayData();
     CString GetExeFolder();
+
+    // ── tiny helper: picks English or Japanese string ──────────────
+    const CString T(const wchar_t* en, const wchar_t* jp) const
+    {
+        return eng_lang ? CString(en) : CString(jp);
+    }
+
     afx_msg void OnToggleView();
     afx_msg void OnShowChart();
     afx_msg void OnPaint();
@@ -67,17 +74,16 @@ private:
     ULONGLONG m_totalTimeMs;
 
     afx_msg void OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult);
-    // Also add:
-    std::vector<bool> m_groupEnd; 
 
+    std::vector<bool> m_groupEnd;
     std::vector<bool> m_anomaly;
 
     CStatic m_lblLegendRed;
     CStatic m_lblLegendOrange;
-
     CBrush  m_legendBrush;
 
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 
-    std::vector<bool> m_anomalyFast;  // NEW
+    std::vector<bool> m_anomalyFast;
+    bool eng_lang;
 };

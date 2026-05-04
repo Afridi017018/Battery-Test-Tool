@@ -7925,7 +7925,7 @@ void CBatteryHelthDlg::OnBnClickedSoh()
 
 void CBatteryHelthDlg::OnBnClickedResult()
 {
-    // TODO: Add your control notification handler code here
-    CSOHResultDlg dlg;
+    bool isEng = (m_lang == Lang::EN);
+    CSOHResultDlg dlg(this, isEng);
     dlg.DoModal();
 }
