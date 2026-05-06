@@ -86,4 +86,21 @@ private:
 
     std::vector<bool> m_anomalyFast;
     bool eng_lang;
+    CButton    m_btnHealth;
+    bool       m_showHealth;
+    /*double     m_healthScore;*/
+    double     m_healthScore;
+    double     m_consistencyScore;
+    double     m_anomalyScore;
+    double     m_smoothnessScore;
+    afx_msg void OnShowHealth();
+    void DrawHealthScore();
+
+    int  m_healthScrollY;
+    int  m_healthTotalH;
+
+    void UpdateHealthScrollBar();
+    afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+    afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pBar);
+
 };
