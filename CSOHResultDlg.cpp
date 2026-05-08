@@ -45,6 +45,8 @@ BEGIN_MESSAGE_MAP(CSOHResultDlg, CDialogEx)
     ON_BN_CLICKED(3003, &CSOHResultDlg::OnShowHealth)
     ON_WM_MOUSEWHEEL()
     ON_WM_VSCROLL()
+
+    ON_WM_ERASEBKGND()
 END_MESSAGE_MAP()
 
 
@@ -132,7 +134,7 @@ BOOL CSOHResultDlg::OnInitDialog()
     m_lblLegendOrange.SetFont(GetFont());
 
     m_list.Create(WS_CHILD | WS_VISIBLE | LVS_REPORT,
-        CRect(10, 72, rc.Width() - 10, rc.Height() - 80),   
+        CRect(10, 72, rc.Width() - 10, rc.Height() - 80),
         this, 2001);
 
     m_list.InsertColumn(0, T(L"Time", L"時刻"), LVCFMT_LEFT, 100);
@@ -163,92 +165,6 @@ CString CSOHResultDlg::GetExeFolder()
     return CString(folder.c_str());
 }
 
-//void CSOHResultDlg::LoadLogFile()
-//{
-//    CString folder = GetExeFolder();
-//    CString fullPath = folder + _T("\\soh_log.txt");
-//
-//    std::wifstream file(fullPath);
-//    if (!file.is_open())
-//        return;
-//
-//    std::vector<std::wstring> allLines;
-//    std::wstring line;
-//
-//    while (std::getline(file, line))
-//        allLines.push_back(line);
-//
-//    file.close();
-//
-//    std::string lastTestID;
-//    std::string lastStartTime;
-//    std::string currentStartTime;
-//
-//    for (size_t i = 0; i < allLines.size(); ++i)
-//    {
-//        std::string s(allLines[i].begin(), allLines[i].end());
-//
-//        if (s.find("TEST_ID:") != std::string::npos)
-//        {
-//            size_t pos = s.find("TEST_ID:");
-//            lastTestID = s.substr(pos + 8);
-//            lastTestID.erase(0, lastTestID.find_first_not_of(" \t"));
-//            lastTestID.erase(lastTestID.find_last_not_of(" \t") + 1);
-//
-//            if (i + 1 < allLines.size())
-//            {
-//                std::string next(allLines[i + 1].begin(), allLines[i + 1].end());
-//                if (next.find("Start Time:") != std::string::npos)
-//                {
-//                    size_t tpos = next.find("Start Time:");
-//                    lastStartTime = next.substr(tpos + 11);
-//                    lastStartTime.erase(0, lastStartTime.find_first_not_of(" \t"));
-//                    lastStartTime.erase(lastStartTime.find_last_not_of(" \t") + 1);
-//                    currentStartTime = lastStartTime;
-//                }
-//            }
-//        }
-//
-//        if (s.find("Percent:") != std::string::npos)
-//        {
-//            ParseLine(s);
-//
-//            size_t idStart = s.find("[");
-//            size_t idEnd = s.find("]");
-//            std::string testID = s.substr(idStart + 1, idEnd - idStart - 1);
-//
-//            SOHFullEntry full;
-//            full.testID = CString(testID.c_str());
-//            full.startTime = CString(currentStartTime.c_str());
-//
-//            auto& e = m_entries.back();
-//            full.time = e.time;
-//            full.percent = e.percent;
-//            full.durationMs = e.durationMs;
-//            full.durationHMS = e.durationHMS;
-//
-//            m_allEntries.push_back(full);
-//        }
-//    }
-//
-//    m_testIDStr = CString(lastTestID.c_str());
-//    m_startTimeStr = CString(lastStartTime.c_str());
-//
-//    std::string matchTag = "[" + lastTestID + "]";
-//
-//    m_entries.clear();
-//    m_totalTimeMs = 0;
-//
-//    for (const auto& wline : allLines)
-//    {
-//        std::string s(wline.begin(), wline.end());
-//        if (s.find(matchTag) != std::string::npos &&
-//            s.find("Percent:") != std::string::npos)
-//        {
-//            ParseLine(s);
-//        }
-//    }
-//}
 
 void CSOHResultDlg::LoadLogFile()
 {
@@ -385,7 +301,7 @@ void CSOHResultDlg::DisplayData()
         row.Format(_T("\n[%d] pct=%d dur=%llu"), i, m_entries[i].percent, m_entries[i].durationMs);
         debug += row;
     }
-    MessageBox(debug, _T("Debug"), MB_OK);
+  /*  MessageBox(debug, _T("Debug"), MB_OK);*/
 
     std::vector<bool>       groupEnd(n, false);
     std::vector<ULONGLONG>  groupSum(n, 0);
@@ -530,65 +446,6 @@ void CSOHResultDlg::DisplayData()
         }
     }
 
-
-
-
-    //// ── Health Score ─────────────────────────────────────────────
-    //m_healthScore = 0.0;
-
-    //if (n >= 2)
-    //{
-    //    // Total time and percent range
-    //    double totalMs = 0.0;
-    //    for (int i = 0; i < n; ++i)
-    //        totalMs += (double)m_entries[i].durationMs;
-
-    //    int firstPct2 = m_entries[0].percent;
-    //    int lastPct2 = m_entries[n - 1].percent;
-    //    int pctRange = firstPct2 - lastPct2;   // e.g. 99 - 0 = 99
-
-    //    if (pctRange > 0 && totalMs > 0)
-    //    {
-    //        // Perfect linear rate: how many ms per 1% drop
-    //        double msPerPct = totalMs / (double)pctRange;
-
-    //        // At each step, where SHOULD we be on the perfect line?
-    //        // Walk cumulative time and compare actual percent vs ideal percent
-    //        double cumMs = 0.0;
-    //        double sumDiff = 0.0;
-
-    //        for (int i = 0; i < n; ++i)
-    //        {
-    //            cumMs += (double)m_entries[i].durationMs;
-
-    //            // Ideal percent at this cumulative time
-    //            double idealPct = (double)firstPct2 - (cumMs / msPerPct);
-
-    //            // Actual percent
-    //            double actualPct = (double)m_entries[i].percent;
-
-    //            // Absolute difference
-    //            double diff = fabs(actualPct - idealPct);
-    //            sumDiff += diff;
-    //        }
-
-    //        double avgDiff = sumDiff / (double)n;
-
-    //        // Normalize: avgDiff as % of total range
-    //        // avgDiff=0 → score=100%, avgDiff=pctRange → score=0%
-    //        double normalized = avgDiff / (double)pctRange;
-    //        m_healthScore = max(0.0, (1.0 - normalized) * 100.0);
-
-    //        //// Add right before health score calculation
-    //        //CString debug;
-    //        //debug.Format(_T("n=%d firstPct=%d lastPct=%d totalMs=%.0f"),
-    //        //    n,
-    //        //    m_entries[0].percent,
-    //        //    m_entries[n - 1].percent,
-    //        //    totalMs);
-    //        //MessageBox(debug, _T("Debug"), MB_OK);
-    //    }
-    //}
 
 
     // ── Health Score ─────────────────────────────────────────────
@@ -836,16 +693,16 @@ void CSOHResultDlg::OnToggleView()
 
 void CSOHResultDlg::OnShowChart()
 {
-   /* if (m_showAll)
-    {
+    /* if (m_showAll)
+     {
 
-        MessageBox(
-            T(L"Switch to 'Show Latest' view to see the chart.",
-                L"グラフを表示するには「最新表示」に切り替えてください。"),
-            T(L"Chart", L"グラフ"),
-            MB_ICONINFORMATION);
-        return;
-    }*/
+         MessageBox(
+             T(L"Switch to 'Show Latest' view to see the chart.",
+                 L"グラフを表示するには「最新表示」に切り替えてください。"),
+             T(L"Chart", L"グラフ"),
+             MB_ICONINFORMATION);
+         return;
+     }*/
 
     m_showChart = !m_showChart;
 
@@ -1192,28 +1049,28 @@ void CSOHResultDlg::OnCustomDrawList(NMHDR* pNMHDR, LRESULT* pResult)
         *pResult = CDRF_NOTIFYITEMDRAW;
         break;
 
-    /*case CDDS_ITEMPREPAINT:
-    {
-        int row = (int)pCD->nmcd.dwItemSpec;
+        /*case CDDS_ITEMPREPAINT:
+        {
+            int row = (int)pCD->nmcd.dwItemSpec;
 
-        if (row < (int)m_anomaly.size() && m_anomaly[row])
-        {
-            pCD->clrText = RGB(255, 255, 255);
-            pCD->clrTextBk = RGB(180, 30, 30);
-            *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
-        }
-        else if (row < (int)m_anomalyFast.size() && m_anomalyFast[row])
-        {
-            pCD->clrText = RGB(255, 255, 255);
-            pCD->clrTextBk = RGB(200, 110, 0);
-            *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
-        }
-        else
-        {
-            *pResult = CDRF_NOTIFYPOSTPAINT;
-        }
-        break;
-    }*/
+            if (row < (int)m_anomaly.size() && m_anomaly[row])
+            {
+                pCD->clrText = RGB(255, 255, 255);
+                pCD->clrTextBk = RGB(180, 30, 30);
+                *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
+            }
+            else if (row < (int)m_anomalyFast.size() && m_anomalyFast[row])
+            {
+                pCD->clrText = RGB(255, 255, 255);
+                pCD->clrTextBk = RGB(200, 110, 0);
+                *pResult = CDRF_NEWFONT | CDRF_NOTIFYPOSTPAINT;
+            }
+            else
+            {
+                *pResult = CDRF_NOTIFYPOSTPAINT;
+            }
+            break;
+        }*/
 
     case CDDS_ITEMPREPAINT:
     {
@@ -1311,39 +1168,7 @@ void CSOHResultDlg::OnShowHealth()
     Invalidate();
 }
 
-// ============================================================
-//  REPLACE the existing DrawHealthScore() in CSOHResultDlg.cpp
-//  Everything else (logic, calculations) is UNCHANGED.
-// ============================================================
 
-// ============================================================
-//  REPLACE DrawHealthScore() in CSOHResultDlg.cpp
-//  Fixes:
-//    1. All content starts below the button bar (y=55)
-//    2. Left panel (scores) on top, chart below — vertical stack
-//    3. Scroll support via WM_MOUSEWHEEL + manual offset
-//    4. No text hidden behind buttons
-// ============================================================
-
-// ── Add these private members to CSOHResultDlg.h ────────────
-//   int m_healthScrollY;   // current scroll offset (pixels, >= 0)
-//   int m_healthTotalH;    // total content height needed
-//
-// ── Add to constructor init list ────────────────────────────
-//   , m_healthScrollY(0)
-//   , m_healthTotalH(0)
-//
-// ── Add to message map ───────────────────────────────────────
-//   ON_WM_MOUSEWHEEL()
-//   ON_WM_VSCROLL()
-//
-// ── Add handler declarations to header ───────────────────────
-//   afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
-//   afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pBar);
-// ============================================================
-
-
-// ── Paste these two handlers anywhere in the .cpp ────────────
 
 BOOL CSOHResultDlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
@@ -1353,7 +1178,13 @@ BOOL CSOHResultDlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
         m_healthScrollY -= (zDelta > 0 ? step : -step);
         m_healthScrollY = max(0, min(m_healthScrollY, m_healthTotalH));
         UpdateHealthScrollBar();
-        Invalidate();
+
+        // Only invalidate the content area below the button bar
+        CRect rc;
+        GetClientRect(&rc);
+        CRect rcContent(0, 50, rc.Width(), rc.Height());
+        InvalidateRect(&rcContent, FALSE);   // FALSE = no erase
+        UpdateWindow();                       // repaint immediately, no queue
         return TRUE;
     }
     return CDialogEx::OnMouseWheel(nFlags, zDelta, pt);
@@ -1379,11 +1210,16 @@ void CSOHResultDlg::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pBar)
         }
         m_healthScrollY = max(0, min(m_healthScrollY, m_healthTotalH));
         UpdateHealthScrollBar();
-        Invalidate();
+
+        // Only invalidate the content area below the button bar
+        CRect rcContent(0, 50, rc.Width(), rc.Height());
+        InvalidateRect(&rcContent, FALSE);   // FALSE = no erase
+        UpdateWindow();
         return;
     }
     CDialogEx::OnVScroll(nSBCode, nPos, pBar);
 }
+
 
 // ── Add this helper to .cpp (declare in header as private void) ──
 void CSOHResultDlg::UpdateHealthScrollBar()
@@ -1402,14 +1238,6 @@ void CSOHResultDlg::UpdateHealthScrollBar()
     SetScrollInfo(SB_VERT, &si, TRUE);
 }
 
-// ── Call this in OnShowHealth() when m_showHealth becomes TRUE ──
-//   m_healthScrollY = 0;
-//   ShowScrollBar(SB_VERT, TRUE);
-//   UpdateHealthScrollBar();
-//
-// ── And when m_showHealth becomes FALSE ─────────────────────────
-//   ShowScrollBar(SB_VERT, FALSE);
-
 
 // ============================================================
 //  THE MAIN DrawHealthScore() FUNCTION
@@ -1417,10 +1245,21 @@ void CSOHResultDlg::UpdateHealthScrollBar()
 
 void CSOHResultDlg::DrawHealthScore()
 {
-    CPaintDC dc(this);
-
+    CPaintDC paintDC(this);
     CRect rc;
     GetClientRect(&rc);
+
+    CDC memDC;
+    memDC.CreateCompatibleDC(&paintDC);
+    CBitmap memBmp;
+    memBmp.CreateCompatibleBitmap(&paintDC, rc.Width(), rc.Height());
+    CBitmap* pOldBmp = memDC.SelectObject(&memBmp);
+    CDC& dc = memDC;
+
+  /*  CRect rc;
+    GetClientRect(&rc);*/
+
+   
 
     // ── Background ───────────────────────────────────────────────
     dc.FillSolidRect(&rc, RGB(20, 20, 30));
@@ -1473,7 +1312,7 @@ void CSOHResultDlg::DrawHealthScore()
     dc.SetTextColor(RGB(200, 200, 230));
     CString title;
     title.Format(
-        T(L"Battery Discharge Health Score  [%s]",
+        T(L"Battery Discharge Score  [ID-%s]",
             L"放電曲線健全スコア  [%s]"),
         m_testIDStr);
     CSize szTitle = dc.GetTextExtent(title);
@@ -1522,10 +1361,19 @@ void CSOHResultDlg::DrawHealthScore()
         CSize sz = dc.GetTextExtent(strPct);
         dc.TextOut(CIRCLE_CX - sz.cx / 2, Y(CIRCLE_CY_content - sz.cy / 2 - 6), strPct);
     }
-    // "%" small superscript
-    dc.SelectObject(&fontSub);
-    dc.SetTextColor(scoreColor);
-    dc.TextOut(CIRCLE_CX + CIRCLE_R - 20, Y(CIRCLE_CY_content - CIRCLE_R + 10), _T("%"));
+
+    // "%" small — placed inside circle, top-right of the score number
+    {
+        dc.SelectObject(&fontBig);
+        CString strPct; strPct.Format(_T("%.0f"), score);
+        CSize szBig = dc.GetTextExtent(strPct);
+        dc.SelectObject(&fontSub);
+        dc.SetTextColor(scoreColor);
+        int numLeft = CIRCLE_CX - szBig.cx / 2;
+        int pctX = numLeft + szBig.cx + 2;
+        int pctY = CIRCLE_CY_content - szBig.cy / 2 - 6;
+        dc.TextOut(pctX, Y(pctY), _T("%"));
+    }
 
     // Status label below circle
     dc.SelectObject(&fontMed);
@@ -1554,7 +1402,7 @@ void CSOHResultDlg::DrawHealthScore()
     // Multi-line explanation — manually split to fit blurbW
     struct Line { CString text; };
     std::vector<CString> explainLines;
- 
+
     if (eng_lang) {
         explainLines.push_back(L"Measures how stable and predictable your battery's");
         explainLines.push_back(L"discharge curve is. A healthy battery drains each 1%");
@@ -1586,141 +1434,7 @@ void CSOHResultDlg::DrawHealthScore()
     // advance curY past the circle block
     curY = CIRCLE_CY_content + CIRCLE_R + 30;
 
-    //// ════════════════════════════════════════════════════════════
-    ////  SECTION 3 — SUB-SCORE CARDS  (3 horizontal cards)
-    //// ════════════════════════════════════════════════════════════
-    //{
-    //    CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
-    //    pOldPen = dc.SelectObject(&penRule);
-    //    dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
-    //    dc.SelectObject(pOldPen);
-    //}
-    //curY += 10;
 
-    //dc.SelectObject(&fontSub);
-    //dc.SetTextColor(RGB(160, 160, 200));
-    //CString secLabel = T(L"Score Breakdown", L"スコア内訳");
-    //dc.TextOut(CONTENT_X0, Y(curY), secLabel);
-    //curY += 22;
-
-    //auto CardColor = [](double v) -> COLORREF {
-    //    if (v >= 80.0) return RGB(50, 220, 100);
-    //    if (v >= 60.0) return RGB(220, 190, 0);
-    //    return RGB(220, 60, 60);
-    //    };
-
-    //struct SubCard {
-    //    CString label;
-    //    CString weight;
-    //    CString meaning;
-    //    CString detail;
-    //    double  value;
-    //};
-
-    //SubCard cards[3] = {
-    //    {
-    //        T(L"Consistency", L"一貫性"),
-    //        T(L"Weight: 50%", L"重み: 50%"),
-    //        T(L"Are all 1% steps taking similar time?",
-    //          L"各1%ステップの所要時間は均一ですか？"),
-    //        T(L"Measures the coefficient of variation (CV) of step durations.\n"
-    //          L"CV near 0 = all steps equal. High CV = chaotic discharge.",
-    //          L"ステップ時間の変動係数(CV)を測定。CV≈0で均一、高いほど不規則。"),
-    //        m_consistencyScore
-    //    },
-    //    {
-    //        T(L"Anomaly-Free", L"異常なし"),
-    //        T(L"Weight: 30%", L"重み: 30%"),
-    //        T(L"What % of steps are NOT outliers?",
-    //          L"外れ値でないステップの割合は？"),
-    //        T(L"Steps >1.5\x03c3 above or below the mean are flagged.\n"
-    //          L"100% = no outliers. Lower = more anomalous steps.",
-    //          L"平均±1.5\x03c3 を超えるステップを外れ値とし検出。100%=外れ値なし。"),
-    //        m_anomalyScore
-    //    },
-    //    {
-    //        T(L"Smoothness", L"滑らかさ"),
-    //        T(L"Weight: 20%", L"重み: 20%"),
-    //        T(L"Do consecutive steps change gradually?",
-    //          L"連続ステップは徐々に変化していますか？"),
-    //        T(L"Measures avg ratio of change between neighbours.\n"
-    //          L"Sudden jumps lower this score.",
-    //          L"隣接ステップ間の変化率の平均を測定。急激な変化でスコア低下。"),
-    //        m_consistencyScore  // placeholder — each card uses its own value below
-    //    }
-    //};
-    //// Fix the smoothness value (the struct literal above has a placeholder)
-    //cards[2].value = m_smoothnessScore;
-
-    //const int CARD_GAP = 10;
-    //const int NUM_CARDS = 3;
-    //int cardW = (CONTENT_W - CARD_GAP * (NUM_CARDS - 1)) / NUM_CARDS;
-    //const int CARD_H = 92;
-
-    //for (int c = 0; c < NUM_CARDS; ++c)
-    //{
-    //    const SubCard& card = cards[c];
-    //    COLORREF cc = CardColor(card.value);
-
-    //    int cx0 = CONTENT_X0 + c * (cardW + CARD_GAP);
-    //    int cx1 = cx0 + cardW;
-    //    int cy0 = curY;
-    //    int cy1 = curY + CARD_H;
-
-    //    // Card background
-    //    dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy1)), RGB(28, 28, 44));
-
-    //    // Top colour bar
-    //    dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + 4)), cc);
-
-    //    // Score (large, right-aligned)
-    //    dc.SelectObject(&fontMed);
-    //    dc.SetTextColor(cc);
-    //    CString scoreStr; scoreStr.Format(_T("%.0f%%"), card.value);
-    //    CSize szSc = dc.GetTextExtent(scoreStr);
-    //    dc.TextOut(cx1 - szSc.cx - 8, Y(cy0 + 6), scoreStr);
-
-    //    // Label
-    //    dc.SelectObject(&fontSmall);
-    //    dc.SetTextColor(RGB(210, 210, 235));
-    //    dc.TextOut(cx0 + 8, Y(cy0 + 6), card.label);
-
-    //    // Weight tag
-    //    dc.SelectObject(&fontTiny);
-    //    dc.SetTextColor(RGB(110, 110, 150));
-    //    dc.TextOut(cx0 + 8, Y(cy0 + 24), card.weight);
-
-    //    // Meaning
-    //    dc.SelectObject(&fontTiny);
-    //    dc.SetTextColor(RGB(150, 150, 185));
-    //    dc.TextOut(cx0 + 8, Y(cy0 + 42), card.meaning);
-
-    //    // Detail (second line, dimmer)
-    //    dc.SetTextColor(RGB(90, 90, 125));
-    //    // split detail at \n if present
-    //    CString det = card.detail;
-    //    int nl = det.Find(L'\n');
-    //    if (nl >= 0)
-    //    {
-    //        dc.TextOut(cx0 + 8, Y(cy0 + 58), det.Left(nl));
-    //        dc.TextOut(cx0 + 8, Y(cy0 + 72), det.Mid(nl + 1));
-    //    }
-    //    else
-    //    {
-    //        dc.TextOut(cx0 + 8, Y(cy0 + 58), det);
-    //    }
-    //}
-    //curY += CARD_H + 8;
-
-    //// ── Formula ───────────────────────────────────────────────────
-    //dc.SelectObject(&fontTiny);
-    //dc.SetTextColor(RGB(75, 75, 110));
-    //CString formula = T(
-    //    L"Overall = Consistency\xd7""0.5  +  Anomaly-Free\xd7""0.3  +  Smoothness\xd7""0.2",
-    //    L"総合 = 一貫性\xd7""0.5  +  異常なし\xd7""0.3  +  滑らかさ\xd7""0.2");
-    //CSize szF = dc.GetTextExtent(formula);
-    //dc.TextOut(CONTENT_X0 + (CONTENT_W - szF.cx) / 2, Y(curY), formula);
-    //curY += 22;
 
 // ════════════════════════════════════════════════════════════
     //  SECTION 3 — SUB-SCORE CARDS  (3 horizontal cards)
@@ -2103,4 +1817,15 @@ void CSOHResultDlg::DrawHealthScore()
         si.nPos = m_healthScrollY;
         SetScrollInfo(SB_VERT, &si, FALSE);
     }
+
+    paintDC.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
+    memDC.SelectObject(pOldBmp);
+
+}
+
+BOOL CSOHResultDlg::OnEraseBkgnd(CDC* pDC)
+{
+    if (m_showHealth || m_showChart)
+        return TRUE;   
+    return CDialogEx::OnEraseBkgnd(pDC);
 }

@@ -103,4 +103,6 @@ private:
     afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pBar);
 
+    afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
 };
