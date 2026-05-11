@@ -128,7 +128,7 @@ BOOL CSOHDlg::OnInitDialog()
 
     SetTimer(1, 1000, NULL);
 
-    m_isFullyCharged = true; // (remove later)
+    //m_isFullyCharged = true; // (remove later)
 
     UpdateUI(0);
 

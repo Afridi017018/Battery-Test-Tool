@@ -185,16 +185,16 @@ static CStringW ExtractPeriodLabelFromCell(const CString& cell)
 
     // First date
     auto m1 = *it;
-    CStringW s1; s1.Format(L"%s-%s", m1.str(2).c_str(), m1.str(3).c_str()); // MM-DD
+    CStringW s1; s1.Format(L"%s/%s/%s", m1.str(1).c_str(), m1.str(2).c_str(), m1.str(3).c_str()); // YYYY/MM/DD
 
     // Second date (if any)
     ++it;
     if (it == end) return s1; // single-day period
 
     auto m2 = *it;
-    CStringW s2; s2.Format(L"%s-%s", m2.str(2).c_str(), m2.str(3).c_str()); // MM-DD
+    CStringW s2; s2.Format(L"%s/%s/%s", m2.str(1).c_str(), m2.str(2).c_str(), m2.str(3).c_str()); // YYYY/MM/DD
 
-    // Return "MM-DD–MM-DD"
+    // Return "YYYY/MM/DD–YYYY/MM/DD"
     CStringW lab; lab.Format(L"%s–%s", s1.GetString(), s2.GetString());
     return lab;
 }

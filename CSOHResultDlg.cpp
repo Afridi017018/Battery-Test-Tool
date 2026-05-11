@@ -282,7 +282,8 @@ void CSOHResultDlg::ParseLine(const std::string& line)
         entry.durationHMS = hms;
     }
 
-    m_totalTimeMs += entry.durationMs;
+   /* m_totalTimeMs += entry.durationMs;*/
+    m_totalTimeMs += (ULONGLONG)entry.durationMs;
     m_entries.push_back(entry);
 }
 
@@ -1287,13 +1288,44 @@ void CSOHResultDlg::DrawHealthScore()
     int n = (int)m_entries.size();
     double score = m_healthScore;
 
-    // ── Fonts ────────────────────────────────────────────────────
+    //// ── Fonts ────────────────────────────────────────────────────
+    //CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
+    //fontTiny.CreatePointFont(72, _T("Segoe UI"));
+    //fontSmall.CreatePointFont(82, _T("Segoe UI"));
+    //fontSub.CreatePointFont(92, _T("Segoe UI"));
+    //fontMed.CreatePointFont(105, _T("Segoe UI"));
+    //fontBig.CreatePointFont(240, _T("Segoe UI"));
+    //dc.SetBkMode(TRANSPARENT);
+
+   // ── Fonts ────────────────────────────────────────────────────
     CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
-    fontTiny.CreatePointFont(72, _T("Segoe UI"));
-    fontSmall.CreatePointFont(82, _T("Segoe UI"));
-    fontSub.CreatePointFont(92, _T("Segoe UI"));
-    fontMed.CreatePointFont(105, _T("Segoe UI"));
-    fontBig.CreatePointFont(240, _T("Segoe UI"));
+    CFont fontTinyB, fontSmallB, fontSubB, fontMedB;
+
+    CDC* pScreenDC = GetDC();
+    int dpi = GetDeviceCaps(pScreenDC->m_hDC, LOGPIXELSY);
+    ReleaseDC(pScreenDC);
+
+    auto MakeFont = [&](CFont& f, int ptx10, bool bold) {
+        LOGFONT lf = {};
+        lf.lfHeight = -::MulDiv(ptx10, dpi, 720);
+        lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+        lf.lfCharSet = DEFAULT_CHARSET;
+        lf.lfQuality = CLEARTYPE_QUALITY;
+        lf.lfPitchAndFamily = DEFAULT_PITCH | FF_SWISS;
+        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+        f.CreateFontIndirect(&lf);
+        };
+
+    MakeFont(fontTiny, 72, false);
+    MakeFont(fontSmall, 82, false);
+    MakeFont(fontSub, 92, false);
+    MakeFont(fontMed, 105, false);
+    MakeFont(fontBig, 240, false);
+    MakeFont(fontTinyB, 72, true);
+    MakeFont(fontSmallB, 82, true);
+    MakeFont(fontSubB, 92, true);
+    MakeFont(fontMedB, 105, true);
+
     dc.SetBkMode(TRANSPARENT);
 
     // ── Score colour ─────────────────────────────────────────────
@@ -1308,12 +1340,12 @@ void CSOHResultDlg::DrawHealthScore()
     // ════════════════════════════════════════════════════════════
     int curY = 12;  // content-space cursor
 
-    dc.SelectObject(&fontMed);
+    dc.SelectObject(&fontMedB);
     dc.SetTextColor(RGB(200, 200, 230));
     CString title;
     title.Format(
         T(L"Battery Discharge Score  [ID-%s]",
-            L"放電曲線健全スコア  [%s]"),
+            L"バッテリー放電スコア [ID-%s]"),
         m_testIDStr);
     CSize szTitle = dc.GetTextExtent(title);
     dc.TextOut(CONTENT_X0 + (CONTENT_W - szTitle.cx) / 2, Y(curY), title);
@@ -1388,12 +1420,12 @@ void CSOHResultDlg::DrawHealthScore()
     int blurbW = CONTENT_X1 - blurbX;
     int blurbTopY = CIRCLE_CY_content - CIRCLE_R;
 
-    dc.SelectObject(&fontSub);
+    dc.SelectObject(&fontSubB);
     dc.SetTextColor(RGB(185, 185, 215));
 
     CString whatIsIt = T(
-        L"What is the Health Score?",
-        L"健全スコアとは？");
+        L"What does Discharge Score mean?",
+        L"放電スコアとは何を意味するか？");
     dc.TextOut(blurbX, Y(blurbTopY), whatIsIt);
 
     dc.SelectObject(&fontSmall);
@@ -1422,8 +1454,12 @@ void CSOHResultDlg::DrawHealthScore()
         explainLines.push_back(L"0\uff5e59%    \u2192  \u4e0d\u898f\u5247\u306a\u653e\u96fb\uff08\u52a3\u5316\uff09");
     }
 
-    int lineH = 16;
-    int ly = blurbTopY + 22;
+   /* int lineH = 16;
+    int ly = blurbTopY + 22;*/
+
+    int lineH = 19;
+    int ly = blurbTopY + 24;
+
     for (const auto& ln : explainLines)
     {
         if (!ln.IsEmpty())
@@ -1448,11 +1484,17 @@ void CSOHResultDlg::DrawHealthScore()
     }
     curY += 10;
 
-    dc.SelectObject(&fontSub);
+    /*dc.SelectObject(&fontSub);
     dc.SetTextColor(RGB(160, 160, 200));
     CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
     dc.TextOut(CONTENT_X0, Y(curY), secLabel);
-    curY += 22;
+    curY += 22;*/
+
+    dc.SelectObject(&fontSubB);
+    dc.SetTextColor(RGB(160, 160, 200));
+    CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
+    dc.TextOut(CONTENT_X0, Y(curY), secLabel);
+    curY += 24;
 
     auto CardColor = [](double v) -> COLORREF {
         if (v >= 80.0) return RGB(50, 220, 100);
@@ -1529,10 +1571,16 @@ void CSOHResultDlg::DrawHealthScore()
         dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + TOP_BAR)), cc);
 
         // ── Row 1: label (left) + score (right) ───────────────
-        int row1Y = cy0 + TOP_BAR + 5;
+        /*int row1Y = cy0 + TOP_BAR + 5;
         dc.SelectObject(&fontSmall);
         dc.SetTextColor(RGB(210, 210, 235));
+        dc.TextOut(cx0 + PAD, Y(row1Y), card.label);*/
+
+        int row1Y = cy0 + TOP_BAR + 6;
+        dc.SelectObject(&fontSmallB);
+        dc.SetTextColor(RGB(210, 210, 235));
         dc.TextOut(cx0 + PAD, Y(row1Y), card.label);
+
 
         dc.SelectObject(&fontMed);
         dc.SetTextColor(cc);
@@ -1603,11 +1651,17 @@ void CSOHResultDlg::DrawHealthScore()
     curY += 10;
 
     // Section heading
-    dc.SelectObject(&fontSub);
+   /* dc.SelectObject(&fontSub);
     dc.SetTextColor(RGB(160, 160, 200));
     dc.TextOut(CONTENT_X0, Y(curY),
         T(L"Step Duration Chart", L"ステップ所要時間チャート"));
-    curY += 18;
+    curY += 18;*/
+
+    dc.SelectObject(&fontSubB);
+    dc.SetTextColor(RGB(160, 160, 200));
+    dc.TextOut(CONTENT_X0, Y(curY),
+        T(L"Step Duration Chart", L"ステップ所要時間チャート"));
+    curY += 22;
 
     // One-liner explanation
     dc.SelectObject(&fontTiny);
