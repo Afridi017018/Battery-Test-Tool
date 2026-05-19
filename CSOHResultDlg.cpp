@@ -46,6 +46,10 @@ BEGIN_MESSAGE_MAP(CSOHResultDlg, CDialogEx)
     ON_WM_MOUSEWHEEL()
     ON_WM_VSCROLL()
 
+    //ON_NOTIFY(LVN_ENDSCROLL, 2001, &CSOHResultDlg::OnListEndScroll)
+
+    ON_WM_SIZE()
+
     ON_WM_ERASEBKGND()
 END_MESSAGE_MAP()
 
@@ -79,6 +83,101 @@ HBRUSH CSOHResultDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
     return hbr;
 }
 
+
+//void CSOHResultDlg::OnListEndScroll(NMHDR* pNMHDR, LRESULT* pResult)
+//{
+//    if (m_lblSummary.GetSafeHwnd())
+//    {
+//        m_lblSummary.BringWindowToTop();
+//        m_lblSummary.Invalidate();
+//        m_lblSummary.UpdateWindow();
+//    }
+//    *pResult = 0;
+//}
+
+void CSOHResultDlg::ResizeListColumns()
+{
+    if (!m_list.GetSafeHwnd()) return;
+
+    CRect rcList;
+    m_list.GetClientRect(&rcList);
+    int totalW = rcList.Width() - 4; // small margin
+    if (totalW <= 0) return;
+
+    int colCount = m_list.GetHeaderCtrl() ? m_list.GetHeaderCtrl()->GetItemCount() : 0;
+    if (colCount == 0) return;
+
+    if (!m_showAll)
+    {
+        // Latest view — 6 columns: Time, Percent, Duration(ms), Duration(h:m:s), %Range(h:m:s), Elapsed(h:m:s)
+        // Ratios: 14, 10, 14, 17, 17, 17  (sum ~89, rest as padding)
+        int w0 = totalW * 14 / 100;
+        int w1 = totalW * 10 / 100;
+        int w2 = totalW * 14 / 100;
+        int w3 = totalW * 17 / 100;
+        int w4 = totalW * 17 / 100;
+        int w5 = totalW - w0 - w1 - w2 - w3 - w4;
+        m_list.SetColumnWidth(0, w0);
+        m_list.SetColumnWidth(1, w1);
+        m_list.SetColumnWidth(2, w2);
+        m_list.SetColumnWidth(3, w3);
+        m_list.SetColumnWidth(4, w4);
+        m_list.SetColumnWidth(5, w5);
+    }
+    else
+    {
+        // See All view — 7 columns: TestID, Start, Time, Percent, Duration(ms), Duration(h:m:s), Elapsed(h:m:s)
+        int w0 = totalW * 12 / 100;
+        int w1 = totalW * 16 / 100;
+        int w2 = totalW * 9 / 100;
+        int w3 = totalW * 9 / 100;
+        int w4 = totalW * 14 / 100;
+        int w5 = totalW * 16 / 100;
+        int w6 = totalW - w0 - w1 - w2 - w3 - w4 - w5;
+        m_list.SetColumnWidth(0, w0);
+        m_list.SetColumnWidth(1, w1);
+        m_list.SetColumnWidth(2, w2);
+        m_list.SetColumnWidth(3, w3);
+        m_list.SetColumnWidth(4, w4);
+        m_list.SetColumnWidth(5, w5);
+        m_list.SetColumnWidth(6, w6);
+    }
+}
+
+
+void CSOHResultDlg::OnSize(UINT nType, int cx, int cy)
+{
+    CDialogEx::OnSize(nType, cx, cy);
+
+    if (cx <= 0 || cy <= 0) return;
+    if (!m_list.GetSafeHwnd()) return;   // ← guard: not ready yet
+
+    if (m_btnToggle.GetSafeHwnd())
+        m_btnToggle.MoveWindow(10, 10, 110, 30);
+    if (m_btnChart.GetSafeHwnd())
+        m_btnChart.MoveWindow(130, 10, 130, 30);
+    if (m_btnHealth.GetSafeHwnd())
+        m_btnHealth.MoveWindow(270, 10, 150, 30);
+
+    if (m_lblLegendRed.GetSafeHwnd())
+        m_lblLegendRed.MoveWindow(10, 46, 250, 20);
+    if (m_lblLegendOrange.GetSafeHwnd())
+        m_lblLegendOrange.MoveWindow(260, 46, cx - 270, 20);
+
+    // List stops exactly where summary begins — zero overlap
+    int summaryTop = cy - 65;
+    int listH = summaryTop - 72 - 4;
+    if (listH < 10) listH = 10;
+    m_list.MoveWindow(10, 72, cx - 20, listH);
+
+    if (m_lblSummary.GetSafeHwnd())
+        m_lblSummary.MoveWindow(10, summaryTop, cx - 20, 55);
+
+    ResizeListColumns();
+
+    if (m_showChart || m_showHealth)
+        Invalidate();
+}
 
 BOOL CSOHResultDlg::OnInitDialog()
 {
@@ -133,7 +232,7 @@ BOOL CSOHResultDlg::OnInitDialog()
     );
     m_lblLegendOrange.SetFont(GetFont());
 
-    m_list.Create(WS_CHILD | WS_VISIBLE | LVS_REPORT,
+    m_list.Create(WS_CHILD | WS_VISIBLE | LVS_REPORT | WS_CLIPSIBLINGS,
         CRect(10, 72, rc.Width() - 10, rc.Height() - 80),
         this, 2001);
 
@@ -141,17 +240,23 @@ BOOL CSOHResultDlg::OnInitDialog()
     m_list.InsertColumn(1, T(L"Percent", L"パーセント"), LVCFMT_CENTER, 80);
     m_list.InsertColumn(2, T(L"Duration(ms)", L"所要時間(ms)"), LVCFMT_CENTER, 120);
     m_list.InsertColumn(3, T(L"Duration(h:m:s)", L"所要時間(時:分:秒)"), LVCFMT_CENTER, 140);
-    m_list.InsertColumn(4, T(L"Sum/10%(h:m:s)", L"合計/10%(時:分:秒)"), LVCFMT_CENTER, 140);
+    m_list.InsertColumn(4,
+        T(L"% Range(h:m:s)",
+            L"%範囲(時:分:秒)"),
+        LVCFMT_CENTER,
+        140);
     m_list.InsertColumn(5, T(L"Elapsed(h:m:s)", L"経過時間(時:分:秒)"), LVCFMT_CENTER, 140);
 
     // Summary Label
-    m_lblSummary.Create(_T(""), WS_CHILD | WS_VISIBLE | SS_CENTER,
+    m_lblSummary.Create(_T(""), WS_CHILD | WS_VISIBLE | SS_CENTER | WS_CLIPSIBLINGS,
         CRect(10, rc.Height() - 60, rc.Width() - 10, rc.Height() - 10),
         this);
     m_lblSummary.SetFont(GetFont());
 
     LoadLogFile();
     DisplayData();
+
+    m_lblSummary.SetWindowPos(&CWnd::wndTop, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
     return TRUE;
 }
@@ -525,6 +630,8 @@ void CSOHResultDlg::DisplayData()
 
 
     m_groupEnd = groupEnd;
+
+    ResizeListColumns();
 }
 
 
@@ -680,7 +787,11 @@ void CSOHResultDlg::OnToggleView()
         m_list.InsertColumn(1, T(L"Percent", L"パーセント"), LVCFMT_CENTER, 80);
         m_list.InsertColumn(2, T(L"Duration(ms)", L"所要時間(ms)"), LVCFMT_CENTER, 120);
         m_list.InsertColumn(3, T(L"Duration(h:m:s)", L"所要時間(時:分:秒)"), LVCFMT_CENTER, 140);
-        m_list.InsertColumn(4, T(L"Sum/10%(h:m:s)", L"合計/10%(時:分:秒)"), LVCFMT_CENTER, 140);
+        m_list.InsertColumn(4,
+            T(L"% Range(h:m:s)",
+                L"%範囲(時:分:秒)"),
+            LVCFMT_CENTER,
+            140);
         m_list.InsertColumn(5, T(L"Elapsed(h:m:s)", L"経過時間(時:分:秒)"), LVCFMT_CENTER, 140);
 
         DisplayData();
@@ -689,6 +800,8 @@ void CSOHResultDlg::OnToggleView()
         m_lblSummary.GetWindowText(text);
         SetSummary(text);
     }
+
+    ResizeListColumns();
 }
 
 
@@ -761,17 +874,28 @@ void CSOHResultDlg::OnPaint()
     CRect rc;
     GetClientRect(&rc);
 
-    const int LEFT = 80;
-    const int RIGHT = rc.Width() - 40;
-    const int TOP = 95;
-    const int BOTTOM = rc.Height() - 120;
+    const int LEFT = 85;
+    const int RIGHT = rc.Width() - 30;
+    const int TOP = 100;
+    const int BOTTOM = rc.Height() - 130;
 
     int chartW = RIGHT - LEFT;
     int chartH = BOTTOM - TOP;
 
-    dc.FillSolidRect(&rc, RGB(30, 30, 40));
+    // ── White background ──────────────────────────────────────────
+    dc.FillSolidRect(&rc, RGB(255, 255, 255));
+
+    // ── Light grey chart plot area ────────────────────────────────
     CRect chartRect(LEFT, TOP, RIGHT, BOTTOM);
-    dc.FillSolidRect(&chartRect, RGB(20, 20, 30));
+    dc.FillSolidRect(&chartRect, RGB(248, 249, 251));
+
+    // ── Chart border ──────────────────────────────────────────────
+    CPen penBorder(PS_SOLID, 1, RGB(220, 222, 228));
+    CPen* pOldPen = dc.SelectObject(&penBorder);
+    dc.MoveTo(LEFT, TOP);    dc.LineTo(RIGHT, TOP);
+    dc.LineTo(RIGHT, BOTTOM); dc.LineTo(LEFT, BOTTOM);
+    dc.LineTo(LEFT, TOP);
+    dc.SelectObject(pOldPen);
 
     int n = (int)m_entries.size();
 
@@ -792,36 +916,44 @@ void CSOHResultDlg::OnPaint()
         py[i] = BOTTOM - (int)((double)m_entries[i].percent / 100.0 * chartH);
     }
 
+    // ── Fonts ─────────────────────────────────────────────────────
     CFont fontSmall;
-    fontSmall.CreatePointFont(70, _T("Segoe UI"));
+    fontSmall.CreatePointFont(72, _T("Segoe UI"));
     CFont* pOldFont = dc.SelectObject(&fontSmall);
     dc.SetBkMode(TRANSPARENT);
-    dc.SetTextColor(RGB(140, 140, 165));
 
-    CPen penGrid(PS_DOT, 1, RGB(55, 55, 75));
-    CPen* pOldPen = dc.SelectObject(&penGrid);
-
+    // ── Horizontal grid lines ──────────────────────────────────────
     for (int pct = 0; pct <= 100; pct += 10)
     {
         int y = BOTTOM - (int)((double)pct / 100.0 * chartH);
+
+        COLORREF lineCol = (pct % 50 == 0) ? RGB(190, 193, 200) : RGB(220, 222, 228);
+        CPen penGrid(PS_SOLID, 1, lineCol);
+        pOldPen = dc.SelectObject(&penGrid);
         dc.MoveTo(LEFT, y);
         dc.LineTo(RIGHT, y);
+        dc.SelectObject(pOldPen);
 
+        // Y-axis labels
+        dc.SetTextColor(RGB(110, 115, 130));
         CString lbl;
         lbl.Format(_T("%d%%"), pct);
-        dc.TextOut(LEFT - 42, y - 7, lbl);
+        CSize szL = dc.GetTextExtent(lbl);
+        dc.TextOut(LEFT - szL.cx - 8, y - 7, lbl);
     }
-    dc.SelectObject(pOldPen);
 
-    CPen penAxis(PS_SOLID, 2, RGB(170, 170, 195));
+    // ── Axes ──────────────────────────────────────────────────────
+    CPen penAxis(PS_SOLID, 2, RGB(180, 183, 192));
     pOldPen = dc.SelectObject(&penAxis);
     dc.MoveTo(LEFT, TOP);
     dc.LineTo(LEFT, BOTTOM);
     dc.LineTo(RIGHT, BOTTOM);
     dc.SelectObject(pOldPen);
 
+    // ── Area fill under the line (soft blue tint) ─────────────────
     if (n >= 2)
     {
+        // Build polygon
         std::vector<POINT> poly;
         poly.reserve(n + 2);
         poly.push_back({ LEFT, BOTTOM });
@@ -829,16 +961,17 @@ void CSOHResultDlg::OnPaint()
             poly.push_back({ px[i], py[i] });
         poly.push_back({ px[n - 1], BOTTOM });
 
+        // Draw horizontal scan lines for a translucent fill effect
         for (int band = 0; band < chartH; ++band)
         {
             double t = (double)band / chartH;
-            int    alpha = (int)(80.0 * (1.0 - t));
+            int alpha = (int)(55.0 * (1.0 - t));
             if (alpha <= 0) continue;
 
             int y = TOP + band;
-
-            int  xLeft = LEFT, xRight = LEFT;
+            int xLeft = LEFT, xRight = LEFT;
             bool found = false;
+
             for (int i = 0; i < (int)poly.size() - 1; ++i)
             {
                 int y0 = poly[i].y, y1 = poly[i + 1].y;
@@ -853,11 +986,10 @@ void CSOHResultDlg::OnPaint()
             }
             if (!found) continue;
 
-            CPen penBand(PS_SOLID, 1, RGB(
-                (BYTE)(0 + (int)(30 * t)),
-                (BYTE)(100 + (int)(20 * t)),
-                (BYTE)(180 - (int)(60 * t))
-            ));
+            // Soft blue fill — blended into the white bg
+            int blue = 210 - (int)(30.0 * t);
+            int green = 225 - (int)(15.0 * t);
+            CPen penBand(PS_SOLID, 1, RGB(190, green, blue));
             CPen* pOld = dc.SelectObject(&penBand);
             dc.MoveTo(xLeft, y);
             dc.LineTo(xRight, y);
@@ -865,8 +997,10 @@ void CSOHResultDlg::OnPaint()
         }
     }
 
+    // ── Main line ─────────────────────────────────────────────────
+    if (n >= 2)
     {
-        CPen penLine(PS_SOLID, 2, RGB(0, 185, 255));
+        CPen penLine(PS_SOLID, 2, RGB(37, 99, 235));   // blue-600
         pOldPen = dc.SelectObject(&penLine);
         for (int i = 0; i < n; ++i)
         {
@@ -876,21 +1010,20 @@ void CSOHResultDlg::OnPaint()
         dc.SelectObject(pOldPen);
     }
 
+    // ── Data point dots ───────────────────────────────────────────
     for (int i = 0; i < n; ++i)
     {
         bool isSlow = (i < (int)m_anomaly.size() && m_anomaly[i]);
         bool isFast = (i < (int)m_anomalyFast.size() && m_anomalyFast[i]);
 
-        COLORREF dotColor, rimColor;
+        COLORREF dotFill, dotRim;
+        if (isSlow) { dotFill = RGB(220, 50, 50); dotRim = RGB(180, 20, 20); }
+        else if (isFast) { dotFill = RGB(234, 128, 0); dotRim = RGB(180, 90, 0); }
+        else { dotFill = RGB(37, 99, 235); dotRim = RGB(255, 255, 255); }
 
-        if (isSlow) { dotColor = RGB(220, 50, 50);  rimColor = RGB(255, 100, 100); }
-        else if (isFast) { dotColor = RGB(220, 130, 0);  rimColor = RGB(255, 180, 60); }
-        else { dotColor = RGB(0, 210, 255);  rimColor = RGB(180, 240, 255); }
-
-        CBrush brushDot(dotColor);
+        CBrush brushDot(dotFill);
         CBrush* pOldBrush = dc.SelectObject(&brushDot);
-
-        CPen penDot(PS_SOLID, 1, rimColor);
+        CPen   penDot(PS_SOLID, 2, dotRim);
         CPen* pOldPenDot = dc.SelectObject(&penDot);
 
         int r = (isSlow || isFast) ? 6 : 4;
@@ -900,33 +1033,30 @@ void CSOHResultDlg::OnPaint()
         dc.SelectObject(pOldBrush);
     }
 
+    // ── X-axis labels ─────────────────────────────────────────────
     {
         const int MIN_GAP = 50;
-        const int ROW_A = BOTTOM + 20;
-        const int ROW_B = BOTTOM + 38;
+        const int ROW_A = BOTTOM + 18;
+        const int ROW_B = BOTTOM + 36;
 
-        CPen penTick(PS_SOLID, 1, RGB(140, 140, 165));
+        dc.SetTextColor(RGB(100, 105, 120));
+        dc.SelectObject(&fontSmall);
+
+        CPen penTick(PS_SOLID, 1, RGB(180, 183, 192));
         pOldPen = dc.SelectObject(&penTick);
         for (int i = 0; i < n; ++i)
         {
             dc.MoveTo(px[i], BOTTOM);
-            dc.LineTo(px[i], BOTTOM + 5);
+            dc.LineTo(px[i], BOTTOM + 4);
         }
         dc.SelectObject(pOldPen);
-
-        dc.SetTextColor(RGB(190, 190, 215));
-
-        CFont fontXLabel;
-        fontXLabel.CreatePointFont(70, _T("Segoe UI"));
-        dc.SelectObject(&fontXLabel);
 
         int lastDrawnX = -9999;
         int staggerIdx = 0;
 
         for (int i = 0; i < n; ++i)
         {
-            if (px[i] - lastDrawnX < MIN_GAP)
-                continue;
+            if (px[i] - lastDrawnX < MIN_GAP) continue;
 
             double sec = cumulative[i] / 1000.0;
             CString lbl;
@@ -943,9 +1073,9 @@ void CSOHResultDlg::OnPaint()
 
             if (row == ROW_B)
             {
-                CPen penConn(PS_DOT, 1, RGB(70, 70, 90));
+                CPen penConn(PS_DOT, 1, RGB(200, 202, 210));
                 CPen* pOldC = dc.SelectObject(&penConn);
-                dc.MoveTo(px[i], BOTTOM + 5);
+                dc.MoveTo(px[i], BOTTOM + 4);
                 dc.LineTo(px[i], ROW_B - 3);
                 dc.SelectObject(pOldC);
             }
@@ -956,54 +1086,45 @@ void CSOHResultDlg::OnPaint()
             lastDrawnX = px[i];
             ++staggerIdx;
         }
-
-        dc.SelectObject(fontSmall);
     }
 
-    // ── Y-axis vertical label ─────────────────────
+    // ── Y-axis vertical label ──────────────────────────────────────
     CFont fontVert;
     LOGFONT lf = {};
     _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-    lf.lfHeight = -14;
+    lf.lfHeight = -13;
     lf.lfEscapement = 900;
     lf.lfOrientation = 900;
     fontVert.CreateFontIndirect(&lf);
     dc.SelectObject(&fontVert);
-    dc.SetTextColor(RGB(140, 140, 165));
-    dc.TextOut(15, BOTTOM - chartH / 2 + 40,
+    dc.SetTextColor(RGB(120, 125, 140));
+    dc.TextOut(18, BOTTOM - chartH / 2 + 40,
         T(L"Percent (%)", L"割合 (%)"));
 
-    // ── X-axis title ─────────────────────────────
+    // ── X-axis title ──────────────────────────────────────────────
     CFont fontLabel;
-    fontLabel.CreatePointFont(85, _T("Segoe UI"));
+    fontLabel.CreatePointFont(82, _T("Segoe UI"));
     dc.SelectObject(&fontLabel);
-    dc.SetTextColor(RGB(140, 140, 165));
-    dc.TextOut(LEFT + chartW / 2 - 60, BOTTOM + 60,
+    dc.SetTextColor(RGB(120, 125, 140));
+    dc.TextOut(LEFT + chartW / 2 - 70, BOTTOM + 58,
         T(L"Elapsed Time (seconds)", L"経過時間 (秒)"));
 
-    // ── Chart title ──────────────────────────────
+    // ── Chart title ───────────────────────────────────────────────
     CFont fontTitle;
-    fontTitle.CreatePointFont(100, _T("Segoe UI"));
+    fontTitle.CreatePointFont(105, _T("Segoe UI"));
     dc.SelectObject(&fontTitle);
-    dc.SetTextColor(RGB(210, 210, 240));
+    dc.SetTextColor(RGB(30, 35, 50));
 
     CString title;
     title.Format(
         T(L"SOH \x2014 Percent vs Elapsed Time  [%s]",
             L"SOH \x2014 割合 vs 経過時間  [%s]"),
         m_testIDStr);
-    CSize sz = dc.GetTextExtent(title);
-    dc.TextOut(LEFT + (chartW - sz.cx) / 2, TOP - 55, title);
+    CSize szT = dc.GetTextExtent(title);
+    dc.TextOut(LEFT + (chartW - szT.cx) / 2, TOP - 48, title);
 
-    // ── Legend ───────────────────────────────────
+    // ── Legend ────────────────────────────────────────────────────
     dc.SelectObject(&fontSmall);
-    dc.SetTextColor(RGB(170, 170, 200));
-
-    int ly = TOP - 10;
-
-    const int blockW = 10;
-    const int gap = 4;
-    const int spacing = 20;
 
     CString strSOH = T(L"SOH %", L"SOH %");
     CString strSlow = T(L"Too Slow", L"遅すぎる");
@@ -1013,27 +1134,42 @@ void CSOHResultDlg::OnPaint()
     CSize szSlow = dc.GetTextExtent(strSlow);
     CSize szFast = dc.GetTextExtent(strFast);
 
-    int totalLegendW = (blockW + gap + szSOH.cx)
-        + spacing
-        + (blockW + gap + szSlow.cx)
-        + spacing
-        + (blockW + gap + szFast.cx);
+    const int SWATCH = 10;
+    const int GAP = 5;
+    const int SPACE = 22;
+
+    int totalLegendW = (SWATCH + GAP + szSOH.cx)
+        + SPACE + (SWATCH + GAP + szSlow.cx)
+        + SPACE + (SWATCH + GAP + szFast.cx);
 
     int lx = LEFT + (chartW - totalLegendW) / 2;
+    int ly = TOP - 20;
 
-    CBrush bCyan(RGB(0, 185, 255));
-    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bCyan);
-    dc.TextOut(lx + blockW + gap, ly, strSOH);
-    lx += blockW + gap + szSOH.cx + spacing;
+    // SOH % — blue square
+    {
+        CBrush b(RGB(37, 99, 235));
+        dc.FillRect(CRect(lx, ly + 1, lx + SWATCH, ly + SWATCH + 1), &b);
+    }
+    dc.SetTextColor(RGB(60, 65, 80));
+    dc.TextOut(lx + SWATCH + GAP, ly, strSOH);
+    lx += SWATCH + GAP + szSOH.cx + SPACE;
 
-    CBrush bRed(RGB(220, 50, 50));
-    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bRed);
-    dc.TextOut(lx + blockW + gap, ly, strSlow);
-    lx += blockW + gap + szSlow.cx + spacing;
+    // Too Slow — red square
+    {
+        CBrush b(RGB(220, 50, 50));
+        dc.FillRect(CRect(lx, ly + 1, lx + SWATCH, ly + SWATCH + 1), &b);
+    }
+    dc.SetTextColor(RGB(60, 65, 80));
+    dc.TextOut(lx + SWATCH + GAP, ly, strSlow);
+    lx += SWATCH + GAP + szSlow.cx + SPACE;
 
-    CBrush bOrange(RGB(220, 130, 0));
-    dc.FillRect(CRect(lx, ly + 1, lx + blockW, ly + blockW + 1), &bOrange);
-    dc.TextOut(lx + blockW + gap, ly, strFast);
+    // Too Fast — orange square
+    {
+        CBrush b(RGB(234, 128, 0));
+        dc.FillRect(CRect(lx, ly + 1, lx + SWATCH, ly + SWATCH + 1), &b);
+    }
+    dc.SetTextColor(RGB(60, 65, 80));
+    dc.TextOut(lx + SWATCH + GAP, ly, strFast);
 
     dc.SelectObject(pOldFont);
 }

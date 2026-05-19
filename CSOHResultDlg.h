@@ -105,4 +105,10 @@ private:
 
     afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 
+    afx_msg void OnSize(UINT nType, int cx, int cy);
+
+    void ResizeListColumns();
+
+    afx_msg void OnListEndScroll(NMHDR* pNMHDR, LRESULT* pResult);
+
 };
