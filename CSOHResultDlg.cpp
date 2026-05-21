@@ -1380,6 +1380,651 @@ void CSOHResultDlg::UpdateHealthScrollBar()
 //  THE MAIN DrawHealthScore() FUNCTION
 // ============================================================
 
+//void CSOHResultDlg::DrawHealthScore()
+//{
+//    CPaintDC paintDC(this);
+//    CRect rc;
+//    GetClientRect(&rc);
+//
+//    CDC memDC;
+//    memDC.CreateCompatibleDC(&paintDC);
+//    CBitmap memBmp;
+//    memBmp.CreateCompatibleBitmap(&paintDC, rc.Width(), rc.Height());
+//    CBitmap* pOldBmp = memDC.SelectObject(&memBmp);
+//    CDC& dc = memDC;
+//
+//  /*  CRect rc;
+//    GetClientRect(&rc);*/
+//
+//   
+//
+//    // ── Background ───────────────────────────────────────────────
+//    dc.FillSolidRect(&rc, RGB(20, 20, 30));
+//
+//    // ── Button bar safe zone ─────────────────────────────────────
+//    // Buttons occupy y=0..44. We paint a separator and start below.
+//    dc.FillSolidRect(CRect(0, 0, rc.Width(), 50), RGB(30, 30, 42));
+//    CPen penSep(PS_SOLID, 1, RGB(55, 55, 75));
+//    CPen* pOldPen = dc.SelectObject(&penSep);
+//    dc.MoveTo(0, 49); dc.LineTo(rc.Width(), 49);
+//    dc.SelectObject(pOldPen);
+//
+//    const int BUTTONS_H = 50;           // first pixel we can draw into
+//    const int SCROLL_Y = m_healthScrollY;
+//    const int CONTENT_X0 = 18;
+//    const int CONTENT_X1 = rc.Width() - 20;
+//    const int CONTENT_W = CONTENT_X1 - CONTENT_X0;
+//
+//    // All content drawn with this origin; subtract SCROLL_Y for position
+//    // Helper: translate a content-space y to screen y
+//    auto Y = [&](int contentY) -> int {
+//        return BUTTONS_H + contentY - SCROLL_Y;
+//        };
+//
+//    int n = (int)m_entries.size();
+//    double score = m_healthScore;
+//
+//    //// ── Fonts ────────────────────────────────────────────────────
+//    //CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
+//    //fontTiny.CreatePointFont(72, _T("Segoe UI"));
+//    //fontSmall.CreatePointFont(82, _T("Segoe UI"));
+//    //fontSub.CreatePointFont(92, _T("Segoe UI"));
+//    //fontMed.CreatePointFont(105, _T("Segoe UI"));
+//    //fontBig.CreatePointFont(240, _T("Segoe UI"));
+//    //dc.SetBkMode(TRANSPARENT);
+//
+//   // ── Fonts ────────────────────────────────────────────────────
+//    CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
+//    CFont fontTinyB, fontSmallB, fontSubB, fontMedB;
+//
+//    CDC* pScreenDC = GetDC();
+//    int dpi = GetDeviceCaps(pScreenDC->m_hDC, LOGPIXELSY);
+//    ReleaseDC(pScreenDC);
+//
+//    auto MakeFont = [&](CFont& f, int ptx10, bool bold) {
+//        LOGFONT lf = {};
+//        lf.lfHeight = -::MulDiv(ptx10, dpi, 720);
+//        lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+//        lf.lfCharSet = DEFAULT_CHARSET;
+//        lf.lfQuality = CLEARTYPE_QUALITY;
+//        lf.lfPitchAndFamily = DEFAULT_PITCH | FF_SWISS;
+//        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+//        f.CreateFontIndirect(&lf);
+//        };
+//
+//    MakeFont(fontTiny, 72, false);
+//    MakeFont(fontSmall, 82, false);
+//    MakeFont(fontSub, 92, false);
+//    MakeFont(fontMed, 105, false);
+//    MakeFont(fontBig, 240, false);
+//    MakeFont(fontTinyB, 72, true);
+//    MakeFont(fontSmallB, 82, true);
+//    MakeFont(fontSubB, 92, true);
+//    MakeFont(fontMedB, 105, true);
+//
+//    dc.SetBkMode(TRANSPARENT);
+//
+//    // ── Score colour ─────────────────────────────────────────────
+//    COLORREF scoreColor;
+//    CString  scoreLabel;
+//    if (score >= 80.0) { scoreColor = RGB(50, 220, 100); scoreLabel = T(L"Healthy", L"健全"); }
+//    else if (score >= 60.0) { scoreColor = RGB(220, 190, 0);  scoreLabel = T(L"Moderate", L"普通"); }
+//    else { scoreColor = RGB(220, 60, 60);  scoreLabel = T(L"Degraded", L"劣化"); }
+//
+//    // ════════════════════════════════════════════════════════════
+//    //  SECTION 1 — TITLE  (content y = 0)
+//    // ════════════════════════════════════════════════════════════
+//    int curY = 12;  // content-space cursor
+//
+//    dc.SelectObject(&fontMedB);
+//    dc.SetTextColor(RGB(200, 200, 230));
+//    CString title;
+//    title.Format(
+//        T(L"Battery Discharge Score  [ID-%s]",
+//            L"バッテリー放電スコア [ID-%s]"),
+//        m_testIDStr);
+//    CSize szTitle = dc.GetTextExtent(title);
+//    dc.TextOut(CONTENT_X0 + (CONTENT_W - szTitle.cx) / 2, Y(curY), title);
+//    curY += szTitle.cy + 10;
+//
+//    // thin rule
+//    {
+//        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
+//        pOldPen = dc.SelectObject(&penRule);
+//        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
+//        dc.SelectObject(pOldPen);
+//    }
+//    curY += 14;
+//
+//    // ════════════════════════════════════════════════════════════
+//    //  SECTION 2 — CIRCLE + STATUS  (horizontal: circle left, blurb right)
+//    // ════════════════════════════════════════════════════════════
+//    const int CIRCLE_R = 72;
+//    const int CIRCLE_CX = CONTENT_X0 + CIRCLE_R + 10;
+//    const int CIRCLE_CY_content = curY + CIRCLE_R;
+//
+//    // Shadow
+//    {
+//        CBrush bShadow(RGB(10, 10, 18));
+//        CPen   pNull(PS_NULL, 0, RGB(0, 0, 0));
+//        dc.SelectObject(&bShadow);
+//        dc.SelectObject(&pNull);
+//        dc.Ellipse(CIRCLE_CX - CIRCLE_R + 4, Y(CIRCLE_CY_content - CIRCLE_R + 4),
+//            CIRCLE_CX + CIRCLE_R + 4, Y(CIRCLE_CY_content + CIRCLE_R + 4));
+//    }
+//    // Ring + fill
+//    {
+//        CPen   pRing(PS_SOLID, 6, scoreColor);
+//        CBrush bFill(RGB(25, 25, 38));
+//        dc.SelectObject(&pRing);
+//        dc.SelectObject(&bFill);
+//        dc.Ellipse(CIRCLE_CX - CIRCLE_R, Y(CIRCLE_CY_content - CIRCLE_R),
+//            CIRCLE_CX + CIRCLE_R, Y(CIRCLE_CY_content + CIRCLE_R));
+//    }
+//    // Big % inside circle
+//    dc.SelectObject(&fontBig);
+//    dc.SetTextColor(scoreColor);
+//    {
+//        CString strPct; strPct.Format(_T("%.0f"), score);
+//        CSize sz = dc.GetTextExtent(strPct);
+//        dc.TextOut(CIRCLE_CX - sz.cx / 2, Y(CIRCLE_CY_content - sz.cy / 2 - 6), strPct);
+//    }
+//
+//    // "%" small — placed inside circle, top-right of the score number
+//    {
+//        dc.SelectObject(&fontBig);
+//        CString strPct; strPct.Format(_T("%.0f"), score);
+//        CSize szBig = dc.GetTextExtent(strPct);
+//        dc.SelectObject(&fontSub);
+//        dc.SetTextColor(scoreColor);
+//        int numLeft = CIRCLE_CX - szBig.cx / 2;
+//        int pctX = numLeft + szBig.cx + 2;
+//        int pctY = CIRCLE_CY_content - szBig.cy / 2 - 6;
+//        dc.TextOut(pctX, Y(pctY), _T("%"));
+//    }
+//
+//    // Status label below circle
+//    dc.SelectObject(&fontMed);
+//    dc.SetTextColor(scoreColor);
+//    {
+//        CSize sz = dc.GetTextExtent(scoreLabel);
+//        dc.TextOut(CIRCLE_CX - sz.cx / 2, Y(CIRCLE_CY_content + CIRCLE_R + 6), scoreLabel);
+//    }
+//
+//    // ── Right of circle: plain-English what-does-this-mean ───────
+//    int blurbX = CIRCLE_CX + CIRCLE_R + 24;
+//    int blurbW = CONTENT_X1 - blurbX;
+//    int blurbTopY = CIRCLE_CY_content - CIRCLE_R;
+//
+//    dc.SelectObject(&fontSubB);
+//    dc.SetTextColor(RGB(185, 185, 215));
+//
+//    CString whatIsIt = T(
+//        L"What does Discharge Score mean?",
+//        L"放電スコアとは何を意味するか？");
+//    dc.TextOut(blurbX, Y(blurbTopY), whatIsIt);
+//
+//    dc.SelectObject(&fontSmall);
+//    dc.SetTextColor(RGB(120, 120, 160));
+//
+//    // Multi-line explanation — manually split to fit blurbW
+//    struct Line { CString text; };
+//    std::vector<CString> explainLines;
+//
+//    if (eng_lang) {
+//        explainLines.push_back(L"Measures how stable and predictable your battery's");
+//        explainLines.push_back(L"discharge curve is. A healthy battery drains each 1%");
+//        explainLines.push_back(L"in roughly the same time \u2014 no sudden slow or fast steps.");
+//        explainLines.push_back(L"");
+//        explainLines.push_back(L"80\u201399%  \u2192  Consistent discharge (good battery)");
+//        explainLines.push_back(L"60\u201379%   \u2192  Some variation (monitor it)");
+//        explainLines.push_back(L"0\u201359%    \u2192  Irregular discharge (degraded)");
+//    }
+//    else {
+//        explainLines.push_back(L"\u30d0\u30c3\u30c6\u30ea\u30fc\u306e\u653e\u96fb\u66f2\u7dda\u304c\u3069\u308c\u3060\u3051\u5b89\u5b9a\u30fb\u4e88\u6e2c\u53ef\u80fd\u304b\u3092");
+//        explainLines.push_back(L"\u6e2c\u5b9a\u3057\u307e\u3059\u3002\u5065\u5168\u306a\u30d0\u30c3\u30c6\u30ea\u30fc\u306f\u54041%\u3092\u307b\u307c\u540c\u3058\u6642\u9593\u3067");
+//        explainLines.push_back(L"\u6d88\u8cbb\u3057\u3001\u7a81\u7136\u306e\u9045\u5ef6\u3084\u6025\u901f\u6d88\u8017\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+//        explainLines.push_back(L"");
+//        explainLines.push_back(L"80\uff5e100%  \u2192  \u4e00\u8cab\u3057\u305f\u653e\u96fb\uff08\u826f\u597d\uff09");
+//        explainLines.push_back(L"60\uff5e79%   \u2192  \u82e5\u5e72\u306e\u3070\u3089\u3064\u304d\uff08\u8981\u76e3\u8996\uff09");
+//        explainLines.push_back(L"0\uff5e59%    \u2192  \u4e0d\u898f\u5247\u306a\u653e\u96fb\uff08\u52a3\u5316\uff09");
+//    }
+//
+//   /* int lineH = 16;
+//    int ly = blurbTopY + 22;*/
+//
+//    int lineH = 19;
+//    int ly = blurbTopY + 24;
+//
+//    for (const auto& ln : explainLines)
+//    {
+//        if (!ln.IsEmpty())
+//            dc.TextOut(blurbX, Y(ly), ln);
+//        ly += lineH;
+//    }
+//
+//    // advance curY past the circle block
+//    curY = CIRCLE_CY_content + CIRCLE_R + 30;
+//
+//
+//
+//// ════════════════════════════════════════════════════════════
+//    //  SECTION 3 — SUB-SCORE CARDS  (3 horizontal cards)
+//    //  REPLACE this entire section in DrawHealthScore()
+//    // ════════════════════════════════════════════════════════════
+//    {
+//        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
+//        pOldPen = dc.SelectObject(&penRule);
+//        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
+//        dc.SelectObject(pOldPen);
+//    }
+//    curY += 10;
+//
+//    /*dc.SelectObject(&fontSub);
+//    dc.SetTextColor(RGB(160, 160, 200));
+//    CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
+//    dc.TextOut(CONTENT_X0, Y(curY), secLabel);
+//    curY += 22;*/
+//
+//    dc.SelectObject(&fontSubB);
+//    dc.SetTextColor(RGB(160, 160, 200));
+//    CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
+//    dc.TextOut(CONTENT_X0, Y(curY), secLabel);
+//    curY += 24;
+//
+//    auto CardColor = [](double v) -> COLORREF {
+//        if (v >= 80.0) return RGB(50, 220, 100);
+//        if (v >= 60.0) return RGB(220, 190, 0);
+//        return RGB(220, 60, 60);
+//        };
+//
+//    struct SubCard {
+//        CString label;
+//        CString weight;
+//        CString meaning;
+//        CString detail1;   // split into two separate lines instead of \n
+//        CString detail2;
+//        double  value;
+//    };
+//
+//    SubCard cards[3] = {
+//        {
+//            T(L"Consistency",   L"\u4e00\u8cab\u6027"),
+//            T(L"Weight: 50%",   L"\u91cd\u307f: 50%"),
+//            T(L"Are all 1% steps taking similar time?",
+//              L"\u404b1%\u30b9\u30c6\u30c3\u30d7\u306e\u6642\u9593\u306f\u5747\u4e00\uff1f"),
+//            T(L"CV of step durations (stddev/mean).",
+//              L"\u30b9\u30c6\u30c3\u30d7\u6642\u9593\u306eCV\u3092\u6e2c\u5b9a\u3002"),
+//            T(L"CV near 0 = uniform.  High CV = chaotic.",
+//              L"CV\u22480\u3067\u5747\u4e00\u3001\u9ad8\u3044\u3068\u4e0d\u898f\u5247\u3002"),
+//            m_consistencyScore
+//        },
+//        {
+//            T(L"Anomaly-Free",  L"\u7570\u5e38\u306a\u3057"),
+//            T(L"Weight: 30%",   L"\u91cd\u307f: 30%"),
+//            T(L"What % of steps are NOT outliers?",
+//              L"\u5916\u308c\u5024\u3067\u306a\u3044\u30b9\u30c6\u30c3\u30d7\u306e\u5272\u5408\uff1f"),
+//            T(L"Steps beyond mean \xb1 1.5\u03c3 are flagged.",
+//              L"\u5e73\u5747\xb11.5\u03c3\u8d85\u3048\u308b\u30b9\u30c6\u30c3\u30d7\u3092\u691c\u51fa\u3002"),
+//            T(L"100% = no outliers found.",
+//              L"100%=\u5916\u308c\u5024\u306a\u3057\u3002"),
+//            m_anomalyScore
+//        },
+//        {
+//            T(L"Smoothness",    L"\u6ed1\u3089\u304b\u3055"),
+//            T(L"Weight: 20%",   L"\u91cd\u307f: 20%"),
+//            T(L"Do consecutive steps change gradually?",
+//              L"\u9023\u7d9a\u30b9\u30c6\u30c3\u30d7\u306f\u5f90\u3005\u306b\u5909\u5316\uff1f"),
+//            T(L"Avg change ratio between neighbours.",
+//              L"\u96a3\u63a5\u30b9\u30c6\u30c3\u30d7\u9593\u306e\u5909\u5316\u7387\u5e73\u5747\u3002"),
+//            T(L"Sudden jumps lower this score.",
+//              L"\u6025\u6fc0\u306a\u5909\u5316\u3067\u30b9\u30b3\u30a2\u4f4e\u4e0b\u3002"),
+//            m_smoothnessScore
+//        }
+//    };
+//
+//    const int CARD_GAP = 8;
+//    const int NUM_CARDS = 3;
+//    const int CARD_H = 145;   // taller to fit all text rows
+//    const int TOP_BAR = 5;     // colour accent bar height
+//    const int PAD = 8;     // inner horizontal padding
+//
+//    int cardW = (CONTENT_W - CARD_GAP * (NUM_CARDS - 1)) / NUM_CARDS;
+//
+//    for (int c = 0; c < NUM_CARDS; ++c)
+//    {
+//        const SubCard& card = cards[c];
+//        COLORREF cc = CardColor(card.value);
+//
+//        int cx0 = CONTENT_X0 + c * (cardW + CARD_GAP);
+//        int cx1 = cx0 + cardW;
+//        int cy0 = curY;
+//
+//        // ── Card background ───────────────────────────────────
+//        dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + CARD_H)), RGB(28, 28, 44));
+//
+//        // ── Top colour accent bar ─────────────────────────────
+//        dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + TOP_BAR)), cc);
+//
+//        // ── Row 1: label (left) + score (right) ───────────────
+//        /*int row1Y = cy0 + TOP_BAR + 5;
+//        dc.SelectObject(&fontSmall);
+//        dc.SetTextColor(RGB(210, 210, 235));
+//        dc.TextOut(cx0 + PAD, Y(row1Y), card.label);*/
+//
+//        int row1Y = cy0 + TOP_BAR + 6;
+//        dc.SelectObject(&fontSmallB);
+//        dc.SetTextColor(RGB(210, 210, 235));
+//        dc.TextOut(cx0 + PAD, Y(row1Y), card.label);
+//
+//
+//        dc.SelectObject(&fontMed);
+//        dc.SetTextColor(cc);
+//        CString scoreStr; scoreStr.Format(_T("%.0f%%"), card.value);
+//        CSize szSc = dc.GetTextExtent(scoreStr);
+//        dc.TextOut(cx1 - szSc.cx - PAD, Y(row1Y), scoreStr);
+//
+//        // ── Row 2: weight tag ─────────────────────────────────
+//        int row2Y = row1Y + 18;
+//        dc.SelectObject(&fontTiny);
+//        dc.SetTextColor(RGB(100, 100, 140));
+//        dc.TextOut(cx0 + PAD, Y(row2Y), card.weight);
+//
+//        // ── Thin divider ──────────────────────────────────────
+//        int divY = row2Y + 16;
+//        {
+//            CPen penDiv(PS_SOLID, 1, RGB(45, 45, 65));
+//            pOldPen = dc.SelectObject(&penDiv);
+//            dc.MoveTo(cx0 + PAD, Y(divY));
+//            dc.LineTo(cx1 - PAD, Y(divY));
+//            dc.SelectObject(pOldPen);
+//        }
+//
+//        // ── Row 3: meaning (question) ─────────────────────────
+//        int row3Y = divY + 5;
+//        dc.SelectObject(&fontTiny);
+//        dc.SetTextColor(RGB(150, 150, 190));
+//
+//        // Use DrawText with clipping so text never overflows the card
+//        CRect rcMeaning(cx0 + PAD, Y(row3Y), cx1 - PAD, Y(row3Y + 40));
+//        dc.DrawText(card.meaning, &rcMeaning,
+//            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+//
+//
+//        // ── Row 4 + 5: detail lines ───────────────────────────
+//        int row4Y = row3Y + 30;
+//        dc.SetTextColor(RGB(85, 85, 120));
+//
+//        CRect rcD1(cx0 + PAD, Y(row4Y), cx1 - PAD, Y(row4Y + 28));
+//        dc.DrawText(card.detail1, &rcD1,
+//            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+//
+//        CRect rcD2(cx0 + PAD, Y(row4Y + 30), cx1 - PAD, Y(row4Y + 58));
+//        dc.DrawText(card.detail2, &rcD2,
+//            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+//    }
+//    curY += CARD_H + 8;
+//
+//    // ── Formula ───────────────────────────────────────────────────
+//    dc.SelectObject(&fontTiny);
+//    dc.SetTextColor(RGB(75, 75, 110));
+//    CString formula = T(
+//        L"Overall = Consistency\xd7""0.5  +  Anomaly-Free\xd7""0.3  +  Smoothness\xd7""0.2",
+//        L"\u7dcf\u5408 = \u4e00\u8cab\u6027\xd7""0.5  +  \u7570\u5e38\u306a\u3057\xd7""0.3  +  \u6ed1\u3089\u304b\u3055\xd7""0.2");
+//    CSize szF = dc.GetTextExtent(formula);
+//    dc.TextOut(CONTENT_X0 + (CONTENT_W - szF.cx) / 2, Y(curY), formula);
+//    curY += 22;
+//
+//    // ════════════════════════════════════════════════════════════
+//    //  SECTION 4 — STEP-DURATION BAR CHART  (below everything)
+//    // ════════════════════════════════════════════════════════════
+//    {
+//        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
+//        pOldPen = dc.SelectObject(&penRule);
+//        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
+//        dc.SelectObject(pOldPen);
+//    }
+//    curY += 10;
+//
+//    // Section heading
+//   /* dc.SelectObject(&fontSub);
+//    dc.SetTextColor(RGB(160, 160, 200));
+//    dc.TextOut(CONTENT_X0, Y(curY),
+//        T(L"Step Duration Chart", L"ステップ所要時間チャート"));
+//    curY += 18;*/
+//
+//    dc.SelectObject(&fontSubB);
+//    dc.SetTextColor(RGB(160, 160, 200));
+//    dc.TextOut(CONTENT_X0, Y(curY),
+//        T(L"Step Duration Chart", L"ステップ所要時間チャート"));
+//    curY += 22;
+//
+//    // One-liner explanation
+//    dc.SelectObject(&fontTiny);
+//    dc.SetTextColor(RGB(100, 100, 140));
+//    dc.TextOut(CONTENT_X0, Y(curY),
+//        T(L"Each bar = time taken for the battery to drop 1%.  "
+//            L"Taller bar = slower step.  Red = too slow.  Orange = too fast.  Yellow dashed = average.",
+//            L"各バー = バッテリーが1%低下するのに要した時間。"
+//            L"高いバー = 遅いステップ。赤=遅すぎ、橙=速すぎ、黄破線=平均。"));
+//    curY += 18;
+//
+//    // Legend swatches
+//    auto DrawSwatch = [&](int lx, int ly_content, COLORREF col, const CString& txt, bool dashed = false) -> int
+//        {
+//            if (dashed)
+//            {
+//                CPen pd(PS_DASH, 1, col);
+//                pOldPen = dc.SelectObject(&pd);
+//                dc.MoveTo(lx, Y(ly_content + 5));
+//                dc.LineTo(lx + 18, Y(ly_content + 5));
+//                dc.SelectObject(pOldPen);
+//            }
+//            else
+//            {
+//                CRect sw(lx, Y(ly_content + 1), lx + 10, Y(ly_content + 10));
+//                CBrush sb(col);
+//                dc.FillRect(&sw, &sb);
+//            }
+//            dc.SetTextColor(RGB(130, 130, 165));
+//            dc.TextOut(lx + 22, Y(ly_content), txt);
+//            CSize sz = dc.GetTextExtent(txt);
+//            return lx + 22 + sz.cx + 16;
+//        };
+//
+//    dc.SelectObject(&fontTiny);
+//    int lx = CONTENT_X0;
+//    lx = DrawSwatch(lx, curY, RGB(0, 185, 255), T(L"Normal", L"通常"));
+//    lx = DrawSwatch(lx, curY, RGB(220, 60, 60), T(L"Too Slow", L"遅すぎ"));
+//    lx = DrawSwatch(lx, curY, RGB(220, 130, 0), T(L"Too Fast", L"速すぎ"));
+//    DrawSwatch(lx, curY, RGB(255, 230, 80), T(L"Average", L"平均"), true);
+//    curY += 18;
+//
+//    // ── Chart area ───────────────────────────────────────────────
+//    const int CHART_H = 180;
+//    const int CHART_PAD_L = 52;   // room for y-axis labels
+//    const int CHART_PAD_R = 8;
+//    const int CHART_PAD_B = 30;   // room for x-axis labels
+//
+//    int cleft = CONTENT_X0 + CHART_PAD_L;
+//    int cright = CONTENT_X1 - CHART_PAD_R;
+//    int ctop = curY;
+//    int cbottom = curY + CHART_H;
+//    int cw = cright - cleft;
+//    int ch = CHART_H;
+//
+//    dc.FillSolidRect(CRect(cleft, Y(ctop), cright, Y(cbottom)), RGB(15, 15, 25));
+//
+//    if (n >= 2)
+//    {
+//        // ── Stats ──────────────────────────────────────────────
+//        double sumD = 0.0;
+//        for (int i = 0; i < n; ++i) sumD += (double)m_entries[i].durationMs;
+//        double meanD = sumD / n;
+//
+//        double sqD = 0.0;
+//        for (int i = 0; i < n; ++i) {
+//            double d = (double)m_entries[i].durationMs - meanD;
+//            sqD += d * d;
+//        }
+//        double stddevD = sqrt(sqD / n);
+//        double upperT = meanD + 1.5 * stddevD;
+//        double lowerT = max(0.0, meanD - 1.5 * stddevD);
+//
+//        ULONGLONG maxD = 1;
+//        for (int i = 0; i < n; ++i)
+//            if (m_entries[i].durationMs > maxD)
+//                maxD = m_entries[i].durationMs;
+//
+//        // ── Y gridlines + labels ───────────────────────────────
+//        auto FmtMs = [](ULONGLONG ms) -> CString {
+//            ULONGLONG s = ms / 1000;
+//            if (s < 60) { CString r; r.Format(_T("%llus"), s); return r; }
+//            int m2 = (int)(s / 60), s2 = (int)(s % 60);
+//            CString r; r.Format(_T("%dm%ds"), m2, s2); return r;
+//            };
+//
+//        dc.SelectObject(&fontTiny);
+//        for (int g = 0; g <= 4; ++g)
+//        {
+//            double frac = (double)g / 4.0;
+//            int    gy = ctop + (int)(frac * ch);
+//            ULONGLONG lMs = (ULONGLONG)((1.0 - frac) * (double)maxD);
+//
+//            CPen pg(PS_DOT, 1, RGB(38, 38, 55));
+//            pOldPen = dc.SelectObject(&pg);
+//            dc.MoveTo(cleft, Y(gy)); dc.LineTo(cright, Y(gy));
+//            dc.SelectObject(pOldPen);
+//
+//            CString lbl = FmtMs(lMs);
+//            CSize szL = dc.GetTextExtent(lbl);
+//            dc.SetTextColor(RGB(90, 90, 125));
+//            dc.TextOut(cleft - szL.cx - 4, Y(gy) - 7, lbl);
+//        }
+//
+//        // ── Average dashed line ────────────────────────────────
+//        int avgY = ctop + (int)((1.0 - meanD / (double)maxD) * ch);
+//        {
+//            CPen pa(PS_DASH, 1, RGB(255, 230, 80));
+//            pOldPen = dc.SelectObject(&pa);
+//            dc.MoveTo(cleft, Y(avgY));
+//            dc.LineTo(cright, Y(avgY));
+//            dc.SelectObject(pOldPen);
+//        }
+//        dc.SelectObject(&fontTiny);
+//        dc.SetTextColor(RGB(210, 190, 50));
+//        dc.TextOut(cright + 2, Y(avgY) - 7, T(L"Avg", L"平均"));
+//
+//        // ── Bars ──────────────────────────────────────────────
+//        int barW = max(2, cw / n - 1);
+//
+//        for (int i = 0; i < n; ++i)
+//        {
+//            double dur = (double)m_entries[i].durationMs;
+//            int barH = (int)(dur / (double)maxD * ch);
+//            if (barH < 1) barH = 1;
+//
+//            int bx = cleft + (int)((double)i / n * cw);
+//            int by = cbottom - barH;
+//
+//            bool isSlow = (dur > upperT);
+//            bool isFast = (dur < lowerT && lowerT > 0.0);
+//
+//            COLORREF barCol = isSlow ? RGB(220, 60, 60)
+//                : isFast ? RGB(220, 130, 0)
+//                : RGB(0, 185, 255);
+//
+//            CRect barRc(bx, Y(by), bx + barW, Y(cbottom));
+//            CBrush bb(barCol);
+//            dc.FillRect(&barRc, &bb);
+//
+//            // top highlight
+//            COLORREF topCol = RGB(min(255, GetRValue(barCol) + 40),
+//                min(255, GetGValue(barCol) + 40),
+//                min(255, GetBValue(barCol) + 40));
+//            CRect topRc(bx, Y(by), bx + barW, Y(by) + 2);
+//            CBrush bt(topCol);
+//            dc.FillRect(&topRc, &bt);
+//        }
+//
+//        // ── X-axis percent labels ──────────────────────────────
+//        dc.SelectObject(&fontTiny);
+//        dc.SetTextColor(RGB(90, 90, 130));
+//
+//        const int MIN_GAP = 36;
+//        int lastLX = -9999;
+//
+//        for (int i = 0; i < n; ++i)
+//        {
+//            int bx = cleft + (int)((double)i / n * cw) + barW / 2;
+//            if (bx - lastLX < MIN_GAP) continue;
+//
+//            CPen pt(PS_SOLID, 1, RGB(60, 60, 80));
+//            pOldPen = dc.SelectObject(&pt);
+//            dc.MoveTo(bx, Y(cbottom));
+//            dc.LineTo(bx, Y(cbottom) + 4);
+//            dc.SelectObject(pOldPen);
+//
+//            CString pl; pl.Format(_T("%d%%"), m_entries[i].percent);
+//            CSize szP = dc.GetTextExtent(pl);
+//            dc.TextOut(bx - szP.cx / 2, Y(cbottom) + 5, pl);
+//            lastLX = bx;
+//        }
+//
+//        // X-axis title
+//        dc.SetTextColor(RGB(85, 85, 125));
+//        CString xTitle = T(L"Battery % at each measurement",
+//            L"各測定時のバッテリー残量 (%)");
+//        CSize szXT = dc.GetTextExtent(xTitle);
+//        dc.TextOut(cleft + (cw - szXT.cx) / 2, Y(cbottom) + 18, xTitle);
+//    }
+//
+//    // ── Axes lines ─────────────────────────────────────────────
+//    {
+//        CPen pAxis(PS_SOLID, 1, RGB(75, 75, 100));
+//        pOldPen = dc.SelectObject(&pAxis);
+//        dc.MoveTo(cleft, Y(ctop));
+//        dc.LineTo(cleft, Y(cbottom));
+//        dc.LineTo(cright, Y(cbottom));
+//        dc.SelectObject(pOldPen);
+//    }
+//
+//    curY = cbottom + CHART_PAD_B + 10;
+//
+//    // ════════════════════════════════════════════════════════════
+//    //  Track total content height for scroll
+//    // ════════════════════════════════════════════════════════════
+//    int viewH = rc.Height() - BUTTONS_H;
+//    m_healthTotalH = max(0, curY - viewH);
+//    // update scrollbar range silently
+//    {
+//        SCROLLINFO si = {};
+//        si.cbSize = sizeof(si);
+//        si.fMask = SIF_ALL;
+//        si.nMin = 0;
+//        si.nMax = curY;
+//        si.nPage = viewH;
+//        si.nPos = m_healthScrollY;
+//        SetScrollInfo(SB_VERT, &si, FALSE);
+//    }
+//
+//    paintDC.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
+//    memDC.SelectObject(pOldBmp);
+//
+//}
+
+
+// ============================================================
+//  DrawHealthScore() — v4:
+//  - "Discharge Score" title
+//  - Test ID top-right in hero
+//  - Larger fonts throughout
+//  - More spacing between sub-score rows
+//  - Bigger bar chart
+//  - Chart legend colours match bars exactly
+//  Same logic/content/scroll. Replace only this function body.
+// ============================================================
+
 void CSOHResultDlg::DrawHealthScore()
 {
     CPaintDC paintDC(this);
@@ -1393,55 +2038,37 @@ void CSOHResultDlg::DrawHealthScore()
     CBitmap* pOldBmp = memDC.SelectObject(&memBmp);
     CDC& dc = memDC;
 
-  /*  CRect rc;
-    GetClientRect(&rc);*/
+    dc.FillSolidRect(&rc, RGB(255, 255, 255));
 
-   
+    // ── Button bar ───────────────────────────────────────────────
+    dc.FillSolidRect(CRect(0, 0, rc.Width(), 50), RGB(248, 248, 248));
+    {
+        CPen p(PS_SOLID, 1, RGB(218, 218, 218));
+        CPen* po = dc.SelectObject(&p);
+        dc.MoveTo(0, 49); dc.LineTo(rc.Width(), 49);
+        dc.SelectObject(po);
+    }
 
-    // ── Background ───────────────────────────────────────────────
-    dc.FillSolidRect(&rc, RGB(20, 20, 30));
-
-    // ── Button bar safe zone ─────────────────────────────────────
-    // Buttons occupy y=0..44. We paint a separator and start below.
-    dc.FillSolidRect(CRect(0, 0, rc.Width(), 50), RGB(30, 30, 42));
-    CPen penSep(PS_SOLID, 1, RGB(55, 55, 75));
-    CPen* pOldPen = dc.SelectObject(&penSep);
-    dc.MoveTo(0, 49); dc.LineTo(rc.Width(), 49);
-    dc.SelectObject(pOldPen);
-
-    const int BUTTONS_H = 50;           // first pixel we can draw into
-    const int SCROLL_Y = m_healthScrollY;
-    const int CONTENT_X0 = 18;
-    const int CONTENT_X1 = rc.Width() - 20;
+    const int BUTTONS_H = 50;
+    const int PX = 28;
+    const int CONTENT_X0 = PX;
+    const int CONTENT_X1 = rc.Width() - PX;
     const int CONTENT_W = CONTENT_X1 - CONTENT_X0;
 
-    // All content drawn with this origin; subtract SCROLL_Y for position
-    // Helper: translate a content-space y to screen y
-    auto Y = [&](int contentY) -> int {
-        return BUTTONS_H + contentY - SCROLL_Y;
-        };
+    auto Y = [&](int cy) -> int { return BUTTONS_H + cy - m_healthScrollY; };
 
     int n = (int)m_entries.size();
     double score = m_healthScore;
 
-    //// ── Fonts ────────────────────────────────────────────────────
-    //CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
-    //fontTiny.CreatePointFont(72, _T("Segoe UI"));
-    //fontSmall.CreatePointFont(82, _T("Segoe UI"));
-    //fontSub.CreatePointFont(92, _T("Segoe UI"));
-    //fontMed.CreatePointFont(105, _T("Segoe UI"));
-    //fontBig.CreatePointFont(240, _T("Segoe UI"));
-    //dc.SetBkMode(TRANSPARENT);
+    // ── Fonts ────────────────────────────────────────────────────
+    CFont fTiny, fSmall, fSub, fMed, fLarge, fHero, fTitle;
+    CFont fSmallB, fSubB, fMedB, fLargeB;
 
-   // ── Fonts ────────────────────────────────────────────────────
-    CFont fontTiny, fontSmall, fontSub, fontMed, fontBig;
-    CFont fontTinyB, fontSmallB, fontSubB, fontMedB;
+    CDC* pScrDC = GetDC();
+    int dpi = GetDeviceCaps(pScrDC->m_hDC, LOGPIXELSY);
+    ReleaseDC(pScrDC);
 
-    CDC* pScreenDC = GetDC();
-    int dpi = GetDeviceCaps(pScreenDC->m_hDC, LOGPIXELSY);
-    ReleaseDC(pScreenDC);
-
-    auto MakeFont = [&](CFont& f, int ptx10, bool bold) {
+    auto Mk = [&](CFont& f, int ptx10, bool bold) {
         LOGFONT lf = {};
         lf.lfHeight = -::MulDiv(ptx10, dpi, 720);
         lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
@@ -1451,417 +2078,400 @@ void CSOHResultDlg::DrawHealthScore()
         _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
         f.CreateFontIndirect(&lf);
         };
-
-    MakeFont(fontTiny, 72, false);
-    MakeFont(fontSmall, 82, false);
-    MakeFont(fontSub, 92, false);
-    MakeFont(fontMed, 105, false);
-    MakeFont(fontBig, 240, false);
-    MakeFont(fontTinyB, 72, true);
-    MakeFont(fontSmallB, 82, true);
-    MakeFont(fontSubB, 92, true);
-    MakeFont(fontMedB, 105, true);
+    Mk(fTiny, 82, false);   // was 72 — bumped up
+    Mk(fSmall, 92, false);   // was 82
+    Mk(fSub, 100, false);   // was 92
+    Mk(fMed, 115, false);   // was 105
+    Mk(fLarge, 150, false);   // was 130
+    Mk(fHero, 360, false);
+    Mk(fTitle, 130, false);
+    Mk(fSmallB, 92, true);
+    Mk(fSubB, 100, true);
+    Mk(fMedB, 115, true);
+    Mk(fLargeB, 150, true);
 
     dc.SetBkMode(TRANSPARENT);
 
     // ── Score colour ─────────────────────────────────────────────
-    COLORREF scoreColor;
+    COLORREF scoreCol;
     CString  scoreLabel;
-    if (score >= 80.0) { scoreColor = RGB(50, 220, 100); scoreLabel = T(L"Healthy", L"健全"); }
-    else if (score >= 60.0) { scoreColor = RGB(220, 190, 0);  scoreLabel = T(L"Moderate", L"普通"); }
-    else { scoreColor = RGB(220, 60, 60);  scoreLabel = T(L"Degraded", L"劣化"); }
+    if (score >= 80.0) { scoreCol = RGB(22, 140, 65);  scoreLabel = T(L"Healthy", L"健全"); }
+    else if (score >= 60.0) { scoreCol = RGB(168, 118, 0);  scoreLabel = T(L"Moderate", L"普通"); }
+    else { scoreCol = RGB(185, 38, 38);  scoreLabel = T(L"Degraded", L"劣化"); }
+
+    COLORREF scoreTint;
+    if (score >= 80.0) scoreTint = RGB(236, 250, 241);
+    else if (score >= 60.0) scoreTint = RGB(252, 246, 225);
+    else                    scoreTint = RGB(252, 236, 236);
+
+    int curY = 14;
 
     // ════════════════════════════════════════════════════════════
-    //  SECTION 1 — TITLE  (content y = 0)
+    //  PAGE TITLE
     // ════════════════════════════════════════════════════════════
-    int curY = 12;  // content-space cursor
+    dc.SelectObject(&fMedB);
+    dc.SetTextColor(RGB(35, 35, 35));
+    CString pageTitle = T(L"Discharge Score", L"放電スコア");
+    dc.TextOut(CONTENT_X0, Y(curY), pageTitle);
+    CSize szPT = dc.GetTextExtent(pageTitle);
+    curY += szPT.cy + 10;
 
-    dc.SelectObject(&fontMedB);
-    dc.SetTextColor(RGB(200, 200, 230));
-    CString title;
-    title.Format(
-        T(L"Battery Discharge Score  [ID-%s]",
-            L"バッテリー放電スコア [ID-%s]"),
-        m_testIDStr);
-    CSize szTitle = dc.GetTextExtent(title);
-    dc.TextOut(CONTENT_X0 + (CONTENT_W - szTitle.cx) / 2, Y(curY), title);
-    curY += szTitle.cy + 10;
-
-    // thin rule
+    // Divider under title
     {
-        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
-        pOldPen = dc.SelectObject(&penRule);
+        CPen pr(PS_SOLID, 1, RGB(225, 225, 225));
+        CPen* po = dc.SelectObject(&pr);
         dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
-        dc.SelectObject(pOldPen);
+        dc.SelectObject(po);
     }
-    curY += 14;
+    curY += 12;
 
     // ════════════════════════════════════════════════════════════
-    //  SECTION 2 — CIRCLE + STATUS  (horizontal: circle left, blurb right)
+    //  HERO BLOCK — tinted banner
     // ════════════════════════════════════════════════════════════
-    const int CIRCLE_R = 72;
-    const int CIRCLE_CX = CONTENT_X0 + CIRCLE_R + 10;
-    const int CIRCLE_CY_content = curY + CIRCLE_R;
+    const int HERO_H = 96;
 
-    // Shadow
+    dc.FillSolidRect(CRect(CONTENT_X0, Y(curY), CONTENT_X1, Y(curY + HERO_H)), scoreTint);
     {
-        CBrush bShadow(RGB(10, 10, 18));
-        CPen   pNull(PS_NULL, 0, RGB(0, 0, 0));
-        dc.SelectObject(&bShadow);
-        dc.SelectObject(&pNull);
-        dc.Ellipse(CIRCLE_CX - CIRCLE_R + 4, Y(CIRCLE_CY_content - CIRCLE_R + 4),
-            CIRCLE_CX + CIRCLE_R + 4, Y(CIRCLE_CY_content + CIRCLE_R + 4));
+        CPen pb(PS_SOLID, 1, scoreCol);
+        CBrush nb; nb.CreateStockObject(NULL_BRUSH);
+        CPen* po = dc.SelectObject(&pb);
+        CBrush* bo = dc.SelectObject(&nb);
+        dc.Rectangle(CONTENT_X0, Y(curY), CONTENT_X1, Y(curY + HERO_H));
+        dc.SelectObject(bo); dc.SelectObject(po);
     }
-    // Ring + fill
+
+    // Test ID — TOP RIGHT of hero box
+    dc.SelectObject(&fSmall);
+    dc.SetTextColor(scoreCol);
+    CString idStr; idStr.Format(T(L"Test ID: %s", L"テストID: %s"), m_testIDStr);
+    CSize szID = dc.GetTextExtent(idStr);
+    dc.TextOut(CONTENT_X1 - szID.cx - 10, Y(curY + 8), idStr);
+
+    // Big score number — left
+    dc.SelectObject(&fHero);
+    dc.SetTextColor(scoreCol);
+    CString strScore; strScore.Format(_T("%.0f"), score);
+    CSize szHero = dc.GetTextExtent(strScore);
+    int heroNumX = CONTENT_X0 + 18;
+    dc.TextOut(heroNumX, Y(curY - 6), strScore);
+
+    // "%" small
+    dc.SelectObject(&fLarge);
+    dc.SetTextColor(scoreCol);
+    dc.TextOut(heroNumX + szHero.cx + 3, Y(curY + 8), _T("%"));
+
+    // Status label — below number, left-aligned under it
+    dc.SelectObject(&fMedB);
+    dc.SetTextColor(scoreCol);
+    CSize szLbl = dc.GetTextExtent(scoreLabel);
+    dc.TextOut(heroNumX + (szHero.cx - szLbl.cx) / 2 + 4, Y(curY + HERO_H - 26), scoreLabel);
+
+    // Horizontal gauge bar — right side
+    const int GAUGE_X0 = heroNumX + szHero.cx + 60;
+    const int GAUGE_X1 = CONTENT_X1 - 14;
+    const int GAUGE_W = GAUGE_X1 - GAUGE_X0;
+    const int GAUGE_MID = curY + HERO_H / 2 - 4;
+    const int GAUGE_H = 14;
+    const int GAUGE_R = GAUGE_H / 2;
+
+    // Track
     {
-        CPen   pRing(PS_SOLID, 6, scoreColor);
-        CBrush bFill(RGB(25, 25, 38));
-        dc.SelectObject(&pRing);
-        dc.SelectObject(&bFill);
-        dc.Ellipse(CIRCLE_CX - CIRCLE_R, Y(CIRCLE_CY_content - CIRCLE_R),
-            CIRCLE_CX + CIRCLE_R, Y(CIRCLE_CY_content + CIRCLE_R));
+        CBrush bt(RGB(205, 205, 205));
+        CPen   pn(PS_NULL, 0, RGB(0, 0, 0));
+        dc.SelectObject(&bt); dc.SelectObject(&pn);
+        dc.RoundRect(GAUGE_X0, Y(GAUGE_MID), GAUGE_X1, Y(GAUGE_MID + GAUGE_H),
+            GAUGE_R * 2, GAUGE_R * 2);
     }
-    // Big % inside circle
-    dc.SelectObject(&fontBig);
-    dc.SetTextColor(scoreColor);
+    // Fill
+    int fillW = (int)((score / 100.0) * GAUGE_W);
+    if (fillW > 2)
     {
-        CString strPct; strPct.Format(_T("%.0f"), score);
-        CSize sz = dc.GetTextExtent(strPct);
-        dc.TextOut(CIRCLE_CX - sz.cx / 2, Y(CIRCLE_CY_content - sz.cy / 2 - 6), strPct);
+        CBrush bf(scoreCol);
+        CPen   pn(PS_NULL, 0, RGB(0, 0, 0));
+        dc.SelectObject(&bf); dc.SelectObject(&pn);
+        dc.RoundRect(GAUGE_X0, Y(GAUGE_MID), GAUGE_X0 + fillW, Y(GAUGE_MID + GAUGE_H),
+            GAUGE_R * 2, GAUGE_R * 2);
     }
-
-    // "%" small — placed inside circle, top-right of the score number
+    // Tick marks at 60, 80
+    for (int thresh : {60, 80})
     {
-        dc.SelectObject(&fontBig);
-        CString strPct; strPct.Format(_T("%.0f"), score);
-        CSize szBig = dc.GetTextExtent(strPct);
-        dc.SelectObject(&fontSub);
-        dc.SetTextColor(scoreColor);
-        int numLeft = CIRCLE_CX - szBig.cx / 2;
-        int pctX = numLeft + szBig.cx + 2;
-        int pctY = CIRCLE_CY_content - szBig.cy / 2 - 6;
-        dc.TextOut(pctX, Y(pctY), _T("%"));
-    }
+        int tx = GAUGE_X0 + (int)(thresh / 100.0 * GAUGE_W);
+        CPen pt(PS_SOLID, 1, RGB(170, 170, 170));
+        CPen* po = dc.SelectObject(&pt);
+        dc.MoveTo(tx, Y(GAUGE_MID - 5));
+        dc.LineTo(tx, Y(GAUGE_MID + GAUGE_H + 5));
+        dc.SelectObject(po);
 
-    // Status label below circle
-    dc.SelectObject(&fontMed);
-    dc.SetTextColor(scoreColor);
+        dc.SelectObject(&fSmall);
+        dc.SetTextColor(RGB(150, 150, 150));
+        CString tl; tl.Format(_T("%d"), thresh);
+        CSize szTl = dc.GetTextExtent(tl);
+        dc.TextOut(tx - szTl.cx / 2, Y(GAUGE_MID + GAUGE_H + 6), tl);
+    }
+    // Gauge label
+    dc.SelectObject(&fSmall);
+    dc.SetTextColor(RGB(145, 145, 145));
+    dc.TextOut(GAUGE_X0, Y(GAUGE_MID - 18),
+        T(L"Overall score  (0 – 100)", L"総合スコア (0 – 100)"));
+
+    curY += HERO_H + 18;
+
+    // ── Score range legend ───────────────────────────────────────
     {
-        CSize sz = dc.GetTextExtent(scoreLabel);
-        dc.TextOut(CIRCLE_CX - sz.cx / 2, Y(CIRCLE_CY_content + CIRCLE_R + 6), scoreLabel);
-    }
-
-    // ── Right of circle: plain-English what-does-this-mean ───────
-    int blurbX = CIRCLE_CX + CIRCLE_R + 24;
-    int blurbW = CONTENT_X1 - blurbX;
-    int blurbTopY = CIRCLE_CY_content - CIRCLE_R;
-
-    dc.SelectObject(&fontSubB);
-    dc.SetTextColor(RGB(185, 185, 215));
-
-    CString whatIsIt = T(
-        L"What does Discharge Score mean?",
-        L"放電スコアとは何を意味するか？");
-    dc.TextOut(blurbX, Y(blurbTopY), whatIsIt);
-
-    dc.SelectObject(&fontSmall);
-    dc.SetTextColor(RGB(120, 120, 160));
-
-    // Multi-line explanation — manually split to fit blurbW
-    struct Line { CString text; };
-    std::vector<CString> explainLines;
-
-    if (eng_lang) {
-        explainLines.push_back(L"Measures how stable and predictable your battery's");
-        explainLines.push_back(L"discharge curve is. A healthy battery drains each 1%");
-        explainLines.push_back(L"in roughly the same time \u2014 no sudden slow or fast steps.");
-        explainLines.push_back(L"");
-        explainLines.push_back(L"80\u201399%  \u2192  Consistent discharge (good battery)");
-        explainLines.push_back(L"60\u201379%   \u2192  Some variation (monitor it)");
-        explainLines.push_back(L"0\u201359%    \u2192  Irregular discharge (degraded)");
-    }
-    else {
-        explainLines.push_back(L"\u30d0\u30c3\u30c6\u30ea\u30fc\u306e\u653e\u96fb\u66f2\u7dda\u304c\u3069\u308c\u3060\u3051\u5b89\u5b9a\u30fb\u4e88\u6e2c\u53ef\u80fd\u304b\u3092");
-        explainLines.push_back(L"\u6e2c\u5b9a\u3057\u307e\u3059\u3002\u5065\u5168\u306a\u30d0\u30c3\u30c6\u30ea\u30fc\u306f\u54041%\u3092\u307b\u307c\u540c\u3058\u6642\u9593\u3067");
-        explainLines.push_back(L"\u6d88\u8cbb\u3057\u3001\u7a81\u7136\u306e\u9045\u5ef6\u3084\u6025\u901f\u6d88\u8017\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
-        explainLines.push_back(L"");
-        explainLines.push_back(L"80\uff5e100%  \u2192  \u4e00\u8cab\u3057\u305f\u653e\u96fb\uff08\u826f\u597d\uff09");
-        explainLines.push_back(L"60\uff5e79%   \u2192  \u82e5\u5e72\u306e\u3070\u3089\u3064\u304d\uff08\u8981\u76e3\u8996\uff09");
-        explainLines.push_back(L"0\uff5e59%    \u2192  \u4e0d\u898f\u5247\u306a\u653e\u96fb\uff08\u52a3\u5316\uff09");
-    }
-
-   /* int lineH = 16;
-    int ly = blurbTopY + 22;*/
-
-    int lineH = 19;
-    int ly = blurbTopY + 24;
-
-    for (const auto& ln : explainLines)
-    {
-        if (!ln.IsEmpty())
-            dc.TextOut(blurbX, Y(ly), ln);
-        ly += lineH;
-    }
-
-    // advance curY past the circle block
-    curY = CIRCLE_CY_content + CIRCLE_R + 30;
-
-
-
-// ════════════════════════════════════════════════════════════
-    //  SECTION 3 — SUB-SCORE CARDS  (3 horizontal cards)
-    //  REPLACE this entire section in DrawHealthScore()
-    // ════════════════════════════════════════════════════════════
-    {
-        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
-        pOldPen = dc.SelectObject(&penRule);
-        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
-        dc.SelectObject(pOldPen);
-    }
-    curY += 10;
-
-    /*dc.SelectObject(&fontSub);
-    dc.SetTextColor(RGB(160, 160, 200));
-    CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
-    dc.TextOut(CONTENT_X0, Y(curY), secLabel);
-    curY += 22;*/
-
-    dc.SelectObject(&fontSubB);
-    dc.SetTextColor(RGB(160, 160, 200));
-    CString secLabel = T(L"Score Breakdown", L"\u30b9\u30b3\u30a2\u5185\u8a33");
-    dc.TextOut(CONTENT_X0, Y(curY), secLabel);
-    curY += 24;
-
-    auto CardColor = [](double v) -> COLORREF {
-        if (v >= 80.0) return RGB(50, 220, 100);
-        if (v >= 60.0) return RGB(220, 190, 0);
-        return RGB(220, 60, 60);
+        struct RangeItem { COLORREF col; CString range; CString label; };
+        RangeItem ranges[3] = {
+            { RGB(22,140,65),
+              T(L"80 \u2013 100", L"80 \u2013 100"),
+              T(L"Healthy \u2014 consistent, stable discharge",
+                L"\u5065\u5168 \u2014 \u4e00\u8cab\u3057\u305f\u5b89\u5b9a\u653e\u96fb") },
+            { RGB(168,118,0),
+              T(L"60 \u2013 79",  L"60 \u2013 79"),
+              T(L"Moderate \u2014 some variation, worth monitoring",
+                L"\u666e\u901a \u2014 \u82e5\u5e72\u306e\u3070\u3089\u3064\u304d\u3001\u8981\u76e3\u8996") },
+            { RGB(185,38,38),
+              T(L"0 \u2013 59",   L"0 \u2013 59"),
+              T(L"Degraded \u2014 irregular discharge, battery may need replacement",
+                L"\u52a3\u5316 \u2014 \u4e0d\u898f\u5247\u306a\u653e\u96fb\u3001\u4ea4\u63db\u8981\u691c\u8a0e") },
         };
 
-    struct SubCard {
-        CString label;
-        CString weight;
-        CString meaning;
-        CString detail1;   // split into two separate lines instead of \n
-        CString detail2;
-        double  value;
-    };
+        dc.SelectObject(&fSmall);
+        dc.SetTextColor(RGB(170, 170, 170));
+        dc.TextOut(CONTENT_X0, Y(curY), T(L"Score ranges", L"\u30b9\u30b3\u30a2\u7bc4\u56f2"));
+        curY += 20;
 
-    SubCard cards[3] = {
+        const int RH = 26, RGAP = 4, DOT = 10;
+        for (int i = 0; i < 3; ++i)
         {
-            T(L"Consistency",   L"\u4e00\u8cab\u6027"),
-            T(L"Weight: 50%",   L"\u91cd\u307f: 50%"),
-            T(L"Are all 1% steps taking similar time?",
-              L"\u404b1%\u30b9\u30c6\u30c3\u30d7\u306e\u6642\u9593\u306f\u5747\u4e00\uff1f"),
-            T(L"CV of step durations (stddev/mean).",
-              L"\u30b9\u30c6\u30c3\u30d7\u6642\u9593\u306eCV\u3092\u6e2c\u5b9a\u3002"),
-            T(L"CV near 0 = uniform.  High CV = chaotic.",
-              L"CV\u22480\u3067\u5747\u4e00\u3001\u9ad8\u3044\u3068\u4e0d\u898f\u5247\u3002"),
+            COLORREF cc = ranges[i].col;
+            int ry = curY + i * (RH + RGAP);
+
+            // coloured dot
+            CBrush bd(cc); CPen pn(PS_NULL, 0, cc);
+            dc.SelectObject(&bd); dc.SelectObject(&pn);
+            dc.Ellipse(CONTENT_X0, Y(ry + (RH - DOT) / 2),
+                CONTENT_X0 + DOT, Y(ry + (RH + DOT) / 2));
+
+            // range number bold + coloured
+            dc.SelectObject(&fSmallB);
+            dc.SetTextColor(cc);
+            dc.TextOut(CONTENT_X0 + DOT + 8, Y(ry + 6), ranges[i].range);
+            CSize szR = dc.GetTextExtent(ranges[i].range);
+
+            // colon separator
+            dc.SelectObject(&fSmall);
+            dc.SetTextColor(RGB(195, 195, 195));
+            int sepX = CONTENT_X0 + DOT + 8 + szR.cx + 5;
+            dc.TextOut(sepX, Y(ry + 6), _T(":"));
+            CSize szC = dc.GetTextExtent(_T(":"));
+
+            // description
+            dc.SetTextColor(RGB(100, 100, 100));
+            dc.TextOut(sepX + szC.cx + 5, Y(ry + 6), ranges[i].label);
+        }
+        curY += 3 * (RH + RGAP) + 8;
+
+        // divider
+        CPen pr(PS_SOLID, 1, RGB(228, 228, 228));
+        CPen* po = dc.SelectObject(&pr);
+        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
+        dc.SelectObject(po);
+        curY += 12;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  SCORE BREAKDOWN — horizontal rows, more spacing
+    // ════════════════════════════════════════════════════════════
+    dc.SelectObject(&fSubB);
+    dc.SetTextColor(RGB(50, 50, 50));
+    dc.TextOut(CONTENT_X0, Y(curY), T(L"Score breakdown", L"スコア内訳"));
+    curY += 26;
+
+    auto SubCol = [](double v) -> COLORREF {
+        if (v >= 80.0) return RGB(22, 140, 65);
+        if (v >= 60.0) return RGB(168, 118, 0);
+        return RGB(185, 38, 38);
+        };
+
+    struct SubRow { CString name, weight, desc; double val; };
+    SubRow rows[3] = {
+        {
+            T(L"Consistency",   L"一貫性"),
+            T(L"50%",           L"50%"),
+            T(L"Uniformity of step durations  (CV of durations, lower = better)",
+              L"ステップ所要時間の均一性 (CV、低いほど良い)"),
             m_consistencyScore
         },
         {
-            T(L"Anomaly-Free",  L"\u7570\u5e38\u306a\u3057"),
-            T(L"Weight: 30%",   L"\u91cd\u307f: 30%"),
-            T(L"What % of steps are NOT outliers?",
-              L"\u5916\u308c\u5024\u3067\u306a\u3044\u30b9\u30c6\u30c3\u30d7\u306e\u5272\u5408\uff1f"),
-            T(L"Steps beyond mean \xb1 1.5\u03c3 are flagged.",
-              L"\u5e73\u5747\xb11.5\u03c3\u8d85\u3048\u308b\u30b9\u30c6\u30c3\u30d7\u3092\u691c\u51fa\u3002"),
-            T(L"100% = no outliers found.",
-              L"100%=\u5916\u308c\u5024\u306a\u3057\u3002"),
+            T(L"Anomaly-free",  L"異常なし"),
+            T(L"30%",           L"30%"),
+            T(L"Steps within mean \xb1 1.5\u03c3  (higher = fewer outliers)",
+              L"平均 \xb1 1.5\u03c3 内のステップ割合 (高いほど良い)"),
             m_anomalyScore
         },
         {
-            T(L"Smoothness",    L"\u6ed1\u3089\u304b\u3055"),
-            T(L"Weight: 20%",   L"\u91cd\u307f: 20%"),
-            T(L"Do consecutive steps change gradually?",
-              L"\u9023\u7d9a\u30b9\u30c6\u30c3\u30d7\u306f\u5f90\u3005\u306b\u5909\u5316\uff1f"),
-            T(L"Avg change ratio between neighbours.",
-              L"\u96a3\u63a5\u30b9\u30c6\u30c3\u30d7\u9593\u306e\u5909\u5316\u7387\u5e73\u5747\u3002"),
-            T(L"Sudden jumps lower this score.",
-              L"\u6025\u6fc0\u306a\u5909\u5316\u3067\u30b9\u30b3\u30a2\u4f4e\u4e0b\u3002"),
+            T(L"Smoothness",    L"滑らかさ"),
+            T(L"20%",           L"20%"),
+            T(L"Gradual change between consecutive steps  (lower ratio = smoother)",
+              L"連続ステップの変化が緩やか (変化率が低いほど良い)"),
             m_smoothnessScore
         }
     };
 
-    const int CARD_GAP = 8;
-    const int NUM_CARDS = 3;
-    const int CARD_H = 145;   // taller to fit all text rows
-    const int TOP_BAR = 5;     // colour accent bar height
-    const int PAD = 8;     // inner horizontal padding
+    const int ROW_H = 48;    // taller rows
+    const int ROW_GAP = 10;    // more gap between rows
+    const int BAR_W = 120;
 
-    int cardW = (CONTENT_W - CARD_GAP * (NUM_CARDS - 1)) / NUM_CARDS;
-
-    for (int c = 0; c < NUM_CARDS; ++c)
+    for (int i = 0; i < 3; ++i)
     {
-        const SubCard& card = cards[c];
-        COLORREF cc = CardColor(card.value);
+        COLORREF cc = SubCol(rows[i].val);
+        int ry0 = curY + i * (ROW_H + ROW_GAP);
+        int ry1 = ry0 + ROW_H;
 
-        int cx0 = CONTENT_X0 + c * (cardW + CARD_GAP);
-        int cx1 = cx0 + cardW;
-        int cy0 = curY;
-
-        // ── Card background ───────────────────────────────────
-        dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + CARD_H)), RGB(28, 28, 44));
-
-        // ── Top colour accent bar ─────────────────────────────
-        dc.FillSolidRect(CRect(cx0, Y(cy0), cx1, Y(cy0 + TOP_BAR)), cc);
-
-        // ── Row 1: label (left) + score (right) ───────────────
-        /*int row1Y = cy0 + TOP_BAR + 5;
-        dc.SelectObject(&fontSmall);
-        dc.SetTextColor(RGB(210, 210, 235));
-        dc.TextOut(cx0 + PAD, Y(row1Y), card.label);*/
-
-        int row1Y = cy0 + TOP_BAR + 6;
-        dc.SelectObject(&fontSmallB);
-        dc.SetTextColor(RGB(210, 210, 235));
-        dc.TextOut(cx0 + PAD, Y(row1Y), card.label);
-
-
-        dc.SelectObject(&fontMed);
-        dc.SetTextColor(cc);
-        CString scoreStr; scoreStr.Format(_T("%.0f%%"), card.value);
-        CSize szSc = dc.GetTextExtent(scoreStr);
-        dc.TextOut(cx1 - szSc.cx - PAD, Y(row1Y), scoreStr);
-
-        // ── Row 2: weight tag ─────────────────────────────────
-        int row2Y = row1Y + 18;
-        dc.SelectObject(&fontTiny);
-        dc.SetTextColor(RGB(100, 100, 140));
-        dc.TextOut(cx0 + PAD, Y(row2Y), card.weight);
-
-        // ── Thin divider ──────────────────────────────────────
-        int divY = row2Y + 16;
+        // Background + border
+        dc.FillSolidRect(CRect(CONTENT_X0, Y(ry0), CONTENT_X1, Y(ry1)), RGB(251, 251, 251));
         {
-            CPen penDiv(PS_SOLID, 1, RGB(45, 45, 65));
-            pOldPen = dc.SelectObject(&penDiv);
-            dc.MoveTo(cx0 + PAD, Y(divY));
-            dc.LineTo(cx1 - PAD, Y(divY));
-            dc.SelectObject(pOldPen);
+            CPen pb(PS_SOLID, 1, RGB(222, 222, 222));
+            CBrush nb; nb.CreateStockObject(NULL_BRUSH);
+            CPen* po = dc.SelectObject(&pb);
+            CBrush* bo = dc.SelectObject(&nb);
+            dc.Rectangle(CONTENT_X0, Y(ry0), CONTENT_X1, Y(ry1));
+            dc.SelectObject(bo); dc.SelectObject(po);
         }
+        // Left colour stripe
+        dc.FillSolidRect(CRect(CONTENT_X0, Y(ry0), CONTENT_X0 + 5, Y(ry1)), cc);
 
-        // ── Row 3: meaning (question) ─────────────────────────
-        int row3Y = divY + 5;
-        dc.SelectObject(&fontTiny);
-        dc.SetTextColor(RGB(150, 150, 190));
+        const int IP = 14;
 
-        // Use DrawText with clipping so text never overflows the card
-        CRect rcMeaning(cx0 + PAD, Y(row3Y), cx1 - PAD, Y(row3Y + 40));
-        dc.DrawText(card.meaning, &rcMeaning,
-            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+        // Name
+        dc.SelectObject(&fSmallB);
+        dc.SetTextColor(RGB(35, 35, 35));
+        dc.TextOut(CONTENT_X0 + IP, Y(ry0 + 8), rows[i].name);
 
+        // Weight badge
+        dc.SelectObject(&fSmall);
+        CSize szName; dc.SelectObject(&fSmallB); szName = dc.GetTextExtent(rows[i].name);
+        dc.SelectObject(&fSmall);
+        dc.SetTextColor(cc);
+        CString wBadge; wBadge.Format(T(L"[%s]", L"[%s]"), rows[i].weight);
+        dc.TextOut(CONTENT_X0 + IP + szName.cx + 8, Y(ry0 + 11), wBadge);
 
-        // ── Row 4 + 5: detail lines ───────────────────────────
-        int row4Y = row3Y + 30;
-        dc.SetTextColor(RGB(85, 85, 120));
+        // Description
+        dc.SetTextColor(RGB(125, 125, 125));
+        dc.TextOut(CONTENT_X0 + IP, Y(ry0 + 28), rows[i].desc);
 
-        CRect rcD1(cx0 + PAD, Y(row4Y), cx1 - PAD, Y(row4Y + 28));
-        dc.DrawText(card.detail1, &rcD1,
-            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+        // Score value
+        int scoreX = CONTENT_X1 - BAR_W - 62;
+        dc.SelectObject(&fSmallB);
+        dc.SetTextColor(cc);
+        CString sv; sv.Format(_T("%.0f%%"), rows[i].val);
+        CSize szSv = dc.GetTextExtent(sv);
+        dc.TextOut(scoreX - szSv.cx - 4, Y(ry0 + (ROW_H - szSv.cy) / 2 + 1), sv);
 
-        CRect rcD2(cx0 + PAD, Y(row4Y + 30), cx1 - PAD, Y(row4Y + 58));
-        dc.DrawText(card.detail2, &rcD2,
-            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
+        // Mini bar
+        int barX0 = CONTENT_X1 - BAR_W - 8;
+        int barX1 = CONTENT_X1 - 8;
+        int barMidY = ry0 + ROW_H / 2 - 3;
+        dc.FillSolidRect(CRect(barX0, Y(barMidY), barX1, Y(barMidY + 6)), RGB(215, 215, 215));
+        int mfW = (int)((rows[i].val / 100.0) * (barX1 - barX0));
+        if (mfW > 1)
+            dc.FillSolidRect(CRect(barX0, Y(barMidY), barX0 + mfW, Y(barMidY + 6)), cc);
     }
-    curY += CARD_H + 8;
+    curY += 3 * (ROW_H + ROW_GAP) + 4;
 
-    // ── Formula ───────────────────────────────────────────────────
-    dc.SelectObject(&fontTiny);
-    dc.SetTextColor(RGB(75, 75, 110));
+    // Formula line
+    dc.SelectObject(&fSmall);
+    dc.SetTextColor(RGB(185, 185, 185));
     CString formula = T(
-        L"Overall = Consistency\xd7""0.5  +  Anomaly-Free\xd7""0.3  +  Smoothness\xd7""0.2",
-        L"\u7dcf\u5408 = \u4e00\u8cab\u6027\xd7""0.5  +  \u7570\u5e38\u306a\u3057\xd7""0.3  +  \u6ed1\u3089\u304b\u3055\xd7""0.2");
+        L"Overall = Consistency \xd7 0.5  +  Anomaly-free \xd7 0.3  +  Smoothness \xd7 0.2",
+        L"総合 = 一貫性 \xd7 0.5  +  異常なし \xd7 0.3  +  滑らかさ \xd7 0.2");
     CSize szF = dc.GetTextExtent(formula);
     dc.TextOut(CONTENT_X0 + (CONTENT_W - szF.cx) / 2, Y(curY), formula);
-    curY += 22;
+    curY += 24;
+
+    // Divider
+    {
+        CPen pr(PS_SOLID, 1, RGB(228, 228, 228));
+        CPen* po = dc.SelectObject(&pr);
+        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
+        dc.SelectObject(po);
+    }
+    curY += 16;
 
     // ════════════════════════════════════════════════════════════
-    //  SECTION 4 — STEP-DURATION BAR CHART  (below everything)
+    //  BAR CHART — exact colours used in bars, matched in legend
     // ════════════════════════════════════════════════════════════
-    {
-        CPen penRule(PS_SOLID, 1, RGB(50, 50, 70));
-        pOldPen = dc.SelectObject(&penRule);
-        dc.MoveTo(CONTENT_X0, Y(curY)); dc.LineTo(CONTENT_X1, Y(curY));
-        dc.SelectObject(pOldPen);
-    }
-    curY += 10;
+    const COLORREF COL_NORMAL = RGB(60, 140, 210);
+    const COLORREF COL_SLOW = RGB(195, 48, 48);
+    const COLORREF COL_FAST = RGB(200, 112, 0);
+    const COLORREF COL_AVG = RGB(155, 125, 0);
 
     // Section heading
-   /* dc.SelectObject(&fontSub);
-    dc.SetTextColor(RGB(160, 160, 200));
-    dc.TextOut(CONTENT_X0, Y(curY),
-        T(L"Step Duration Chart", L"ステップ所要時間チャート"));
-    curY += 18;*/
+    dc.SelectObject(&fSubB);
+    dc.SetTextColor(RGB(50, 50, 50));
+    dc.TextOut(CONTENT_X0, Y(curY), T(L"Step duration chart", L"ステップ所要時間チャート"));
+    curY += 8;
 
-    dc.SelectObject(&fontSubB);
-    dc.SetTextColor(RGB(160, 160, 200));
-    dc.TextOut(CONTENT_X0, Y(curY),
-        T(L"Step Duration Chart", L"ステップ所要時間チャート"));
-    curY += 22;
+    // Caption
+    dc.SelectObject(&fSmall);
+    dc.SetTextColor(RGB(160, 160, 160));
+    dc.TextOut(CONTENT_X0, Y(curY + 16),
+        T(L"Each bar = time for battery to drop 1%",
+            L"各バー = バッテリーが1%低下する時間"));
+    curY += 36;
 
-    // One-liner explanation
-    dc.SelectObject(&fontTiny);
-    dc.SetTextColor(RGB(100, 100, 140));
-    dc.TextOut(CONTENT_X0, Y(curY),
-        T(L"Each bar = time taken for the battery to drop 1%.  "
-            L"Taller bar = slower step.  Red = too slow.  Orange = too fast.  Yellow dashed = average.",
-            L"各バー = バッテリーが1%低下するのに要した時間。"
-            L"高いバー = 遅いステップ。赤=遅すぎ、橙=速すぎ、黄破線=平均。"));
-    curY += 18;
+    // Legend row — swatches with exact bar colours
+    {
+        struct LegItem { COLORREF col; CString label; bool dashed; };
+        LegItem items[] = {
+            { COL_NORMAL, T(L"Normal",   L"通常"),   false },
+            { COL_SLOW,   T(L"Too slow", L"遅すぎ"), false },
+            { COL_FAST,   T(L"Too fast", L"速すぎ"), false },
+            { COL_AVG,    T(L"Average",  L"平均"),   true  },
+        };
 
-    // Legend swatches
-    auto DrawSwatch = [&](int lx, int ly_content, COLORREF col, const CString& txt, bool dashed = false) -> int
+        dc.SelectObject(&fSmall);
+        int lx = CONTENT_X0;
+        for (auto& it : items)
         {
-            if (dashed)
+            if (it.dashed)
             {
-                CPen pd(PS_DASH, 1, col);
-                pOldPen = dc.SelectObject(&pd);
-                dc.MoveTo(lx, Y(ly_content + 5));
-                dc.LineTo(lx + 18, Y(ly_content + 5));
-                dc.SelectObject(pOldPen);
+                CPen pd(PS_DASH, 1, it.col);
+                CPen* po = dc.SelectObject(&pd);
+                dc.MoveTo(lx, Y(curY + 7));
+                dc.LineTo(lx + 20, Y(curY + 7));
+                dc.SelectObject(po);
             }
             else
             {
-                CRect sw(lx, Y(ly_content + 1), lx + 10, Y(ly_content + 10));
-                CBrush sb(col);
-                dc.FillRect(&sw, &sb);
+                dc.FillSolidRect(CRect(lx, Y(curY + 2), lx + 12, Y(curY + 13)), it.col);
             }
-            dc.SetTextColor(RGB(130, 130, 165));
-            dc.TextOut(lx + 22, Y(ly_content), txt);
-            CSize sz = dc.GetTextExtent(txt);
-            return lx + 22 + sz.cx + 16;
-        };
+            dc.SetTextColor(RGB(85, 85, 85));
+            dc.TextOut(lx + 24, Y(curY), it.label);
+            CSize szL = dc.GetTextExtent(it.label);
+            lx += 24 + szL.cx + 18;
+        }
+        curY += 22;
+    }
 
-    dc.SelectObject(&fontTiny);
-    int lx = CONTENT_X0;
-    lx = DrawSwatch(lx, curY, RGB(0, 185, 255), T(L"Normal", L"通常"));
-    lx = DrawSwatch(lx, curY, RGB(220, 60, 60), T(L"Too Slow", L"遅すぎ"));
-    lx = DrawSwatch(lx, curY, RGB(220, 130, 0), T(L"Too Fast", L"速すぎ"));
-    DrawSwatch(lx, curY, RGB(255, 230, 80), T(L"Average", L"平均"), true);
-    curY += 18;
-
-    // ── Chart area ───────────────────────────────────────────────
-    const int CHART_H = 180;
-    const int CHART_PAD_L = 52;   // room for y-axis labels
-    const int CHART_PAD_R = 8;
-    const int CHART_PAD_B = 30;   // room for x-axis labels
+    // Chart area — taller than v3
+    const int CHART_H = 200;
+    const int CHART_PAD_L = 58;
+    const int CHART_PAD_B = 30;
 
     int cleft = CONTENT_X0 + CHART_PAD_L;
-    int cright = CONTENT_X1 - CHART_PAD_R;
+    int cright = CONTENT_X1;
     int ctop = curY;
     int cbottom = curY + CHART_H;
     int cw = cright - cleft;
     int ch = CHART_H;
 
-    dc.FillSolidRect(CRect(cleft, Y(ctop), cright, Y(cbottom)), RGB(15, 15, 25));
+    dc.FillSolidRect(CRect(cleft, Y(ctop), cright, Y(cbottom)), RGB(250, 250, 250));
 
     if (n >= 2)
     {
-        // ── Stats ──────────────────────────────────────────────
         double sumD = 0.0;
         for (int i = 0; i < n; ++i) sumD += (double)m_entries[i].durationMs;
         double meanD = sumD / n;
-
         double sqD = 0.0;
         for (int i = 0; i < n; ++i) {
             double d = (double)m_entries[i].durationMs - meanD;
@@ -1873,55 +2483,51 @@ void CSOHResultDlg::DrawHealthScore()
 
         ULONGLONG maxD = 1;
         for (int i = 0; i < n; ++i)
-            if (m_entries[i].durationMs > maxD)
-                maxD = m_entries[i].durationMs;
+            if (m_entries[i].durationMs > maxD) maxD = m_entries[i].durationMs;
 
-        // ── Y gridlines + labels ───────────────────────────────
         auto FmtMs = [](ULONGLONG ms) -> CString {
             ULONGLONG s = ms / 1000;
             if (s < 60) { CString r; r.Format(_T("%llus"), s); return r; }
-            int m2 = (int)(s / 60), s2 = (int)(s % 60);
-            CString r; r.Format(_T("%dm%ds"), m2, s2); return r;
+            CString r; r.Format(_T("%dm%ds"), (int)(s / 60), (int)(s % 60)); return r;
             };
 
-        dc.SelectObject(&fontTiny);
+        // Y gridlines + labels
+        dc.SelectObject(&fSmall);
         for (int g = 0; g <= 4; ++g)
         {
-            double frac = (double)g / 4.0;
-            int    gy = ctop + (int)(frac * ch);
+            double    frac = (double)g / 4.0;
+            int       gy = ctop + (int)(frac * ch);
             ULONGLONG lMs = (ULONGLONG)((1.0 - frac) * (double)maxD);
 
-            CPen pg(PS_DOT, 1, RGB(38, 38, 55));
-            pOldPen = dc.SelectObject(&pg);
+            CPen pg(PS_DOT, 1, RGB(215, 215, 215));
+            CPen* po = dc.SelectObject(&pg);
             dc.MoveTo(cleft, Y(gy)); dc.LineTo(cright, Y(gy));
-            dc.SelectObject(pOldPen);
+            dc.SelectObject(po);
 
             CString lbl = FmtMs(lMs);
-            CSize szL = dc.GetTextExtent(lbl);
-            dc.SetTextColor(RGB(90, 90, 125));
-            dc.TextOut(cleft - szL.cx - 4, Y(gy) - 7, lbl);
+            CSize   szL = dc.GetTextExtent(lbl);
+            dc.SetTextColor(RGB(155, 155, 155));
+            dc.TextOut(cleft - szL.cx - 5, Y(gy) - 8, lbl);
         }
 
-        // ── Average dashed line ────────────────────────────────
+        // Mean dashed line — COL_AVG
         int avgY = ctop + (int)((1.0 - meanD / (double)maxD) * ch);
         {
-            CPen pa(PS_DASH, 1, RGB(255, 230, 80));
-            pOldPen = dc.SelectObject(&pa);
-            dc.MoveTo(cleft, Y(avgY));
-            dc.LineTo(cright, Y(avgY));
-            dc.SelectObject(pOldPen);
+            CPen pa(PS_DASH, 1, COL_AVG);
+            CPen* po = dc.SelectObject(&pa);
+            dc.MoveTo(cleft, Y(avgY)); dc.LineTo(cright, Y(avgY));
+            dc.SelectObject(po);
         }
-        dc.SelectObject(&fontTiny);
-        dc.SetTextColor(RGB(210, 190, 50));
-        dc.TextOut(cright + 2, Y(avgY) - 7, T(L"Avg", L"平均"));
+        dc.SelectObject(&fSmall);
+        dc.SetTextColor(COL_AVG);
+        dc.TextOut(cright + 3, Y(avgY) - 8, T(L"Avg", L"平均"));
 
-        // ── Bars ──────────────────────────────────────────────
+        // Bars — using named colour constants
         int barW = max(2, cw / n - 1);
-
         for (int i = 0; i < n; ++i)
         {
             double dur = (double)m_entries[i].durationMs;
-            int barH = (int)(dur / (double)maxD * ch);
+            int    barH = (int)(dur / (double)maxD * ch);
             if (barH < 1) barH = 1;
 
             int bx = cleft + (int)((double)i / n * cw);
@@ -1930,73 +2536,52 @@ void CSOHResultDlg::DrawHealthScore()
             bool isSlow = (dur > upperT);
             bool isFast = (dur < lowerT && lowerT > 0.0);
 
-            COLORREF barCol = isSlow ? RGB(220, 60, 60)
-                : isFast ? RGB(220, 130, 0)
-                : RGB(0, 185, 255);
+            COLORREF bc = isSlow ? COL_SLOW
+                : isFast ? COL_FAST
+                : COL_NORMAL;
 
-            CRect barRc(bx, Y(by), bx + barW, Y(cbottom));
-            CBrush bb(barCol);
-            dc.FillRect(&barRc, &bb);
-
-            // top highlight
-            COLORREF topCol = RGB(min(255, GetRValue(barCol) + 40),
-                min(255, GetGValue(barCol) + 40),
-                min(255, GetBValue(barCol) + 40));
-            CRect topRc(bx, Y(by), bx + barW, Y(by) + 2);
-            CBrush bt(topCol);
-            dc.FillRect(&topRc, &bt);
+            CBrush bb(bc);
+            dc.FillRect(CRect(bx, Y(by), bx + barW, Y(cbottom)), &bb);
         }
 
-        // ── X-axis percent labels ──────────────────────────────
-        dc.SelectObject(&fontTiny);
-        dc.SetTextColor(RGB(90, 90, 130));
-
-        const int MIN_GAP = 36;
+        // X percent labels
+        dc.SelectObject(&fSmall);
+        dc.SetTextColor(RGB(150, 150, 150));
+        const int MIN_GAP = 40;
         int lastLX = -9999;
-
+        int barW2 = max(2, cw / n - 1);
         for (int i = 0; i < n; ++i)
         {
-            int bx = cleft + (int)((double)i / n * cw) + barW / 2;
+            int bx = cleft + (int)((double)i / n * cw) + barW2 / 2;
             if (bx - lastLX < MIN_GAP) continue;
 
-            CPen pt(PS_SOLID, 1, RGB(60, 60, 80));
-            pOldPen = dc.SelectObject(&pt);
-            dc.MoveTo(bx, Y(cbottom));
-            dc.LineTo(bx, Y(cbottom) + 4);
-            dc.SelectObject(pOldPen);
+            CPen pt(PS_SOLID, 1, RGB(205, 205, 205));
+            CPen* po = dc.SelectObject(&pt);
+            dc.MoveTo(bx, Y(cbottom)); dc.LineTo(bx, Y(cbottom) + 4);
+            dc.SelectObject(po);
 
             CString pl; pl.Format(_T("%d%%"), m_entries[i].percent);
-            CSize szP = dc.GetTextExtent(pl);
+            CSize   szP = dc.GetTextExtent(pl);
             dc.TextOut(bx - szP.cx / 2, Y(cbottom) + 5, pl);
             lastLX = bx;
         }
-
-        // X-axis title
-        dc.SetTextColor(RGB(85, 85, 125));
-        CString xTitle = T(L"Battery % at each measurement",
-            L"各測定時のバッテリー残量 (%)");
-        CSize szXT = dc.GetTextExtent(xTitle);
-        dc.TextOut(cleft + (cw - szXT.cx) / 2, Y(cbottom) + 18, xTitle);
     }
 
-    // ── Axes lines ─────────────────────────────────────────────
+    // Axes
     {
-        CPen pAxis(PS_SOLID, 1, RGB(75, 75, 100));
-        pOldPen = dc.SelectObject(&pAxis);
+        CPen pa(PS_SOLID, 1, RGB(195, 195, 195));
+        CPen* po = dc.SelectObject(&pa);
         dc.MoveTo(cleft, Y(ctop));
         dc.LineTo(cleft, Y(cbottom));
         dc.LineTo(cright, Y(cbottom));
-        dc.SelectObject(pOldPen);
+        dc.SelectObject(po);
     }
 
     curY = cbottom + CHART_PAD_B + 10;
 
-    // ════════════════════════════════════════════════════════════
-    //  Track total content height for scroll
-    // ════════════════════════════════════════════════════════════
+    // ── Scroll tracking ──────────────────────────────────────────
     int viewH = rc.Height() - BUTTONS_H;
     m_healthTotalH = max(0, curY - viewH);
-    // update scrollbar range silently
     {
         SCROLLINFO si = {};
         si.cbSize = sizeof(si);
@@ -2010,8 +2595,9 @@ void CSOHResultDlg::DrawHealthScore()
 
     paintDC.BitBlt(0, 0, rc.Width(), rc.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
-
 }
+
+
 
 BOOL CSOHResultDlg::OnEraseBkgnd(CDC* pDC)
 {
