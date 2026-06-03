@@ -40,6 +40,7 @@ private:
     void StopCpuStress();
     void DrawStartButton(CDC* pDC);
     void DrawRangeButtons(CDC* pDC);
+    void DrawTimeButtons(CDC* pDC);
     void StartTest();
     void RecalcLayout();          // responsive layout recalc
 
@@ -82,4 +83,12 @@ private:
     struct RangeBtn { CRect rc; int stopAt; CString label; };
     std::vector<RangeBtn> m_rangeBtns;
     int             m_hoveredRange;
+
+    struct TimeBtn { CRect rc; int minutes; CString label; };
+    std::vector<TimeBtn> m_timeBtns;
+    int m_targetMinutes;   // 0 = not selected
+    int m_hoveredTime;
+
+   
+
 };

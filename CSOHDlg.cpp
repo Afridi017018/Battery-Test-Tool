@@ -34,9 +34,10 @@ CSOHDlg::CSOHDlg(CWnd* pParent)
     , m_lastPercent(-1), m_lastDropTime(0)
     , m_isFullyCharged(false), m_isDischarging(false)
     , m_startDischargeTime(0), m_stressRunning(false)
-    , m_testStarted(false), m_targetStopPercent(0)
+    , m_testStarted(false), m_targetStopPercent(-1)
     , m_startBtnHover(false), m_startBtnPressed(false)
     , m_hoveredRange(-1)
+    , m_targetMinutes(0), m_hoveredTime(-1)
 {
 }
 
@@ -121,11 +122,33 @@ void CSOHDlg::RecalcLayout()
             mx + i * (rbW + rbGap) + rbW, rbY + rbH);
     }
 
-    // --- start button: below range row, centered
+    //// --- start button: below range row, centered
+    //int sbW = min(220, W - mx * 4);
+    //int sbH = max(40, H / 11);
+    //int sbY = rbY + rbH + max(14, H / 22);
+    //m_rcStartBtn.SetRect((W - sbW) / 2, sbY, (W + sbW) / 2, sbY + sbH);
+
+
+
+    // --- time buttons row: below range buttons
+    int tbY = rbY + rbH + max(30, H / 14);
+    int tbH = rbH;
+    int tbTotalW = W - mx * 2;
+    int tbW = (tbTotalW - rbGap * 3) / 4;
+    for (int i = 0; i < (int)m_timeBtns.size(); ++i)
+    {
+        m_timeBtns[i].rc.SetRect(
+            mx + i * (tbW + rbGap), tbY,
+            mx + i * (tbW + rbGap) + tbW, tbY + tbH);
+    }
+
+
+    // --- start button: below time row, centered
     int sbW = min(220, W - mx * 4);
     int sbH = max(40, H / 11);
-    int sbY = rbY + rbH + max(14, H / 22);
+    int sbY = tbY + tbH + max(14, H / 22);
     m_rcStartBtn.SetRect((W - sbW) / 2, sbY, (W + sbW) / 2, sbY + sbH);
+
 
     // --- elapsed label: near bottom
     int elH = max(28, H / 14);
@@ -200,6 +223,17 @@ BOOL CSOHDlg::OnInitDialog()
         m_rangeBtns.push_back(rb);
     }
     m_targetStopPercent = 0;
+
+    // Time buttons metadata
+    struct { int mins; const wchar_t* lbl; } times[] = {
+        {15,L"100→15 min"},{30,L"100→30 min"},{60,L"100→60 min"},{120,L"100→120 min"}
+    };
+    for (int i = 0; i < 4; ++i)
+    {
+        TimeBtn tb; tb.minutes = times[i].mins; tb.label = times[i].lbl;
+        m_timeBtns.push_back(tb);
+    }
+    m_targetMinutes = 0;
 
     RecalcLayout();
 
@@ -276,12 +310,34 @@ void CSOHDlg::UpdateBatteryStatus()
     UpdateUI(percent);
     m_lastPercent = percent;
 
-    if (m_isDischarging && percent <= m_targetStopPercent)
+    /*if (m_isDischarging && percent <= m_targetStopPercent)
     {
         KillTimer(1); StopCpuStress();
         m_instruction = _T("Test complete — data saved.");
         UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
         return;
+    }*/
+
+    // Stop by percent (range mode)
+    if (m_isDischarging && m_targetStopPercent >= 0 && percent <= m_targetStopPercent)
+    {
+        KillTimer(1); StopCpuStress();
+        m_instruction = _T("Test complete — data saved.");
+        UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
+        return;
+    }
+
+    // Stop by time (time mode)
+    if (m_isDischarging && m_targetMinutes > 0)
+    {
+        ULONGLONG elapsedMin = (now - m_startDischargeTime) / 60000;
+        if (elapsedMin >= (ULONGLONG)m_targetMinutes)
+        {
+            KillTimer(1); StopCpuStress();
+            m_instruction = _T("Test complete — data saved.");
+            UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
+            return;
+        }
     }
 
     if (m_isDischarging && sps.ACLineStatus == 1)
@@ -397,6 +453,29 @@ void CSOHDlg::DrawRangeButtons(CDC* dc)
     dc->SelectObject(of);
 }
 
+void CSOHDlg::DrawTimeButtons(CDC* dc)
+{
+    dc->SetBkMode(TRANSPARENT);
+    CFont* of = dc->SelectObject(&m_fontRange);
+
+    for (auto& tb : m_timeBtns)
+    {
+        bool sel = (tb.minutes == m_targetMinutes);
+        bool hov = (!m_testStarted && m_hoveredTime == tb.minutes);
+        bool dim = m_testStarted;
+
+        COLORREF fill = dim ? CLR_RANGE_IDL : sel ? CLR_RANGE_SEL : hov ? CLR_RANGE_HOV : CLR_RANGE_IDL;
+        COLORREF bdr = dim ? CLR_RANGE_BDR : sel ? CLR_ACCENT : hov ? CLR_ACCENT : CLR_RANGE_BDR;
+        COLORREF txtc = dim ? CLR_TEXT_LIGHT : sel ? RGB(255, 255, 255) : CLR_TEXT_DARK;
+
+        GdiFillRoundRect(dc, tb.rc, 8, fill, bdr, sel && !dim ? 2 : 1);
+        dc->SetTextColor(txtc);
+        dc->DrawText(tb.label, const_cast<CRect*>(&tb.rc),
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
+    dc->SelectObject(of);
+}
+
 // ── Start button ──────────────────────────────────────────────────────────────
 void CSOHDlg::DrawStartButton(CDC* dc)
 {
@@ -457,6 +536,21 @@ void CSOHDlg::OnPaint()
     dc.SelectObject(op);
 
     DrawRangeButtons(&dc);
+
+    // "DISCHARGE TIME" label — only before test starts
+    if (!m_testStarted && !m_timeBtns.empty())
+    {
+        int labelTop = m_timeBtns[0].rc.top - 30;
+        int labelBot = m_timeBtns[0].rc.top - 6;
+        dc.SetBkMode(TRANSPARENT);
+        dc.SetTextColor(CLR_TEXT_LIGHT);
+        CFont* of = dc.SelectObject(&m_fontRange);
+        CRect rcLbl(mx, labelTop, W - mx, labelBot);
+        dc.DrawText(_T("DISCHARGE TIME"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        dc.SelectObject(of);
+    }
+
+    DrawTimeButtons(&dc);
     DrawStartButton(&dc);
 }
 
@@ -470,6 +564,10 @@ void CSOHDlg::OnMouseMove(UINT nFlags, CPoint pt)
     int nr = -1;
     for (auto& rb : m_rangeBtns) if (rb.rc.PtInRect(pt)) { nr = rb.stopAt; break; }
     if (nr != m_hoveredRange) { m_hoveredRange = nr; rep = true; }
+
+    int nt = -1;
+    for (auto& tb : m_timeBtns) if (tb.rc.PtInRect(pt)) { nt = tb.minutes; break; }
+    if (nt != m_hoveredTime) { m_hoveredTime = nt; rep = true; }
 
     if (rep) Invalidate(FALSE);
     CDialogEx::OnMouseMove(nFlags, pt);
@@ -486,7 +584,18 @@ void CSOHDlg::OnLButtonDown(UINT nFlags, CPoint pt)
         for (auto& rb : m_rangeBtns)
             if (rb.rc.PtInRect(pt))
             {
-                m_targetStopPercent = rb.stopAt; Invalidate(FALSE); break;
+                m_targetStopPercent = rb.stopAt;
+                m_targetMinutes = 0;   // clear time selection
+                Invalidate(FALSE); break;
+            }
+
+    if (!m_testStarted)
+        for (auto& tb : m_timeBtns)
+            if (tb.rc.PtInRect(pt))
+            {
+                m_targetMinutes = tb.minutes;
+                m_targetStopPercent = -1;  // clear range selection
+                Invalidate(FALSE); break;
             }
 
     CDialogEx::OnLButtonDown(nFlags, pt);
@@ -510,6 +619,7 @@ void CSOHDlg::OnClose()
     if (m_logFile.is_open()) m_logFile.close();
     CDialogEx::OnClose();
 }
+
 void CSOHDlg::OnDestroy()
 {
     KillTimer(1); StopCpuStress();
