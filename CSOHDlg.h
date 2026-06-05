@@ -50,6 +50,7 @@ private:
     bool            m_isFullyCharged;
     bool            m_isDischarging;
     bool            m_testStarted;
+    bool            m_testComplete;
     int             m_targetStopPercent;
     CString         m_instruction;
     std::ofstream   m_logFile;
@@ -89,6 +90,8 @@ private:
     int m_targetMinutes;   // 0 = not selected
     int m_hoveredTime;
 
-   
+    int m_currentPercent;   // live battery % for range validation
+
+    void PaintBuffer(CDC* pDC, int W, int H);   // double-buffer helper
 
 };

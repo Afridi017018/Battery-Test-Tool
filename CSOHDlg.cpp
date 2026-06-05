@@ -34,10 +34,14 @@ CSOHDlg::CSOHDlg(CWnd* pParent)
     , m_lastPercent(-1), m_lastDropTime(0)
     , m_isFullyCharged(false), m_isDischarging(false)
     , m_startDischargeTime(0), m_stressRunning(false)
-    , m_testStarted(false), m_targetStopPercent(-1)
-    , m_startBtnHover(false), m_startBtnPressed(false)
+    , m_testStarted(false)
+    , m_testComplete(false)
+    , m_targetStopPercent(-1)
+    , m_startBtnHover(false)
+    , m_startBtnPressed(false)
     , m_hoveredRange(-1)
     , m_targetMinutes(0), m_hoveredTime(-1)
+    , m_currentPercent(0)
 {
 }
 
@@ -143,17 +147,28 @@ void CSOHDlg::RecalcLayout()
     }
 
 
-    // --- start button: below time row, centered
+
+
+
+    // --- start button: below time row, centered — capped to always fit
     int sbW = min(220, W - mx * 4);
-    int sbH = max(40, H / 11);
-    int sbY = tbY + tbH + max(14, H / 22);
+    int sbH = max(34, H / 13);
+    int elH = max(24, H / 16);
+    int elY = H - elH - 8;
+    int sbGap = max(8, H / 22);
+    int sbY = tbY + tbH + sbGap;
+    // If it would overflow into the elapsed label zone, clamp it up
+    int sbYMax = elY - sbH - sbGap;
+    if (sbY > sbYMax) sbY = sbYMax;
+    // If still negative (window extremely small), just place it below time row
+    if (sbY < tbY + tbH + 4) sbY = tbY + tbH + 4;
     m_rcStartBtn.SetRect((W - sbW) / 2, sbY, (W + sbW) / 2, sbY + sbH);
 
-
     // --- elapsed label: near bottom
-    int elH = max(28, H / 14);
     if (m_lblElapsed.GetSafeHwnd())
-        m_lblElapsed.MoveWindow(mx, H - elH - 10, W - mx * 2, elH);
+        m_lblElapsed.MoveWindow(mx, elY, W - mx * 2, elH);
+
+
 }
 
 void CSOHDlg::OnSize(UINT nType, int cx, int cy)
@@ -166,7 +181,8 @@ void CSOHDlg::OnSize(UINT nType, int cx, int cy)
     }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+
+
 BOOL CSOHDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
@@ -214,19 +230,20 @@ BOOL CSOHDlg::OnInitDialog()
     m_lblElapsed.SetFont(&m_fontInstruction);
 
     // Range buttons metadata (rects computed by RecalcLayout)
+    // Labels are dynamic (built in DrawRangeButtons using live %), just store target
     struct { int stop; const wchar_t* lbl; } ranges[] = {
-        {70,L"100 → 70%"},{50,L"100 → 50%"},{30,L"100 → 30%"},{0,L"100 → 0%"}
+        {70,L"→ 70%"},{50,L"→ 50%"},{30,L"→ 30%"},{0,L"→ 0%"}
     };
     for (int i = 0; i < 4; ++i)
     {
         RangeBtn rb; rb.stopAt = ranges[i].stop; rb.label = ranges[i].lbl;
         m_rangeBtns.push_back(rb);
     }
-    m_targetStopPercent = 0;
+    m_targetStopPercent = -1;   // nothing selected yet
 
     // Time buttons metadata
     struct { int mins; const wchar_t* lbl; } times[] = {
-        {15,L"100→15 min"},{30,L"100→30 min"},{60,L"100→60 min"},{120,L"100→120 min"}
+        {15,L"15 min"},{30,L"30 min"},{60,L"60 min"},{120,L"120 min"}
     };
     for (int i = 0; i < 4; ++i)
     {
@@ -235,15 +252,27 @@ BOOL CSOHDlg::OnInitDialog()
     }
     m_targetMinutes = 0;
 
+    // Seed current battery percent
+    SYSTEM_POWER_STATUS sps = {};
+    if (GetSystemPowerStatus(&sps) && sps.BatteryLifePercent <= 100)
+        m_currentPercent = sps.BatteryLifePercent;
+    else
+        m_currentPercent = 0;
+
     RecalcLayout();
 
-    m_instruction = _T("Select a discharge range, then press Start");
-    UpdateUI(0);
+    m_instruction = _T("Select a discharge range or time, then press Start");
+    m_testStarted = true;          // temporarily allow % to show
+    UpdateUI(m_currentPercent);
+    m_testStarted = false;         // restore
+    m_lblInstruction.SetWindowTextW(m_instruction);
 
-    m_isFullyCharged = true;
+    // m_isFullyCharged intentionally NOT set to true here —
+    // it will be set naturally when battery reads 100% on charger.
 
     return TRUE;
 }
+
 
 // ── Start test ────────────────────────────────────────────────────────────────
 void CSOHDlg::StartTest()
@@ -257,7 +286,8 @@ void CSOHDlg::StartTest()
         m_logFile << "\n=====================================================\n";
         m_logFile << "                NEW SOH TEST\n";
         m_logFile << "TEST_ID: " << m_testID << "\n";
-        m_logFile << "Range: 100→" << m_targetStopPercent << "\n";
+        /*m_logFile << "Range: 100→" << m_targetStopPercent << "\n";*/
+        m_logFile << "Range: " << m_currentPercent << "→" << m_targetStopPercent << "\n";
         m_logFile << "Start Time: "
             << st.wYear << "-" << st.wMonth << "-" << st.wDay << " "
             << st.wHour << ":" << st.wMinute << ":" << st.wSecond << "\n";
@@ -272,10 +302,22 @@ void CSOHDlg::StartTest()
     SetTimer(1, 1000, NULL);
 }
 
-// ── Timer ─────────────────────────────────────────────────────────────────────
 void CSOHDlg::OnTimer(UINT_PTR nIDEvent)
 {
-    UpdateBatteryStatus();
+    if (nIDEvent == 1)
+    {
+        UpdateBatteryStatus();
+        UpdateInstruction();
+    }
+    else if (nIDEvent == 2)   // post-complete charger watch
+    {
+        SYSTEM_POWER_STATUS sps;
+        if (GetSystemPowerStatus(&sps) && sps.ACLineStatus == 1)
+        {
+            KillTimer(2);
+            PostMessage(WM_CLOSE);
+        }
+    }
     CDialogEx::OnTimer(nIDEvent);
 }
 
@@ -286,60 +328,85 @@ void CSOHDlg::UpdateBatteryStatus()
     if (!GetSystemPowerStatus(&sps)) return;
 
     int percent = sps.BatteryLifePercent;
+    if (percent < 0 || percent > 100) return;
     ULONGLONG now = GetTickCount64();
 
-    if (percent == 100 && sps.ACLineStatus == 1)
-    {
-        m_isFullyCharged = true; UpdateInstruction();
-    }
+    m_currentPercent = percent;
 
-    if (m_isFullyCharged && sps.ACLineStatus == 0)
+    // ── Range mode: needs charger unplugged, selected target < current % ──
+    // ── Time mode:  just needs charger unplugged ──────────────────────────
+
+    bool usingTimeMode = (m_targetMinutes > 0 && m_targetStopPercent < 0);
+    bool usingRangeMode = (!usingTimeMode && m_targetStopPercent >= 0);
+
+    // Determine fully charged: only relevant to range mode for user hint
+    if (percent == 100 && sps.ACLineStatus == 1)
+        m_isFullyCharged = true;
+
+    // Start discharging when charger unplugged after test started
+    if (m_testStarted && !m_isDischarging && sps.ACLineStatus == 0)
     {
-        if (!m_isDischarging)
+        // For range mode: current % must be above target
+        bool canStart = usingTimeMode || (usingRangeMode && percent > m_targetStopPercent);
+        if (canStart)
         {
             m_isDischarging = true;
             m_lastDropTime = m_startDischargeTime = now;
             StartCpuStress();
         }
-        UpdateInstruction();
     }
 
+    // Update instruction hint
+    if (m_testStarted && !m_isDischarging)
+    {
+        if (sps.ACLineStatus == 1)
+        {
+            if (usingRangeMode && percent <= m_targetStopPercent)
+                m_instruction = _T("Current charge is already at or below target!");
+            else
+                m_instruction = _T("Unplug the charger to begin discharging");
+        }
+    }
+
+    // Log per-percent drop
     if (m_isDischarging && m_lastPercent != -1 && percent < m_lastPercent)
-        LogData(percent, now - m_lastDropTime), m_lastDropTime = now;
+    {
+        LogData(percent, now - m_lastDropTime);
+        m_lastDropTime = now;
+    }
 
     UpdateUI(percent);
     m_lastPercent = percent;
 
-    /*if (m_isDischarging && percent <= m_targetStopPercent)
-    {
-        KillTimer(1); StopCpuStress();
-        m_instruction = _T("Test complete — data saved.");
-        UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
-        return;
-    }*/
+
 
     // Stop by percent (range mode)
-    if (m_isDischarging && m_targetStopPercent >= 0 && percent <= m_targetStopPercent)
+    if (m_isDischarging && usingRangeMode && percent <= m_targetStopPercent)
     {
         KillTimer(1); StopCpuStress();
+        m_testComplete = true;   // ← add
         m_instruction = _T("Test complete — data saved.");
         UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
+        SetTimer(2, 1000, NULL); // ← add: watch for charger plug-in
         return;
     }
 
     // Stop by time (time mode)
-    if (m_isDischarging && m_targetMinutes > 0)
+    if (m_isDischarging && usingTimeMode)
     {
         ULONGLONG elapsedMin = (now - m_startDischargeTime) / 60000;
         if (elapsedMin >= (ULONGLONG)m_targetMinutes)
         {
             KillTimer(1); StopCpuStress();
+            m_testComplete = true;   // ← add
             m_instruction = _T("Test complete — data saved.");
             UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
+            SetTimer(2, 1000, NULL); // ← add: watch for charger plug-in
             return;
         }
     }
 
+    // Charger plugged back in mid-test
     if (m_isDischarging && sps.ACLineStatus == 1)
     {
         if (m_logFile.is_open())
@@ -379,16 +446,65 @@ void CSOHDlg::LogData(int percent, ULONGLONG duration)
     m_logFile.flush();
 }
 
+
+
 void CSOHDlg::UpdateInstruction()
 {
-    if (!m_isFullyCharged)
-        m_instruction = _T("Charge battery to 100% to begin");
+    bool usingTimeMode = (m_targetMinutes > 0 && m_targetStopPercent < 0);
+    bool usingRangeMode = (!usingTimeMode && m_targetStopPercent >= 0);
+
+    if (!m_testStarted)
+    {
+        m_instruction = _T("Select a discharge range or time, then press Start");
+    }
     else if (!m_isDischarging)
-        m_instruction = _T("Fully charged — unplug the charger");
+    {
+        SYSTEM_POWER_STATUS sps = {};
+        GetSystemPowerStatus(&sps);
+        if (sps.ACLineStatus == 1)
+        {
+            if (usingRangeMode && m_currentPercent <= m_targetStopPercent)
+                m_instruction = _T("Current charge is already at or below target — pick a different range");
+            else
+                m_instruction = _T("Unplug the charger to begin discharging");
+        }
+        else
+        {
+            m_instruction = _T("Unplug the charger to begin discharging");
+        }
+    }
     else
-        m_instruction = _T("Discharging... recording data");
+    {
+        // Actively discharging
+        if (usingRangeMode)
+        {
+            CString s;
+            s.Format(_T("Discharging… recording data  |  target: %d%%"), m_targetStopPercent);
+            m_instruction = s;
+        }
+        else if (usingTimeMode)
+        {
+            ULONGLONG elapsedMin = (GetTickCount64() - m_startDischargeTime) / 60000;
+            CString s;
+            s.Format(_T("Discharging… %llu / %d min elapsed"), elapsedMin, m_targetMinutes);
+            m_instruction = s;
+        }
+        else
+        {
+            m_instruction = _T("Discharging… recording data");
+        }
+    }
+
+
+    //if (m_lblInstruction.GetSafeHwnd())
+    //    m_lblInstruction.SetWindowTextW(m_instruction);
     if (m_lblInstruction.GetSafeHwnd())
-        m_lblInstruction.SetWindowTextW(m_instruction);
+    {
+        CString cur;
+        m_lblInstruction.GetWindowTextW(cur);
+        if (cur != m_instruction)                  // ← only set when changed
+            m_lblInstruction.SetWindowTextW(m_instruction);
+    }
 }
 
 void CSOHDlg::UpdateUI(int percent)
@@ -413,8 +529,8 @@ void CSOHDlg::UpdateUI(int percent)
         }
         else m_lblElapsed.SetWindowTextW(_T(""));
     }
-    if (m_lblInstruction.GetSafeHwnd())
-        m_lblInstruction.SetWindowTextW(m_instruction);
+  /*  if (m_lblInstruction.GetSafeHwnd())
+        m_lblInstruction.SetWindowTextW(m_instruction);*/
 }
 
 // ── GDI helpers ───────────────────────────────────────────────────────────────
@@ -481,7 +597,10 @@ void CSOHDlg::DrawStartButton(CDC* dc)
 {
     if (m_testStarted) return;
 
-    COLORREF fill = m_startBtnPressed ? CLR_ACCENT_PRS
+    bool canStart = (m_targetStopPercent >= 0 || m_targetMinutes > 0);
+
+    COLORREF fill = !canStart ? CLR_RANGE_IDL
+        : m_startBtnPressed ? CLR_ACCENT_PRS
         : m_startBtnHover ? CLR_ACCENT_HOV
         : CLR_ACCENT;
 
@@ -495,7 +614,8 @@ void CSOHDlg::DrawStartButton(CDC* dc)
     dc->SelectObject(op);
 
     dc->SetBkMode(TRANSPARENT);
-    dc->SetTextColor(RGB(255, 255, 255));
+    /*dc->SetTextColor(RGB(255, 255, 255));*/
+    dc->SetTextColor(canStart ? RGB(255, 255, 255) : CLR_TEXT_LIGHT);
     CFont* of = dc->SelectObject(&m_fontBtn);
     dc->DrawText(_T("Start Test"), const_cast<CRect*>(&m_rcStartBtn),
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -503,55 +623,75 @@ void CSOHDlg::DrawStartButton(CDC* dc)
 }
 
 // ── Paint ─────────────────────────────────────────────────────────────────────
+// ── Paint (double-buffered to eliminate flicker) ───────────────────────────
 void CSOHDlg::OnPaint()
 {
     CPaintDC dc(this);
     CRect rc; GetClientRect(&rc);
     int W = rc.Width(), H = rc.Height();
+
+    // Create offscreen DC + bitmap
+    CDC     memDC;
+    CBitmap bmp;
+    memDC.CreateCompatibleDC(&dc);
+    bmp.CreateCompatibleBitmap(&dc, W, H);
+    CBitmap* pOld = memDC.SelectObject(&bmp);
+
+    // Paint everything into memDC
+    PaintBuffer(&memDC, W, H);
+
+    // Blit the finished frame to screen in one shot — no flicker
+    dc.BitBlt(0, 0, W, H, &memDC, 0, 0, SRCCOPY);
+
+    memDC.SelectObject(pOld);
+}
+
+void CSOHDlg::PaintBuffer(CDC* dc, int W, int H)
+{
     int mx = max(16, W / 20);
 
-    dc.FillSolidRect(&rc, CLR_BG);
+    dc->FillSolidRect(CRect(0, 0, W, H), CLR_BG);
 
     // Thin rule below instruction area
     CRect instrRc; m_lblInstruction.GetWindowRect(&instrRc);
     ScreenToClient(&instrRc);
     CPen rule(PS_SOLID, 1, CLR_RULE);
-    CPen* op = dc.SelectObject(&rule);
-    dc.MoveTo(mx, instrRc.bottom + 6);
-    dc.LineTo(W - mx, instrRc.bottom + 6);
+    CPen* op = dc->SelectObject(&rule);
+    dc->MoveTo(mx, instrRc.bottom + 6);
+    dc->LineTo(W - mx, instrRc.bottom + 6);
 
-    // "RANGE" label — only before test starts
+    // "DISCHARGE RANGE" label
     if (!m_testStarted && !m_rangeBtns.empty())
     {
         int labelTop = m_rangeBtns[0].rc.top - 30;
         int labelBot = m_rangeBtns[0].rc.top - 6;
-        dc.SetBkMode(TRANSPARENT);
-        dc.SetTextColor(CLR_TEXT_LIGHT);
-        CFont* of = dc.SelectObject(&m_fontRange);
+        dc->SetBkMode(TRANSPARENT);
+        dc->SetTextColor(CLR_TEXT_LIGHT);
+        CFont* of = dc->SelectObject(&m_fontRange);
         CRect rcLbl(mx, labelTop, W - mx, labelBot);
-        dc.DrawText(_T("DISCHARGE RANGE"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-        dc.SelectObject(of);
+        dc->DrawText(_T("DISCHARGE RANGE"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        dc->SelectObject(of);
     }
 
-    dc.SelectObject(op);
+    dc->SelectObject(op);
 
-    DrawRangeButtons(&dc);
+    DrawRangeButtons(dc);
 
-    // "DISCHARGE TIME" label — only before test starts
+    // "DISCHARGE TIME" label
     if (!m_testStarted && !m_timeBtns.empty())
     {
         int labelTop = m_timeBtns[0].rc.top - 30;
         int labelBot = m_timeBtns[0].rc.top - 6;
-        dc.SetBkMode(TRANSPARENT);
-        dc.SetTextColor(CLR_TEXT_LIGHT);
-        CFont* of = dc.SelectObject(&m_fontRange);
+        dc->SetBkMode(TRANSPARENT);
+        dc->SetTextColor(CLR_TEXT_LIGHT);
+        CFont* of = dc->SelectObject(&m_fontRange);
         CRect rcLbl(mx, labelTop, W - mx, labelBot);
-        dc.DrawText(_T("DISCHARGE TIME"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-        dc.SelectObject(of);
+        dc->DrawText(_T("DISCHARGE TIME"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        dc->SelectObject(of);
     }
 
-    DrawTimeButtons(&dc);
-    DrawStartButton(&dc);
+    DrawTimeButtons(dc);
+    DrawStartButton(dc);
 }
 
 // ── Mouse ─────────────────────────────────────────────────────────────────────
@@ -580,12 +720,14 @@ void CSOHDlg::OnLButtonDown(UINT nFlags, CPoint pt)
         m_startBtnPressed = true; Invalidate(FALSE);
     }
 
+
     if (!m_testStarted)
         for (auto& rb : m_rangeBtns)
             if (rb.rc.PtInRect(pt))
             {
+                if (rb.stopAt >= m_currentPercent) break;   // invalid: ignore
                 m_targetStopPercent = rb.stopAt;
-                m_targetMinutes = 0;   // clear time selection
+                m_targetMinutes = 0;
                 Invalidate(FALSE); break;
             }
 
@@ -606,7 +748,9 @@ void CSOHDlg::OnLButtonUp(UINT nFlags, CPoint pt)
     if (m_startBtnPressed)
     {
         m_startBtnPressed = false;
-        if (m_rcStartBtn.PtInRect(pt) && !m_testStarted) StartTest();
+        /*if (m_rcStartBtn.PtInRect(pt) && !m_testStarted) StartTest();*/
+        bool canStart = (m_targetStopPercent >= 0 || m_targetMinutes > 0);
+        if (m_rcStartBtn.PtInRect(pt) && !m_testStarted && canStart) StartTest();
         Invalidate(FALSE);
     }
     CDialogEx::OnLButtonUp(nFlags, pt);
@@ -615,14 +759,14 @@ void CSOHDlg::OnLButtonUp(UINT nFlags, CPoint pt)
 // ── Close / Destroy ───────────────────────────────────────────────────────────
 void CSOHDlg::OnClose()
 {
-    KillTimer(1); StopCpuStress();
+    KillTimer(1); KillTimer(2); StopCpuStress();   // ← add KillTimer(2)
     if (m_logFile.is_open()) m_logFile.close();
     CDialogEx::OnClose();
 }
 
 void CSOHDlg::OnDestroy()
 {
-    KillTimer(1); StopCpuStress();
+    KillTimer(1); KillTimer(2); StopCpuStress();   // ← add KillTimer(2)
     if (m_logFile.is_open()) m_logFile.close();
     CDialogEx::OnDestroy();
 }
