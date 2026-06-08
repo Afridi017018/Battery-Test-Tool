@@ -69,6 +69,8 @@
 
 #include "CSOHResultDlg.h"
 
+#include "MFCUIDlg.h"
+
 
 #include <string>
 #include <map>
@@ -215,6 +217,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
 
     ON_BN_CLICKED(IDC_SOH, &CBatteryHelthDlg::OnBnClickedSoh)
     ON_BN_CLICKED(IDC_RESULT, &CBatteryHelthDlg::OnBnClickedResult)
+    ON_BN_CLICKED(IDC_NEWUI, &CBatteryHelthDlg::OnBnClickedNewui)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -8169,5 +8172,11 @@ void CBatteryHelthDlg::OnBnClickedResult()
 {
     bool isEng = (m_lang == Lang::EN);
     CSOHResultDlg dlg(this, isEng);
+    dlg.DoModal();
+}
+void CBatteryHelthDlg::OnBnClickedNewui()
+{
+    // TODO: Add your control notification handler code here
+    CMFCUIDlg dlg(this);
     dlg.DoModal();
 }

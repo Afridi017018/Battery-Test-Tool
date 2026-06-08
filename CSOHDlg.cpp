@@ -40,7 +40,8 @@ CSOHDlg::CSOHDlg(CWnd* pParent)
     , m_startBtnHover(false)
     , m_startBtnPressed(false)
     , m_hoveredRange(-1)
-    , m_targetMinutes(0), m_hoveredTime(-1)
+    , m_targetMinutes(0)
+    , m_sliderDragging(false)
     , m_currentPercent(0)
 {
 }
@@ -136,15 +137,8 @@ void CSOHDlg::RecalcLayout()
 
     // --- time buttons row: below range buttons
     int tbY = rbY + rbH + max(30, H / 14);
-    int tbH = rbH;
-    int tbTotalW = W - mx * 2;
-    int tbW = (tbTotalW - rbGap * 3) / 4;
-    for (int i = 0; i < (int)m_timeBtns.size(); ++i)
-    {
-        m_timeBtns[i].rc.SetRect(
-            mx + i * (tbW + rbGap), tbY,
-            mx + i * (tbW + rbGap) + tbW, tbY + tbH);
-    }
+    int tbH = max(34, H / 12);   // slider total height (track + labels)
+    m_timeSlider.rcTrack.SetRect(mx, tbY, W - mx, tbY + tbH);
 
 
 
@@ -242,14 +236,8 @@ BOOL CSOHDlg::OnInitDialog()
     m_targetStopPercent = -1;   // nothing selected yet
 
     // Time buttons metadata
-    struct { int mins; const wchar_t* lbl; } times[] = {
-        {15,L"15 min"},{30,L"30 min"},{60,L"60 min"},{120,L"120 min"}
-    };
-    for (int i = 0; i < 4; ++i)
-    {
-        TimeBtn tb; tb.minutes = times[i].mins; tb.label = times[i].lbl;
-        m_timeBtns.push_back(tb);
-    }
+    m_timeSlider.minVal = 10;
+    m_timeSlider.maxVal = 120;
     m_targetMinutes = 0;
 
     // Seed current battery percent
@@ -569,27 +557,118 @@ void CSOHDlg::DrawRangeButtons(CDC* dc)
     dc->SelectObject(of);
 }
 
-void CSOHDlg::DrawTimeButtons(CDC* dc)
+// Remove the entire DrawTimeButtons function and replace with:
+
+void CSOHDlg::DrawTimeSlider(CDC* dc)
 {
-    dc->SetBkMode(TRANSPARENT);
-    CFont* of = dc->SelectObject(&m_fontRange);
-
-    for (auto& tb : m_timeBtns)
+    if (m_testStarted)
     {
-        bool sel = (tb.minutes == m_targetMinutes);
-        bool hov = (!m_testStarted && m_hoveredTime == tb.minutes);
-        bool dim = m_testStarted;
+        // Dimmed readout only
+        dc->SetBkMode(TRANSPARENT);
+        dc->SetTextColor(CLR_TEXT_LIGHT);
+        CFont* of = dc->SelectObject(&m_fontRange);
+        CString lbl;
+        if (m_targetMinutes > 0)
+            lbl.Format(_T("%d min"), m_targetMinutes);
+        else
+            lbl = _T("—");
+        dc->DrawText(lbl, &m_timeSlider.rcTrack, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        dc->SelectObject(of);
+        return;
+    }
 
-        COLORREF fill = dim ? CLR_RANGE_IDL : sel ? CLR_RANGE_SEL : hov ? CLR_RANGE_HOV : CLR_RANGE_IDL;
-        COLORREF bdr = dim ? CLR_RANGE_BDR : sel ? CLR_ACCENT : hov ? CLR_ACCENT : CLR_RANGE_BDR;
-        COLORREF txtc = dim ? CLR_TEXT_LIGHT : sel ? RGB(255, 255, 255) : CLR_TEXT_DARK;
+    const CRect& rT = m_timeSlider.rcTrack;
+    int trackH = 4;
+    int thumbR = 9;
+    int trackY = rT.top + (rT.Height() / 2) - trackH / 2;  // vertically centered in upper half
+    int trackL = rT.left + thumbR + 2;
+    int trackR = rT.right - thumbR - 2;
+    int trackW = trackR - trackL;
 
-        GdiFillRoundRect(dc, tb.rc, 8, fill, bdr, sel && !dim ? 2 : 1);
-        dc->SetTextColor(txtc);
-        dc->DrawText(tb.label, const_cast<CRect*>(&tb.rc),
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    // --- track background
+    CRect rcTrackBg(trackL, trackY, trackR, trackY + trackH);
+    GdiFillRoundRect(dc, rcTrackBg, 2, CLR_RANGE_BDR);
+
+    // --- filled portion
+    int thumbX = trackL;
+    if (m_targetMinutes > 0)
+    {
+        float t = float(m_targetMinutes - m_timeSlider.minVal)
+            / float(m_timeSlider.maxVal - m_timeSlider.minVal);
+        thumbX = trackL + int(t * trackW);
+        CRect rcFill(trackL, trackY, thumbX, trackY + trackH);
+        GdiFillRoundRect(dc, rcFill, 2, CLR_ACCENT);
+    }
+
+    // --- tick marks (10, 30, 60, 90, 120)
+    const int ticks[] = { 10, 30, 60, 90, 120 };
+    dc->SetTextColor(CLR_TEXT_LIGHT);
+    CFont* of = dc->SelectObject(&m_fontRange);
+    for (int v : ticks)
+    {
+        float t = float(v - m_timeSlider.minVal) / float(m_timeSlider.maxVal - m_timeSlider.minVal);
+        int   tx = trackL + int(t * trackW);
+        // tick line
+        CPen tick(PS_SOLID, 1, CLR_RANGE_BDR);
+        CPen* op = dc->SelectObject(&tick);
+        dc->MoveTo(tx, trackY - 3);
+        dc->LineTo(tx, trackY + trackH + 3);
+        dc->SelectObject(op);
+        // tick label
+        CString s; s.Format(_T("%d"), v);
+        CRect rcLbl(tx - 18, trackY + trackH + 5, tx + 18, trackY + trackH + 22);
+        dc->DrawText(s, &rcLbl, DT_CENTER | DT_TOP | DT_SINGLELINE);
     }
     dc->SelectObject(of);
+
+    // --- thumb
+    if (m_targetMinutes > 0)
+    {
+        float t = float(m_targetMinutes - m_timeSlider.minVal)
+            / float(m_timeSlider.maxVal - m_timeSlider.minVal);
+        thumbX = trackL + int(t * trackW);
+    }
+    else
+    {
+        thumbX = trackL;  // parked at left if nothing selected
+    }
+
+    bool hov = m_timeSlider.hovering || m_sliderDragging;
+    COLORREF thumbFill = (m_targetMinutes > 0)
+        ? (hov ? CLR_ACCENT_HOV : CLR_ACCENT)
+        : CLR_RANGE_BDR;
+
+    CRect rcThumb(thumbX - thumbR, trackY + trackH / 2 - thumbR,
+        thumbX + thumbR, trackY + trackH / 2 + thumbR);
+    GdiFillRoundRect(dc, rcThumb, thumbR, thumbFill);
+    // white dot center
+    if (m_targetMinutes > 0)
+    {
+        CRect rcDot(thumbX - 3, trackY + trackH / 2 - 3,
+            thumbX + 3, trackY + trackH / 2 + 3);
+        GdiFillRoundRect(dc, rcDot, 3, RGB(255, 255, 255));
+    }
+
+    // --- value label above thumb
+    if (m_targetMinutes > 0)
+    {
+        dc->SetBkMode(TRANSPARENT);
+        dc->SetTextColor(CLR_ACCENT);
+        CFont* of2 = dc->SelectObject(&m_fontBtn);
+        CString val; val.Format(_T("%d min"), m_targetMinutes);
+        CRect rcVal(thumbX - 40, rT.top, thumbX + 40, trackY - 4);
+        dc->DrawText(val, &rcVal, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        dc->SelectObject(of2);
+    }
+    else
+    {
+        dc->SetBkMode(TRANSPARENT);
+        dc->SetTextColor(CLR_TEXT_LIGHT);
+        CFont* of2 = dc->SelectObject(&m_fontRange);
+        CRect rcHint(rT.left, rT.top, rT.right, trackY - 2);
+        dc->DrawText(_T("Drag to set duration"), &rcHint, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        dc->SelectObject(of2);
+    }
 }
 
 // ── Start button ──────────────────────────────────────────────────────────────
@@ -678,10 +757,10 @@ void CSOHDlg::PaintBuffer(CDC* dc, int W, int H)
     DrawRangeButtons(dc);
 
     // "DISCHARGE TIME" label
-    if (!m_testStarted && !m_timeBtns.empty())
+    if (!m_testStarted)
     {
-        int labelTop = m_timeBtns[0].rc.top - 30;
-        int labelBot = m_timeBtns[0].rc.top - 6;
+        int labelTop = m_timeSlider.rcTrack.top - 30;
+        int labelBot = m_timeSlider.rcTrack.top - 6;
         dc->SetBkMode(TRANSPARENT);
         dc->SetTextColor(CLR_TEXT_LIGHT);
         CFont* of = dc->SelectObject(&m_fontRange);
@@ -690,7 +769,7 @@ void CSOHDlg::PaintBuffer(CDC* dc, int W, int H)
         dc->SelectObject(of);
     }
 
-    DrawTimeButtons(dc);
+    DrawTimeSlider(dc);
     DrawStartButton(dc);
 }
 
@@ -705,9 +784,22 @@ void CSOHDlg::OnMouseMove(UINT nFlags, CPoint pt)
     for (auto& rb : m_rangeBtns) if (rb.rc.PtInRect(pt)) { nr = rb.stopAt; break; }
     if (nr != m_hoveredRange) { m_hoveredRange = nr; rep = true; }
 
-    int nt = -1;
-    for (auto& tb : m_timeBtns) if (tb.rc.PtInRect(pt)) { nt = tb.minutes; break; }
-    if (nt != m_hoveredTime) { m_hoveredTime = nt; rep = true; }
+    bool slHov = m_timeSlider.rcTrack.PtInRect(pt) && !m_testStarted;
+    if (slHov != m_timeSlider.hovering) { m_timeSlider.hovering = slHov; rep = true; }
+
+    if (m_sliderDragging && !m_testStarted)
+    {
+        int trackL = m_timeSlider.rcTrack.left + 11;
+        int trackR = m_timeSlider.rcTrack.right - 11;
+        int trackW = trackR - trackL;
+        float ratio = float(pt.x - trackL) / float(trackW);
+        ratio = max(0.f, min(1.f, ratio));
+        int val = m_timeSlider.minVal + int(ratio * (m_timeSlider.maxVal - m_timeSlider.minVal) + 0.5f);
+        // snap to nearest 5
+        val = ((val + 2) / 5) * 5;
+        val = max(m_timeSlider.minVal, min(m_timeSlider.maxVal, val));
+        if (val != m_targetMinutes) { m_targetMinutes = val; m_targetStopPercent = -1; rep = true; }
+    }
 
     if (rep) Invalidate(FALSE);
     CDialogEx::OnMouseMove(nFlags, pt);
@@ -731,14 +823,23 @@ void CSOHDlg::OnLButtonDown(UINT nFlags, CPoint pt)
                 Invalidate(FALSE); break;
             }
 
-    if (!m_testStarted)
-        for (auto& tb : m_timeBtns)
-            if (tb.rc.PtInRect(pt))
-            {
-                m_targetMinutes = tb.minutes;
-                m_targetStopPercent = -1;  // clear range selection
-                Invalidate(FALSE); break;
-            }
+    if (!m_testStarted && m_timeSlider.rcTrack.PtInRect(pt))
+    {
+        m_sliderDragging = true;
+        SetCapture();
+        // immediately update value from click position
+        int trackL = m_timeSlider.rcTrack.left + 11;
+        int trackR = m_timeSlider.rcTrack.right - 11;
+        int trackW = trackR - trackL;
+        float ratio = float(pt.x - trackL) / float(trackW);
+        ratio = max(0.f, min(1.f, ratio));
+        int val = m_timeSlider.minVal + int(ratio * (m_timeSlider.maxVal - m_timeSlider.minVal) + 0.5f);
+        val = ((val + 2) / 5) * 5;
+        val = max(m_timeSlider.minVal, min(m_timeSlider.maxVal, val));
+        m_targetMinutes = val;
+        m_targetStopPercent = -1;
+        Invalidate(FALSE);
+    }
 
     CDialogEx::OnLButtonDown(nFlags, pt);
 }
@@ -753,6 +854,8 @@ void CSOHDlg::OnLButtonUp(UINT nFlags, CPoint pt)
         if (m_rcStartBtn.PtInRect(pt) && !m_testStarted && canStart) StartTest();
         Invalidate(FALSE);
     }
+
+    if (m_sliderDragging) { m_sliderDragging = false; ReleaseCapture(); Invalidate(FALSE); }
     CDialogEx::OnLButtonUp(nFlags, pt);
 }
 

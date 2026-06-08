@@ -40,7 +40,7 @@ private:
     void StopCpuStress();
     void DrawStartButton(CDC* pDC);
     void DrawRangeButtons(CDC* pDC);
-    void DrawTimeButtons(CDC* pDC);
+    void DrawTimeSlider(CDC* pDC);
     void StartTest();
     void RecalcLayout();          // responsive layout recalc
 
@@ -85,13 +85,20 @@ private:
     std::vector<RangeBtn> m_rangeBtns;
     int             m_hoveredRange;
 
-    struct TimeBtn { CRect rc; int minutes; CString label; };
-    std::vector<TimeBtn> m_timeBtns;
-    int m_targetMinutes;   // 0 = not selected
-    int m_hoveredTime;
+    struct TimeSlider {
+        CRect   rcTrack;   // full track rect
+        int     minVal = 10, maxVal = 120;
+        bool    dragging = false;
+        bool    hovering = false;
+    };
+    TimeSlider  m_timeSlider;
+    int         m_targetMinutes;   // 0 = not selected (same as before)
+    bool        m_sliderDragging;
 
     int m_currentPercent;   // live battery % for range validation
 
     void PaintBuffer(CDC* pDC, int W, int H);   // double-buffer helper
+
+
 
 };

@@ -81,6 +81,9 @@
     <ClInclude Include="CSOHResultDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MFCUIDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -138,6 +141,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CSOHResultDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MFCUIDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DrawSecOverview.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
