@@ -227,6 +227,7 @@
     <ClCompile Include="CSOHDlg.cpp" />
     <ClCompile Include="CSOHResultDlg.cpp" />
     <ClCompile Include="CTrendDlg.cpp" />
+    <ClCompile Include="DrawSecChargeRate.cpp" />
     <ClCompile Include="DrawSecOverview.cpp" />
     <ClCompile Include="MFCUIDlg.cpp" />
     <ClCompile Include="pch.cpp">

@@ -85,6 +85,8 @@ void CMFCUIDlg::OnPaint()
     DrawHeader(&memDC, rcClient);
     DrawBatteryOverview(&memDC, rcClient);
 
+    DrawChargeRate(&memDC, rcClient);
+
     dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
 }
