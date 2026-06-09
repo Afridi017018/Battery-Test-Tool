@@ -84,6 +84,7 @@ void CMFCUIDlg::OnPaint()
     DrawBackground(&memDC, rcClient);
     DrawHeader(&memDC, rcClient);
     DrawBatteryOverview(&memDC, rcClient);
+    DrawBasicBatteryInfo(&memDC, rcClient);
 
     DrawChargeRate(&memDC, rcClient);
 

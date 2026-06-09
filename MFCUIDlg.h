@@ -43,6 +43,7 @@ private:
     void DrawHeader(CDC* pDC, CRect rc);
     void DrawBatteryOverview(CDC* pDC, CRect rc);
     void DrawChargeRate(CDC* pDC, CRect rc);
+    void DrawBasicBatteryInfo(CDC* pDC, CRect rc);
 
     // Utilities
     void DrawRoundRect(CDC* pDC, CRect rc, int radius, COLORREF bg, COLORREF border);

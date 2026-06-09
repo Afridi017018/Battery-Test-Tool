@@ -11,352 +11,308 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// ─────────────────────────────────────────────────────────────
-// Draw Circular Gauge
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Scale font relative to actual card/panel dimensions
+// ─────────────────────────────────────────────────────────────────
+static int OvFont(int refW, int refH, int baseSize)
+{
+    float scaleW = (float)refW / 468.0f;
+    float scaleH = (float)refH / 220.0f;  // reference card height
+    float scale = min(scaleW, scaleH);
+    scale = max(0.55f, min(scale, 1.6f));
+    return max(6, (int)(baseSize * scale));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Draw Circular Gauge — fully responsive
+// ─────────────────────────────────────────────────────────────────
 void CMFCUIDlg::DrawCircularGauge(
     CDC* pDC,
     CPoint center,
-    int radius,
-    float percent)
+    int    radius,
+    float  percent)
 {
+    if (radius < 8) return;
+
     float gdiStart = 225.0f;
     float sweepTotal = 270.0f;
 
-    auto DrawArc =
-        [&](float angleDeg,
-            float sweepDeg,
-            COLORREF col,
-            int penWidth)
+    auto DrawArc = [&](float angleDeg, float sweepDeg,
+        COLORREF col, int penWidth)
         {
-            if (sweepDeg <= 0.0f)
-                return;
-
+            if (sweepDeg <= 0.0f) return;
             CPen arcPen(PS_SOLID, penWidth, col);
-            CPen* pOldPen = pDC->SelectObject(&arcPen);
-
+            CPen* pOld = pDC->SelectObject(&arcPen);
             pDC->SelectStockObject(NULL_BRUSH);
 
             int N = max(4, (int)(sweepDeg * 2.0f));
-
             std::vector<POINT> pts;
             pts.reserve(N + 1);
-
             for (int i = 0; i <= N; i++)
             {
-                float t =
-                    (angleDeg + sweepDeg * i / N) *
-                    (float)(M_PI / 180.0);
-
-                POINT pt;
-                pt.x = center.x + (int)(radius * cos(t));
-                pt.y = center.y + (int)(radius * sin(t));
-
-                pts.push_back(pt);
+                float t = (angleDeg + sweepDeg * i / N)
+                    * (float)(M_PI / 180.0);
+                pts.push_back({
+                    center.x + (int)(radius * cos(t)),
+                    center.y + (int)(radius * sin(t)) });
             }
-
             pDC->Polyline(pts.data(), (int)pts.size());
-
-            pDC->SelectObject(pOldPen);
+            pDC->SelectObject(pOld);
         };
 
-    int trackW = max(4, radius / 5);
+    int trackW = max(3, radius / 6);
 
-    // Background track
-    DrawArc(
-        gdiStart,
-        sweepTotal,
-        RGB(220, 225, 235),
-        trackW);
+    // Track background
+    DrawArc(gdiStart, sweepTotal, RGB(220, 225, 235), trackW);
 
     // Filled portion
     if (percent > 0.0f)
     {
         float filled = sweepTotal * percent;
-
         float greenPart = filled * 0.88f;
         float yellowPart = filled * 0.12f;
-
-        DrawArc(
-            gdiStart,
-            greenPart,
-            CLR_GREEN,
-            trackW);
-
-        DrawArc(
-            gdiStart + greenPart,
-            yellowPart,
-            CLR_YELLOW,
-            trackW);
+        DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
+        DrawArc(gdiStart + greenPart, yellowPart, CLR_YELLOW, trackW);
     }
 
-    CString strPct;
-    strPct.Format(_T("%d%%"),
-        (int)(percent * 100.0f));
+    // ── Center text: "78%" ───────────────────────────────────────
+    int pctVal = (int)(percent * 100.0f);
+    CString strNum;
+    strNum.Format(_T("%d"), pctVal);
 
-    CRect rcNum(
-        center.x - radius / 2,
-        center.y - radius / 3,
-        center.x + radius / 2,
-        center.y + radius / 5);
+    int numFS = max(6, radius * 52 / 100);
+    int symFS = max(5, radius * 22 / 100);
 
-    DrawTextEx(
-        pDC,
-        strPct,
-        rcNum,
-        CLR_DARK_TEXT,
-        max(6, radius / 3),
-        true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    // Measure actual pixel width of the number string
+    LOGFONT lf = {};
+    lf.lfHeight = -MulDiv(numFS, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfWeight = FW_BOLD;
+    lf.lfQuality = CLEARTYPE_QUALITY;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    CFont numFont;
+    numFont.CreateFontIndirect(&lf);
+    CFont* pOldFont = pDC->SelectObject(&numFont);
+    CSize numSize = pDC->GetTextExtent(strNum);
+    pDC->SelectObject(pOldFont);
+
+    // Measure % symbol width
+    LOGFONT lf2 = {};
+    lf2.lfHeight = -MulDiv(symFS, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf2.lfWeight = FW_NORMAL;
+    lf2.lfQuality = CLEARTYPE_QUALITY;
+    _tcscpy_s(lf2.lfFaceName, _T("Segoe UI"));
+    CFont symFont;
+    symFont.CreateFontIndirect(&lf2);
+    pOldFont = pDC->SelectObject(&symFont);
+    CSize symSize = pDC->GetTextExtent(_T("%"));
+    pDC->SelectObject(pOldFont);
+
+    // Total width of "78%" together, centred on gauge center
+    int totalW = numSize.cx + symSize.cx;
+    int startX = center.x - totalW / 2;
+    int textCY = center.y;  // vertical center of number
+
+    // Number rect
+    CRect rcNum(startX,
+        textCY - numSize.cy / 2,
+        startX + numSize.cx,
+        textCY + numSize.cy / 2);
+    DrawTextEx(pDC, strNum, rcNum, CLR_DARK_TEXT, numFS, true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    // "%" rect — immediately right of number, raised slightly
+    CRect rcSym(startX + numSize.cx,
+        textCY - numSize.cy / 2,
+        startX + numSize.cx + symSize.cx + 2,
+        textCY);
+    DrawTextEx(pDC, _T("%"), rcSym, CLR_DARK_TEXT, symFS, false,
+        DT_LEFT | DT_TOP | DT_SINGLELINE);
 }
 
-// ─────────────────────────────────────────────────────────────
-// Draw Battery Overview
-// ─────────────────────────────────────────────────────────────
-void CMFCUIDlg::DrawBatteryOverview(
-    CDC* pDC,
-    CRect rc)
+// ─────────────────────────────────────────────────────────────────
+// Draw Battery Overview Card
+// ─────────────────────────────────────────────────────────────────
+void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 {
-    int W = rc.Width();
-    int H = rc.Height();
-
+    int W = rc.Width(), H = rc.Height();
     int mx = SW(16, W);
 
+    // ── Card bounds ──────────────────────────────────────────────
     int cardTop = SH(76, H);
     int cardBottom = SH(296, H);
+    CRect rcCard(mx, cardTop, W - mx, cardBottom);
 
-    CRect rcCard(
-        mx,
-        cardTop,
-        W - mx,
-        cardBottom);
+    if (rcCard.Width() < 60 || rcCard.Height() < 40) return;
 
-    DrawRoundRect(
-        pDC,
-        rcCard,
-        SW(10, W),
-        CLR_CARD,
-        CLR_BORDER);
+    DrawRoundRect(pDC, rcCard, SW(10, W), CLR_CARD, CLR_BORDER);
 
-    // Title
-    int pad = SW(14, W);
+    int CW = rcCard.Width();
+    int CH = rcCard.Height();
+    int pad = max(6, CW * 14 / 468);
 
+    // ── Card title ───────────────────────────────────────────────
+    int titleH = max(14, CH * 20 / 220);
     CRect rcTitle(
         rcCard.left + pad,
-        rcCard.top + SH(8, H),
+        rcCard.top + CH * 8 / 220,
         rcCard.right - pad,
-        rcCard.top + SH(28, H));
-
-    DrawTextEx(
-        pDC,
-        _T("Battery Overview"),
-        rcTitle,
-        CLR_TITLE,
-        SF(10, W),
-        true,
+        rcCard.top + CH * 8 / 220 + titleH);
+    DrawTextEx(pDC, _T("Battery Overview"), rcTitle,
+        CLR_TITLE, OvFont(CW, CH, 10), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Divider
-    int divY = rcCard.top + SH(32, H);
+    int divY = rcCard.top + CH * 32 / 220;
+    {
+        CPen divPen(PS_SOLID, 1, CLR_BORDER);
+        CPen* pOld = pDC->SelectObject(&divPen);
+        pDC->MoveTo(rcCard.left + CW * 10 / 468, divY);
+        pDC->LineTo(rcCard.right - CW * 10 / 468, divY);
+        pDC->SelectObject(pOld);
+    }
 
-    CPen divPen(PS_SOLID, 1, CLR_BORDER);
-    CPen* pOldPen = pDC->SelectObject(&divPen);
+    // ── Inner panels layout ──────────────────────────────────────
+    int innerTop = divY + CH * 4 / 220;
+    int innerBottom = rcCard.bottom - CH * 8 / 220;
+    int innerLeft = rcCard.left + CW * 8 / 468;
+    int innerRight = rcCard.right - CW * 8 / 468;
+    int gap = max(3, CW * 6 / 468);
+    int midX = innerLeft + (innerRight - innerLeft) / 2 - gap / 2;
 
-    pDC->MoveTo(rcCard.left + SW(10, W), divY);
-    pDC->LineTo(rcCard.right - SW(10, W), divY);
+    int panelH = innerBottom - innerTop;
+    if (panelH < 20) return;
 
-    pDC->SelectObject(pOldPen);
+    // ── Left Panel (Status + Gauge) ──────────────────────────────
+    CRect rcLeft(innerLeft, innerTop, midX, innerBottom);
+    int   LW = rcLeft.Width();
+    int   LH = rcLeft.Height();
 
-    int innerTop = divY + SH(4, H);
-    int innerBottom = rcCard.bottom - SH(8, H);
+    if (LW < 20) return;
 
-    int innerLeft = rcCard.left + SW(8, W);
-    int innerRight = rcCard.right - SW(8, W);
+    DrawRoundRect(pDC, rcLeft, max(4, min(LW, LH) / 10),
+        RGB(250, 251, 253), CLR_BORDER);
 
-    int midX =
-        innerLeft +
-        (innerRight - innerLeft) / 2 -
-        SW(3, W);
+    // "Status" label
+    int sLblH = max(10, LH * 16 / 180);
+    CRect rcStatusLbl(
+        rcLeft.left + LW * 8 / 100,
+        rcLeft.top + LH * 5 / 100,
+        rcLeft.right - LW * 4 / 100,
+        rcLeft.top + LH * 5 / 100 + sLblH);
+    DrawTextEx(pDC, _T("Status"), rcStatusLbl,
+        CLR_MID_TEXT, OvFont(LW, LH, 8), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // ====================================================
-    // Left Panel
-    // ====================================================
+    // Gauge radius: 32% of smaller panel dimension, clamped
+    int gaugeR = min(LW, LH) * 32 / 100;
+    gaugeR = max(28, min(gaugeR, 70));
 
-    CRect rcLeft(
-        innerLeft,
-        innerTop,
-        midX,
-        innerBottom);
+    // Gauge center: horizontally centred, vertically after label
+    int gaugeCY = rcLeft.top + LH * 18 / 100 + gaugeR;
+    // Clamp so gauge stays inside panel
+    gaugeCY = min(gaugeCY, rcLeft.bottom - gaugeR - LH * 20 / 100);
+    gaugeCY = max(gaugeCY, rcLeft.top + gaugeR + LH * 5 / 100);
 
-    DrawRoundRect(
-        pDC,
-        rcLeft,
-        SW(8, W),
-        RGB(250, 251, 253),
-        CLR_BORDER);
+    CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);
+    DrawCircularGauge(pDC, gaugeCenter, gaugeR, 0.78f);
 
-    CRect rcStatus(
-        rcLeft.left + SW(10, W),
-        rcLeft.top + SH(6, H),
-        rcLeft.right,
-        rcLeft.top + SH(22, H));
+    // "► Charging" below gauge
+    int belowY = gaugeCY + gaugeR + max(4, LH * 5 / 100);
+    int rowH = max(10, LH * 14 / 100);
 
-    DrawTextEx(
-        pDC,
-        _T("Status"),
-        rcStatus,
-        CLR_MID_TEXT,
-        SF(8, W),
-        false);
+    if (belowY + rowH <= rcLeft.bottom)
+    {
+        CRect rcChg(rcLeft.left, belowY,
+            rcLeft.right, belowY + rowH);
+        DrawTextEx(pDC, _T("\u25BA Charging"), rcChg,
+            CLR_GREEN, OvFont(LW, LH, 8), true,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
 
-    int panelW = rcLeft.Width();
-    int panelH = rcLeft.Height();
+    // "Power: 12.5 V"
+    int pwrY = belowY + rowH;
+    if (pwrY + rowH <= rcLeft.bottom)
+    {
+        CRect rcPwr(rcLeft.left, pwrY,
+            rcLeft.right, pwrY + rowH);
+        DrawTextEx(pDC, _T("Power: 12.5 V"), rcPwr,
+            CLR_MID_TEXT, OvFont(LW, LH, 8), false,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
 
-    int gaugeR =
-        min(panelW, panelH) * 30 / 100;
+    // ── Right Panel (Capacity) ───────────────────────────────────
+    CRect rcRight(midX + gap, innerTop, innerRight, innerBottom);
+    int   RW = rcRight.Width();
+    int   RH = rcRight.Height();
 
-    gaugeR = max(40, gaugeR);
-    gaugeR = min(65, gaugeR);
+    if (RW < 20) return;
 
-    CPoint gaugeCenter(
-        rcLeft.left + panelW / 2,
-        rcLeft.top + SH(28, H) +
-        gaugeR - SH(8, H));
+    DrawRoundRect(pDC, rcRight, max(4, min(RW, RH) / 10),
+        RGB(250, 251, 253), CLR_BORDER);
 
-    DrawCircularGauge(
-        pDC,
-        gaugeCenter,
-        gaugeR,
-        0.78f);
+    int rpx = rcRight.left + RW * 8 / 100;   // right panel pad X
 
-    int belowGauge =
-        gaugeCenter.y +
-        gaugeR +
-        SH(12, H);
+    // "Capacity" header
+    int capHdrH = max(10, RH * 16 / 180);
+    CRect rcCapHdr(rpx,
+        rcRight.top + RH * 5 / 100,
+        rcRight.right - RW * 4 / 100,
+        rcRight.top + RH * 5 / 100 + capHdrH);
+    DrawTextEx(pDC, _T("Capacity"), rcCapHdr,
+        CLR_MID_TEXT, OvFont(RW, RH, 8), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    CRect rcCharge(
-        rcLeft.left,
-        belowGauge,
-        rcLeft.right,
-        belowGauge + SH(18, H));
+    // Sub-divider
+    int capDivY = rcRight.top + RH * 26 / 180;
+    {
+        CPen cp(PS_SOLID, 1, CLR_BORDER);
+        CPen* pOld = pDC->SelectObject(&cp);
+        pDC->MoveTo(rcRight.left + RW * 6 / 100, capDivY);
+        pDC->LineTo(rcRight.right - RW * 6 / 100, capDivY);
+        pDC->SelectObject(pOld);
+    }
 
-    DrawTextEx(
-        pDC,
-        _T("► Charging"),
-        rcCharge,
-        CLR_GREEN,
-        SF(8, W),
-        true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    // Row heights proportional to panel
+    int rowUnit = max(12, RH * 16 / 180);
 
-    CRect rcPower(
-        rcLeft.left,
-        belowGauge + SH(18, H),
-        rcLeft.right,
-        belowGauge + SH(36, H));
+    // "Full Charge Capacity:" label
+    int y0 = capDivY + max(4, RH * 6 / 180);
+    CRect rcFC_Lbl(rpx, y0,
+        rcRight.right - RW * 4 / 100, y0 + rowUnit);
+    DrawTextEx(pDC, _T("Full Charge Capacity:"), rcFC_Lbl,
+        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
-    DrawTextEx(
-        pDC,
-        _T("Power: 12.5 V"),
-        rcPower,
-        CLR_MID_TEXT,
-        SF(8, W),
-        false,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    // "4,200 mAh" value
+    int y1 = y0 + rowUnit;
+    if (y1 + rowUnit <= rcRight.bottom - RH * 4 / 100)
+    {
+        CRect rcFC_Val(rpx, y1,
+            rcRight.right - RW * 4 / 100, y1 + rowUnit);
+        DrawTextEx(pDC, _T("4,200 mAh"), rcFC_Val,
+            CLR_DARK_TEXT, OvFont(RW, RH, 10), true,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
 
-    // ====================================================
-    // Right Panel
-    // ====================================================
+    // "Cycle Count:" label
+    int y2 = y1 + rowUnit + max(4, RH * 8 / 180);
+    if (y2 + rowUnit <= rcRight.bottom - RH * 4 / 100)
+    {
+        CRect rcCC_Lbl(rpx, y2,
+            rcRight.right - RW * 4 / 100, y2 + rowUnit);
+        DrawTextEx(pDC, _T("Cycle Count:"), rcCC_Lbl,
+            CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
 
-    CRect rcRight(
-        midX + SW(6, W),
-        innerTop,
-        innerRight,
-        innerBottom);
-
-    DrawRoundRect(
-        pDC,
-        rcRight,
-        SW(8, W),
-        RGB(250, 251, 253),
-        CLR_BORDER);
-
-    CRect rcCapHdr(
-        rcRight.left + SW(10, W),
-        rcRight.top + SH(6, H),
-        rcRight.right,
-        rcRight.top + SH(22, H));
-
-    DrawTextEx(
-        pDC,
-        _T("Capacity"),
-        rcCapHdr,
-        CLR_MID_TEXT,
-        SF(8, W),
-        false);
-
-    int capDivY =
-        rcRight.top + SH(26, H);
-
-    CPen capPen(PS_SOLID, 1, CLR_BORDER);
-
-    pOldPen = pDC->SelectObject(&capPen);
-
-    pDC->MoveTo(
-        rcRight.left + SW(8, W),
-        capDivY);
-
-    pDC->LineTo(
-        rcRight.right - SW(8, W),
-        capDivY);
-
-    pDC->SelectObject(pOldPen);
-
-    DrawTextEx(
-        pDC,
-        _T("Full Charge Capacity:"),
-        CRect(
-            rcRight.left + SW(10, W),
-            capDivY + SH(8, H),
-            rcRight.right,
-            capDivY + SH(22, H)),
-        CLR_MID_TEXT,
-        SF(7, W),
-        false);
-
-    DrawTextEx(
-        pDC,
-        _T("4,200 mAh"),
-        CRect(
-            rcRight.left + SW(10, W),
-            capDivY + SH(24, H),
-            rcRight.right,
-            capDivY + SH(42, H)),
-        CLR_DARK_TEXT,
-        SF(10, W),
-        true);
-
-    DrawTextEx(
-        pDC,
-        _T("Cycle Count:"),
-        CRect(
-            rcRight.left + SW(10, W),
-            capDivY + SH(56, H),
-            rcRight.right,
-            capDivY + SH(70, H)),
-        CLR_MID_TEXT,
-        SF(7, W),
-        false);
-
-    DrawTextEx(
-        pDC,
-        _T("152"),
-        CRect(
-            rcRight.left + SW(10, W),
-            capDivY + SH(72, H),
-            rcRight.right,
-            capDivY + SH(92, H)),
-        CLR_DARK_TEXT,
-        SF(10, W),
-        true);
+    // "152" value
+    int y3 = y2 + rowUnit;
+    if (y3 + rowUnit <= rcRight.bottom - RH * 4 / 100)
+    {
+        CRect rcCC_Val(rpx, y3,
+            rcRight.right - RW * 4 / 100, y3 + rowUnit);
+        DrawTextEx(pDC, _T("152"), rcCC_Val,
+            CLR_DARK_TEXT, OvFont(RW, RH, 10), true,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    }
 }

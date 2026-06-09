@@ -152,6 +152,9 @@
     <ClCompile Include="DrawSecChargeRate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DrawSecBasicInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="BatteryHelth.rc">
