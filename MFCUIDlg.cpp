@@ -34,7 +34,8 @@ BEGIN_MESSAGE_MAP(CMFCUIDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
-    : CDialogEx(IDD_MFCUI, pParent) {
+    : CDialogEx(IDD_MFCUI, pParent)
+ {
 }
 
 void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
@@ -83,10 +84,12 @@ void CMFCUIDlg::OnPaint()
 
     DrawBackground(&memDC, rcClient);
     DrawHeader(&memDC, rcClient);
-    DrawBatteryOverview(&memDC, rcClient);
-    DrawBasicBatteryInfo(&memDC, rcClient);
+    DrawBatteryOverview(&memDC, rcClient);   // slot 1 - unchanged
+    DrawQuickActions(&memDC, rcClient);      // slot 2 - was 4
+    DrawChargeRate(&memDC, rcClient);        // slot 3 - was 2
+    DrawBasicBatteryInfo(&memDC, rcClient);  // slot 4 - was 3
 
-    DrawChargeRate(&memDC, rcClient);
+
 
     dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
@@ -94,6 +97,16 @@ void CMFCUIDlg::OnPaint()
 
 void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
+    if (m_rcBtnAutoTest.PtInRect(point))
+        MessageBox(_T("Auto Test started!"), _T("Auto Test"), MB_OK | MB_ICONINFORMATION);
+    else if (m_rcBtnViewLog.PtInRect(point))
+        MessageBox(_T("Opening View Log..."), _T("View Log"), MB_OK | MB_ICONINFORMATION);
+    else if (m_rcBtnLanguage.PtInRect(point))
+    {
+        m_bJapanese = !m_bJapanese;   // toggle
+        Invalidate();                  // redraw immediately
+    }
+
     CDialogEx::OnLButtonUp(nFlags, point);
 }
 

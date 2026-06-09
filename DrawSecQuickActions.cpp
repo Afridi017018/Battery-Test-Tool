@@ -1,0 +1,236 @@
+﻿// DrawSecQuickActions.cpp
+
+#include "pch.h"
+#include "MFCUIDlg.h"
+
+// ─────────────────────────────────────────────────────────────────
+// Scale font relative to button dimensions
+// ─────────────────────────────────────────────────────────────────
+static int BtnFont(int btnW, int btnH, int baseSize)
+{
+    float scaleW = (float)btnW / 140.0f;
+    float scaleH = (float)btnH / 38.0f;
+    float scale = min(scaleW, scaleH);
+    scale = max(0.5f, min(scale, 1.6f));
+    return max(6, (int)(baseSize * scale));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Draw a single styled button
+// ─────────────────────────────────────────────────────────────────
+void CMFCUIDlg::DrawQAButton(
+    CDC* pDC,
+    CRect          rcBtn,
+    const CString& text,
+    COLORREF       bgColor,
+    COLORREF       textColor,
+    COLORREF       borderColor,
+    int            radius)
+{
+    if (rcBtn.Width() < 10 || rcBtn.Height() < 8) return;
+
+    // Background + border
+    {
+        CBrush br(bgColor);
+        CPen   pen(PS_SOLID, 1, borderColor);
+        CBrush* pOldB = pDC->SelectObject(&br);
+        CPen* pOldP = pDC->SelectObject(&pen);
+        pDC->RoundRect(rcBtn, CPoint(radius, radius));
+        pDC->SelectObject(pOldB);
+        pDC->SelectObject(pOldP);
+    }
+
+    // Text centred
+    int fs = BtnFont(rcBtn.Width(), rcBtn.Height(), 9);
+    DrawTextEx(pDC, text, rcBtn, textColor, fs, true,
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DrawQuickActions
+// Card sits below Basic Battery Info (base: top=634, height=90)
+// ─────────────────────────────────────────────────────────────────
+void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
+{
+    int W = rc.Width(), H = rc.Height();
+    int mx = SW(16, W);
+
+    // ── Card bounds ──────────────────────────────────────────────
+    int cardTop = SH(308, H);
+    int cardBottom = SH(398, H);
+    CRect rcCard(mx, cardTop, W - mx, cardBottom);
+
+    if (rcCard.Width() < 60 || rcCard.Height() < 30) return;
+
+    DrawRoundRect(pDC, rcCard, SW(10, W), CLR_CARD, CLR_BORDER);
+
+    int CW = rcCard.Width();
+    int CH = rcCard.Height();
+    int pad = max(6, CW * 14 / 468);
+
+    // ── Card title ───────────────────────────────────────────────
+    int titleH = max(14, CH * 22 / 90);
+    CRect rcTitle(
+        rcCard.left + pad, rcCard.top + CH * 8 / 90,
+        rcCard.right - pad, rcCard.top + CH * 8 / 90 + titleH);
+    DrawTextEx(pDC, _T("Quick Actions"), rcTitle,
+        CLR_TITLE, max(6, (int)(min(CW, CH) * 10 / 90)), true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    // Divider
+    int divY = rcCard.top + CH * 32 / 90;
+    {
+        CPen dp(PS_SOLID, 1, CLR_BORDER);
+        CPen* pOld = pDC->SelectObject(&dp);
+        pDC->MoveTo(rcCard.left + CW * 10 / 468, divY);
+        pDC->LineTo(rcCard.right - CW * 10 / 468, divY);
+        pDC->SelectObject(pOld);
+    }
+
+    // ── Button row ───────────────────────────────────────────────
+    int btnAreaTop = divY + CH * 8 / 90;
+    int btnAreaBottom = rcCard.bottom - CH * 8 / 90;
+    int btnH = btnAreaBottom - btnAreaTop;
+
+    if (btnH < 8) return;
+
+    int innerLeft = rcCard.left + CW * 10 / 468;
+    int innerRight = rcCard.right - CW * 10 / 468;
+    int totalBtnW = innerRight - innerLeft;
+    int gapW = max(4, CW * 8 / 468);
+    int btnW = (totalBtnW - gapW * 2) / 3;
+
+    if (btnW < 10) return;
+
+    int btnRadius = max(4, min(btnW, btnH) / 5);
+
+    // ── Button 1: Auto Test (solid blue) ─────────────────────────
+    m_rcBtnAutoTest = CRect(
+        innerLeft,
+        btnAreaTop,
+        innerLeft + btnW,
+        btnAreaBottom);
+
+    DrawQAButton(pDC, m_rcBtnAutoTest,
+        _T("Auto Test"),
+        RGB(255, 255, 255),     // white background
+        CLR_DARK_TEXT,          // dark text
+        CLR_BORDER,             // grey border
+        btnRadius);
+
+    // ── Button 2: View Log (outline style) ───────────────────────
+    m_rcBtnViewLog = CRect(
+        innerLeft + btnW + gapW,
+        btnAreaTop,
+        innerLeft + btnW * 2 + gapW,
+        btnAreaBottom);
+
+    // Draw outline button manually for the play icon + text layout
+    {
+        CBrush br(RGB(255, 255, 255));
+        CPen   pen(PS_SOLID, 1, CLR_BORDER);
+        CBrush* pOldB = pDC->SelectObject(&br);
+        CPen* pOldP = pDC->SelectObject(&pen);
+        pDC->RoundRect(m_rcBtnViewLog, CPoint(btnRadius, btnRadius));
+        pDC->SelectObject(pOldB);
+        pDC->SelectObject(pOldP);
+    }
+
+    // Play triangle icon
+    {
+        int bW = m_rcBtnViewLog.Width();
+        int bH = m_rcBtnViewLog.Height();
+        int triH = max(6, bH * 40 / 100);
+        int triW = max(4, triH * 6 / 10);
+        int triX = m_rcBtnViewLog.left + bW * 22 / 100;
+        int triY = m_rcBtnViewLog.top + (bH - triH) / 2;
+
+        POINT tri[3] = {
+            { triX,        triY },
+            { triX,        triY + triH },
+            { triX + triW, triY + triH / 2 }
+        };
+        CBrush triBr(CLR_BLUE);
+        CPen   triPen(PS_SOLID, 1, CLR_BLUE);
+        CBrush* pOldB = pDC->SelectObject(&triBr);
+        CPen* pOldP = pDC->SelectObject(&triPen);
+        pDC->Polygon(tri, 3);
+        pDC->SelectObject(pOldB);
+        pDC->SelectObject(pOldP);
+
+        // "View Log" text — shifted right of icon
+        int textX = triX + triW + max(3, bW * 4 / 100);
+        CRect rcTxt(textX,
+            m_rcBtnViewLog.top,
+            m_rcBtnViewLog.right - max(3, bW * 4 / 100),
+            m_rcBtnViewLog.bottom);
+        DrawTextEx(pDC, _T("View Log"), rcTxt,
+            CLR_DARK_TEXT,
+            BtnFont(bW, bH, 9), false,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
+
+    // ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
+    m_rcBtnLanguage = CRect(
+        innerLeft + btnW * 2 + gapW * 2,
+        btnAreaTop,
+        innerRight,
+        btnAreaBottom);
+
+    {
+        COLORREF btnBg = RGB(255, 255, 255);   // always white
+        COLORREF btnBorder = CLR_BORDER;            // always grey
+        COLORREF txtColor = CLR_DARK_TEXT;         // always dark
+        COLORREF dotColor = CLR_RED;               // always red dot
+        COLORREF arrowClr = CLR_MID_TEXT;          // always grey arrow
+
+        CBrush br(btnBg);
+        CPen   pen(PS_SOLID, 1, btnBorder);
+        CBrush* pOldB = pDC->SelectObject(&br);
+        CPen* pOldP = pDC->SelectObject(&pen);
+        pDC->RoundRect(m_rcBtnLanguage, CPoint(btnRadius, btnRadius));
+        pDC->SelectObject(pOldB);
+        pDC->SelectObject(pOldP);
+
+        int bW = m_rcBtnLanguage.Width();
+        int bH = m_rcBtnLanguage.Height();
+
+        // Dot
+        int dotR = max(3, min(bW, bH) * 5 / 100);
+        int dotCX = m_rcBtnLanguage.left + bW * 14 / 100;
+        int dotCY = m_rcBtnLanguage.top + bH / 2;
+        {
+            CBrush dotBr(dotColor);
+            CPen   dotPen(PS_SOLID, 1, dotColor);
+            CBrush* pOldB2 = pDC->SelectObject(&dotBr);
+            CPen* pOldP2 = pDC->SelectObject(&dotPen);
+            pDC->Ellipse(dotCX - dotR, dotCY - dotR,
+                dotCX + dotR, dotCY + dotR);
+            pDC->SelectObject(pOldB2);
+            pDC->SelectObject(pOldP2);
+        }
+
+        // Label
+        CString langLabel = m_bJapanese ? _T("\u65E5\u672C\u8A9E")
+            : _T("English");
+        int arrowW = max(8, bW * 10 / 100);
+        int textX = dotCX + dotR + max(3, bW * 4 / 100);
+
+        CRect rcLangTxt(textX,
+            m_rcBtnLanguage.top,
+            m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
+            m_rcBtnLanguage.bottom);
+        DrawTextEx(pDC, langLabel, rcLangTxt,
+            txtColor, BtnFont(bW, bH, 9), false,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+        // ">" arrow
+        CRect rcArrow(m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
+            m_rcBtnLanguage.top,
+            m_rcBtnLanguage.right - max(2, bW * 3 / 100),
+            m_rcBtnLanguage.bottom);
+        DrawTextEx(pDC, _T(">"), rcArrow,
+            arrowClr, BtnFont(bW, bH, 9), false,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
+}

@@ -69,8 +69,8 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect rc)
     int mx = SW(16, W);
 
     // ── Card bounds ──────────────────────────────────────────────
-    int cardTop = SH(308, H);
-    int cardBottom = SH(500, H);
+    int cardTop = SH(410, H);
+    int cardBottom = SH(602, H);
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
 
     // Guard

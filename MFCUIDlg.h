@@ -44,6 +44,10 @@ private:
     void DrawBatteryOverview(CDC* pDC, CRect rc);
     void DrawChargeRate(CDC* pDC, CRect rc);
     void DrawBasicBatteryInfo(CDC* pDC, CRect rc);
+    void DrawQuickActions(CDC* pDC, CRect rc);
+    void DrawQAButton(CDC* pDC, CRect rcBtn, const CString& text,
+        COLORREF bgColor, COLORREF textColor,
+        COLORREF borderColor, int radius);
 
     // Utilities
     void DrawRoundRect(CDC* pDC, CRect rc, int radius, COLORREF bg, COLORREF border);
@@ -55,4 +59,12 @@ private:
     int SW(int baseWidth, int clientWidth);   // scale X dimension
     int SH(int baseHeight, int clientHeight); // scale Y dimension
     int SF(int baseFontSize, int clientWidth);// scale font size
+
+    // Hit-test rects for click detection
+    CRect m_rcBtnAutoTest;
+    CRect m_rcBtnViewLog;
+    CRect m_rcBtnLanguage;
+
+    bool m_bJapanese = false;
+
 };
