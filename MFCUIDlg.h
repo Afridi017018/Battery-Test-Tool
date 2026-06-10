@@ -67,4 +67,15 @@ private:
 
     bool m_bJapanese = false;
 
+    void DrawAdvancedInfo(CDC* pDC, CRect rc);
+
+    // Advanced info state
+    bool   m_bAdvancedExpanded = false;
+
+    // Hit rects
+    CRect  m_rcBtnAdvanced;      // the header click area (whole header row)
+    CRect  m_rcAdvBtn[6];        // the 6 expandable buttons
+
+
+
 };

@@ -35,7 +35,7 @@ END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
     : CDialogEx(IDD_MFCUI, pParent)
- {
+{
 }
 
 void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
@@ -89,6 +89,8 @@ void CMFCUIDlg::OnPaint()
     DrawChargeRate(&memDC, rcClient);        // slot 3 - was 2
     DrawBasicBatteryInfo(&memDC, rcClient);  // slot 4 - was 3
 
+    DrawAdvancedInfo(&memDC, rcClient);
+
 
 
     dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
@@ -105,6 +107,36 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     {
         m_bJapanese = !m_bJapanese;   // toggle
         Invalidate();                  // redraw immediately
+    }
+
+    // Advanced info toggle
+    if (m_rcBtnAdvanced.PtInRect(point))
+    {
+        m_bAdvancedExpanded = !m_bAdvancedExpanded;
+        Invalidate();
+    }
+
+    // Advanced sub-buttons (only active when expanded)
+    if (m_bAdvancedExpanded)
+    {
+        const TCHAR* btnNames[] = {
+            _T("Active Life Trend"),
+            _T("Check Power Status"),
+            _T("Button 3"),
+            _T("Button 4"),
+            _T("Button 5"),
+            _T("Button 6")
+        };
+        for (int i = 0; i < 6; i++)
+        {
+            if (m_rcAdvBtn[i].PtInRect(point))
+            {
+                CString msg;
+                msg.Format(_T("%s clicked!"), btnNames[i]);
+                MessageBox(msg, btnNames[i], MB_OK | MB_ICONINFORMATION);
+                break;
+            }
+        }
     }
 
     CDialogEx::OnLButtonUp(nFlags, point);
@@ -218,4 +250,3 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
         CLR_SUBTITLE, SF(8, W), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
-
