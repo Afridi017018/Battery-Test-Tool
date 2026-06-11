@@ -3,7 +3,6 @@
 #include <afxwin.h>
 #include <vector>
 
-
 // ─── Base design dimensions ───────────────────────────────────────
 #define BASE_W  500
 #define BASE_H  900
@@ -33,49 +32,73 @@ protected:
     afx_msg void OnPaint();
     afx_msg BOOL OnEraseBkgnd(CDC* pDC);
     afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+    afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+    afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+    afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg void OnSize(UINT nType, int cx, int cy);
 
     DECLARE_MESSAGE_MAP()
 
 private:
-    // Drawing sections
+    // ── Drawing sections ─────────────────────────────────────────
     void DrawBackground(CDC* pDC, CRect rc);
     void DrawHeader(CDC* pDC, CRect rc);
     void DrawBatteryOverview(CDC* pDC, CRect rc);
     void DrawChargeRate(CDC* pDC, CRect rc);
     void DrawBasicBatteryInfo(CDC* pDC, CRect rc);
     void DrawQuickActions(CDC* pDC, CRect rc);
+    void DrawAdvancedInfo(CDC* pDC, CRect rc);
+
+    // ── Utility drawing ──────────────────────────────────────────
     void DrawQAButton(CDC* pDC, CRect rcBtn, const CString& text,
         COLORREF bgColor, COLORREF textColor,
         COLORREF borderColor, int radius);
+    void DrawRoundRect(CDC* pDC, CRect rc, int radius,
+        COLORREF bg, COLORREF border);
+    void DrawTextEx(CDC* pDC, const CString& text, CRect rc,
+        COLORREF color, int fontSize, bool bold,
+        UINT format = DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    void DrawCircularGauge(CDC* pDC, CPoint center,
+        int radius, float percent);
 
-    // Utilities
-    void DrawRoundRect(CDC* pDC, CRect rc, int radius, COLORREF bg, COLORREF border);
-    void DrawTextEx(CDC* pDC, const CString& text, CRect rc, COLORREF color,
-        int fontSize, bool bold, UINT format = DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    void DrawCircularGauge(CDC* pDC, CPoint center, int radius, float percent);
+    // ── Scale helpers ─────────────────────────────────────────────
+    int SW(int baseWidth, int clientWidth);
+    int SH(int baseHeight, int clientHeight);
+    int SF(int baseFontSize, int clientWidth);
 
-    // Scale helpers
-    int SW(int baseWidth, int clientWidth);   // scale X dimension
-    int SH(int baseHeight, int clientHeight); // scale Y dimension
-    int SF(int baseFontSize, int clientWidth);// scale font size
+    // ── Scroll helpers ────────────────────────────────────────────
+    void   ClampScroll();
+    CPoint ContentPoint(CPoint screenPt);
 
-    // Hit-test rects for click detection
+    // ── Quick Actions hit rects ───────────────────────────────────
     CRect m_rcBtnAutoTest;
     CRect m_rcBtnViewLog;
     CRect m_rcBtnLanguage;
 
+    // ── Advanced Info hit rects ───────────────────────────────────
+    CRect m_rcBtnAdvanced;
+    CRect m_rcAdvBtn[6];
+
+    // ── State ─────────────────────────────────────────────────────
     bool m_bJapanese = false;
+    bool m_bAdvancedExpanded = false;
 
-    void DrawAdvancedInfo(CDC* pDC, CRect rc);
+    // ── Client size ───────────────────────────────────────────────
+    int m_clientWidth = BASE_W;
+    int m_clientHeight = BASE_H;
 
-    // Advanced info state
-    bool   m_bAdvancedExpanded = false;
+    // ── Scroll state ──────────────────────────────────────────────
+    int  m_scrollY = 0;
+    int  m_totalHeight = 900;
+    bool m_bDragging = false;
+    int  m_dragStartY = 0;
+    int  m_dragStartScroll = 0;
 
-    // Hit rects
-    CRect  m_rcBtnAdvanced;      // the header click area (whole header row)
-    CRect  m_rcAdvBtn[6];        // the 6 expandable buttons
 
+    void DrawDataHistory(CDC* pDC, CRect rc);
 
+    bool  m_bDataHistoryExpanded = false;
+    CRect m_rcBtnDataHistory;
+    CRect m_rcDataHistBtn[7];
 
 };

@@ -1,4 +1,4 @@
-﻿// DrawSecAdvancedInfo.cpp
+﻿// DrawSecDataHistory.cpp
 
 #include "pch.h"
 #include "MFCUIDlg.h"
@@ -6,25 +6,25 @@
 // ─────────────────────────────────────────────────────────────────
 // Font scaled to card dimensions
 // ─────────────────────────────────────────────────────────────────
-static int AdvFont(int refW, int refH, int baseSize)
+static int DhFont(int refW, int refH, int baseSize)
 {
     float scaleW = (float)refW / 468.0f;
-    float scaleH = (float)refH / 48.0f;   // header row reference height
+    float scaleH = (float)refH / 48.0f;
     float scale = min(scaleW, scaleH);
     scale = max(0.55f, min(scale, 1.6f));
     return max(6, (int)(baseSize * scale));
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Draw one row button (icon area + label + ">" arrow)
+// Draw one data history row
 // ─────────────────────────────────────────────────────────────────
-static void DrawRowButton(
+static void DrawDHRow(
     CMFCUIDlg* dlg,
     CDC* pDC,
     CRect          rc,
     const CString& label,
-    const CString& iconText,   // small unicode icon or letter
-    COLORREF       iconBg,     // circle background color
+    const CString& iconText,
+    COLORREF       iconBg,
     int            fontSize)
 {
     if (rc.Width() < 20 || rc.Height() < 10) return;
@@ -32,7 +32,7 @@ static void DrawRowButton(
     int RW = rc.Width();
     int RH = rc.Height();
 
-    // Row background (white, no border — sits inside card)
+    // Row background
     {
         CBrush br(RGB(255, 255, 255));
         CPen   pen(PS_SOLID, 1, RGB(235, 238, 245));
@@ -60,10 +60,8 @@ static void DrawRowButton(
         pDC->SelectObject(pOldB);
         pDC->SelectObject(pOldP);
 
-        // Icon text inside circle
         CRect rcIcon(iconCX - iconR, iconCY - iconR,
             iconCX + iconR, iconCY + iconR);
-
         LOGFONT lf = {};
         lf.lfHeight = -MulDiv(max(6, iconR * 55 / 100),
             GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
@@ -85,41 +83,43 @@ static void DrawRowButton(
         rc.top,
         rc.right - max(4, RW * 8 / 468),
         rc.bottom);
+    {
+        LOGFONT lf = {};
+        lf.lfHeight = -MulDiv(fontSize,
+            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+        lf.lfWeight = FW_NORMAL;
+        lf.lfQuality = CLEARTYPE_QUALITY;
+        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+        CFont f; f.CreateFontIndirect(&lf);
+        CFont* pOld = pDC->SelectObject(&f);
+        pDC->SetTextColor(RGB(180, 185, 200));
+        pDC->SetBkMode(TRANSPARENT);
+        pDC->DrawText(_T(">"), &rcArrow,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        pDC->SelectObject(pOld);
+    }
 
-    LOGFONT lfa = {};
-    lfa.lfHeight = -MulDiv(fontSize,
-        GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-    lfa.lfWeight = FW_NORMAL;
-    lfa.lfQuality = CLEARTYPE_QUALITY;
-    _tcscpy_s(lfa.lfFaceName, _T("Segoe UI"));
-    CFont fa; fa.CreateFontIndirect(&lfa);
-    CFont* pOldA = pDC->SelectObject(&fa);
-    pDC->SetTextColor(RGB(180, 185, 200));
-    pDC->SetBkMode(TRANSPARENT);
-    pDC->DrawText(_T(">"), &rcArrow,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    pDC->SelectObject(pOldA);
-
-    // Label text
+    // Label
     int textX = iconCX + iconR + max(6, RW * 8 / 468);
     CRect rcLabel(textX, rc.top,
         rc.right - arrowW - max(4, RW * 8 / 468), rc.bottom);
+    {
+        LOGFONT lf = {};
+        lf.lfHeight = -MulDiv(fontSize,
+            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+        lf.lfWeight = FW_NORMAL;
+        lf.lfQuality = CLEARTYPE_QUALITY;
+        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+        CFont f; f.CreateFontIndirect(&lf);
+        CFont* pOld = pDC->SelectObject(&f);
+        pDC->SetTextColor(CLR_DARK_TEXT);
+        pDC->SetBkMode(TRANSPARENT);
+        pDC->DrawText(label, &rcLabel,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        pDC->SelectObject(pOld);
+    }
 
-    LOGFONT lfl = {};
-    lfl.lfHeight = -MulDiv(fontSize,
-        GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-    lfl.lfWeight = FW_NORMAL;
-    lfl.lfQuality = CLEARTYPE_QUALITY;
-    _tcscpy_s(lfl.lfFaceName, _T("Segoe UI"));
-    CFont fl; fl.CreateFontIndirect(&lfl);
-    CFont* pOldL = pDC->SelectObject(&fl);
-    pDC->SetTextColor(CLR_DARK_TEXT);
-    pDC->SetBkMode(TRANSPARENT);
-    pDC->DrawText(label, &rcLabel,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    pDC->SelectObject(pOldL);
-
-    // Bottom separator line
+    // Bottom separator
     CPen sep(PS_SOLID, 1, RGB(235, 238, 245));
     CPen* pOldP = pDC->SelectObject(&sep);
     pDC->MoveTo(rc.left + padX, rc.bottom - 1);
@@ -128,20 +128,37 @@ static void DrawRowButton(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// DrawAdvancedInfo
-// Header always visible at base top=736
-// Expands downward when open (6 rows x rowH each)
+// DrawDataHistory
+// Header sits below Advanced Info
+// Base position: Advanced header=736+48=784, gap=16 → top=800
 // ─────────────────────────────────────────────────────────────────
-void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
+void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
 {
     int W = m_clientWidth;
     int H = m_clientHeight;
     int mx = SW(16, W);
 
-    // ── Header row height (always visible) ───────────────────────
-    int hdrTop = SH(736, H);
-    int hdrH = SH(48, H);
-    hdrH = max(32, hdrH);
+    // ── Use unclamped scale (same as totalHeight calc) ────────────
+    double scaleY = (double)H / (double)BASE_H;
+    if (scaleY < 0.4) scaleY = 0.4;
+
+    // ── Calculate where Advanced section ends ─────────────────────
+    // Advanced header base top=736, base h=48
+    int advHdrTop = (int)(736.0 * scaleY);
+    int advHdrH = max(32, (int)(48.0 * scaleY));
+    int advHdrBottom = advHdrTop + advHdrH;
+
+    int rowH = max(36, (int)(44.0 * scaleY));
+
+    // If advanced is expanded, skip past its 6 rows
+    int advBodyH = m_bAdvancedExpanded ? rowH * 6 : 0;
+
+    // Gap between sections
+    int gap = max(8, (int)(16.0 * scaleY));
+
+    // ── Header position ───────────────────────────────────────────
+    int hdrTop = advHdrBottom + advBodyH + gap;
+    int hdrH = max(32, (int)(48.0 * scaleY));
     int hdrBottom = hdrTop + hdrH;
 
     CRect rcHeader(mx, hdrTop, W - mx, hdrBottom);
@@ -149,24 +166,21 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
 
     int CW = rcHeader.Width();
 
-    // Header card background
+    // ── Header background ─────────────────────────────────────────
     DrawRoundRect(pDC, rcHeader,
-        m_bAdvancedExpanded ? 0 : SW(10, W),
+        m_bDataHistoryExpanded ? 0 : SW(10, W),
         CLR_CARD, CLR_BORDER);
 
-    // If expanded, extend bottom corners square (card continues below)
-    // We overdraw the bottom with a rectangle to square off bottom corners
-    if (m_bAdvancedExpanded)
+    // Square off bottom when expanded
+    if (m_bDataHistoryExpanded)
     {
         CBrush br(CLR_CARD);
         CPen   pen(PS_SOLID, 1, CLR_BORDER);
         CBrush* pOldB = pDC->SelectObject(&br);
         CPen* pOldP = pDC->SelectObject(&pen);
-        // Draw left/right borders extending down from rounded top
-        CRect rcTop(rcHeader.left, rcHeader.top + hdrH / 2,
+        CRect rcFlat(rcHeader.left, rcHeader.top + hdrH / 2,
             rcHeader.right, rcHeader.bottom + 2);
-        pDC->FillRect(&rcTop, &br);
-        // Redraw left and right border lines
+        pDC->FillRect(&rcFlat, &br);
         pDC->MoveTo(rcHeader.left, rcHeader.top + hdrH / 2);
         pDC->LineTo(rcHeader.left, rcHeader.bottom + 2);
         pDC->MoveTo(rcHeader.right, rcHeader.top + hdrH / 2);
@@ -175,96 +189,84 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
         pDC->SelectObject(pOldP);
     }
 
-    // ── "Advanced Info" title ─────────────────────────────────────
+    // ── Title ─────────────────────────────────────────────────────
     int pad = max(6, CW * 14 / 468);
-    int titleFS = AdvFont(CW, hdrH, 10);
+    int titleFS = DhFont(CW, hdrH, 10);
 
     CRect rcTitle(rcHeader.left + pad, rcHeader.top,
         rcHeader.right - hdrH - pad, rcHeader.bottom);
-    DrawTextEx(pDC, _T("Advanced Info"), rcTitle,
+    DrawTextEx(pDC, _T("Data & History"), rcTitle,
         CLR_TITLE, titleFS, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // ── "+" / "-" button (right side of header) ──────────────────
+    // ── +/- button ────────────────────────────────────────────────
     int btnSz = max(20, hdrH * 60 / 100);
     int btnX = rcHeader.right - pad - btnSz;
     int btnY = rcHeader.top + (hdrH - btnSz) / 2;
+    CRect rcPM(btnX, btnY, btnX + btnSz, btnY + btnSz);
 
-    CRect rcPlusMinus(btnX, btnY, btnX + btnSz, btnY + btnSz);
-
-    // Circle background
     {
         CBrush br(CLR_BLUE);
         CPen   pen(PS_SOLID, 1, CLR_BLUE);
         CBrush* pOldB = pDC->SelectObject(&br);
         CPen* pOldP = pDC->SelectObject(&pen);
-        pDC->Ellipse(rcPlusMinus);
+        pDC->Ellipse(rcPM);
         pDC->SelectObject(pOldB);
         pDC->SelectObject(pOldP);
     }
 
-    // "+" or "-" symbol
-    CString symbol = m_bAdvancedExpanded ? _T("\u2212") : _T("+");
-    DrawTextEx(pDC, symbol, rcPlusMinus,
+    CString sym = m_bDataHistoryExpanded ? _T("\u2212") : _T("+");
+    DrawTextEx(pDC, sym, rcPM,
         RGB(255, 255, 255),
         max(6, btnSz * 55 / 100), true,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-    // Store full header as click target
-    m_rcBtnAdvanced = rcHeader;
+    // Store click target
+    m_rcBtnDataHistory = rcHeader;
 
     // ── Expanded rows ─────────────────────────────────────────────
-    if (!m_bAdvancedExpanded) return;
+    if (!m_bDataHistoryExpanded) return;
 
-    // 6 buttons, each rowH tall
-    // Use same unclamped scale as OnPaint totalHeight calculation
-    double scaleY = (double)H / (double)BASE_H;
-    if (scaleY < 0.4) scaleY = 0.4;
-    int rowH = max(36, (int)(44.0 * scaleY));
-    int bodyTop = hdrBottom;
-
-    // Button definitions
-    struct BtnDef {
+    struct RowDef {
         const TCHAR* label;
         const TCHAR* icon;
         COLORREF     iconBg;
     };
-    BtnDef defs[6] = {
-        { _T("Active Life Trend"),   _T("~"), RGB(80,  160, 240) },
-        { _T("Check Power Status"),  _T("P"), RGB(60,  180,  80) },
-        { _T("Battery Report"),      _T("B"), RGB(220, 120,  40) },
-        { _T("Charge History"),      _T("H"), RGB(160,  80, 220) },
+    RowDef defs[7] = {
+        { _T("Battery Report"),      _T("R"), RGB(30,  120, 220) },
+        { _T("Charge History"),      _T("C"), RGB(40,  180,  80) },
+        { _T("Discharge History"),   _T("D"), RGB(220, 120,  40) },
         { _T("Temperature Log"),     _T("T"), RGB(220,  60,  60) },
-        { _T("Device Settings"),     _T("S"), RGB(100, 100, 120) },
+        { _T("Cycle Report"),        _T("Y"), RGB(160,  80, 220) },
+        { _T("Power Events"),        _T("P"), RGB(80,  160, 200) },
+        { _T("Full Export"),         _T("E"), RGB(60,  140,  80) },
     };
 
-    int rowFS = AdvFont(CW, rowH, 9);
+    int rowFS = DhFont(CW, rowH, 9);
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 7; i++)
     {
-        int rowTop = bodyTop + i * rowH;
+        int rowTop = hdrBottom + i * rowH;
         int rowBottom = rowTop + rowH;
-
         CRect rcRow(mx, rowTop, W - mx, rowBottom);
-        m_rcAdvBtn[i] = rcRow;
+        m_rcDataHistBtn[i] = rcRow;
 
-        // Last row gets rounded bottom corners
-        bool isLast = (i == 5);
+        bool isLast = (i == 6);
 
         if (isLast)
         {
-            // Draw a rounded-bottom card for the last row
+            // Rounded bottom corners on last row
             CRect rcRound(mx, rowTop - 4, W - mx, rowBottom);
             DrawRoundRect(pDC, rcRound, SW(10, W), CLR_CARD, CLR_BORDER);
 
-            // Overdraw top with flat rectangle to square the top edge
             CBrush br(CLR_CARD);
-            CRect  rcFlat(mx + 1, rowTop - 4, W - mx - 1, rowTop + rowH / 3);
+            CRect  rcFlat(mx + 1, rowTop - 4,
+                W - mx - 1, rowTop + rowH / 3);
             pDC->FillRect(&rcFlat, &br);
         }
         else
         {
-            // Left and right border lines for middle rows
+            // Side borders for middle rows
             CPen sidePen(PS_SOLID, 1, CLR_BORDER);
             CPen* pOldP = pDC->SelectObject(&sidePen);
             pDC->MoveTo(mx, rowTop);
@@ -273,13 +275,12 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
             pDC->LineTo(W - mx, rowBottom);
             pDC->SelectObject(pOldP);
 
-            // Fill row bg
             CBrush br(CLR_CARD);
-            CRect rcFill(mx + 1, rowTop, W - mx - 1, rowBottom);
+            CRect  rcFill(mx + 1, rowTop, W - mx - 1, rowBottom);
             pDC->FillRect(&rcFill, &br);
         }
 
-        DrawRowButton(this, pDC, rcRow,
+        DrawDHRow(this, pDC, rcRow,
             defs[i].label, defs[i].icon, defs[i].iconBg, rowFS);
     }
 }

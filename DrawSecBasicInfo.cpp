@@ -143,7 +143,8 @@ static void DrawInfoTile(
 // ─────────────────────────────────────────────────────────────────
 void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
 {
-    int W = rc.Width(), H = rc.Height();
+    int W = m_clientWidth;
+    int H = m_clientHeight;
     int mx = SW(16, W);
 
     // ── Card bounds ──────────────────────────────────────────────

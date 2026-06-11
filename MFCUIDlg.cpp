@@ -9,11 +9,9 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// Base design dimensions (what we designed against)
 #define BASE_W  500
 #define BASE_H  900
 
-// Color palette
 #define CLR_BG        RGB(235, 238, 245)
 #define CLR_CARD      RGB(255, 255, 255)
 #define CLR_BORDER    RGB(220, 225, 235)
@@ -30,12 +28,14 @@ BEGIN_MESSAGE_MAP(CMFCUIDlg, CDialogEx)
     ON_WM_PAINT()
     ON_WM_ERASEBKGND()
     ON_WM_LBUTTONUP()
+    ON_WM_LBUTTONDOWN()
+    ON_WM_MOUSEMOVE()
+    ON_WM_MOUSEWHEEL()
     ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
-    : CDialogEx(IDD_MFCUI, pParent)
-{
+    : CDialogEx(IDD_MFCUI, pParent) {
 }
 
 void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
@@ -46,22 +46,20 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CMFCUIDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
-
     SetWindowText(_T("Battery Health & Monitor"));
-
     ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);
-
-    SetWindowPos(nullptr, 100, 50,
-        BASE_W, BASE_H,
-        SWP_NOZORDER);
-
+    SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
     return TRUE;
 }
 
-// Force repaint on every resize
 void CMFCUIDlg::OnSize(UINT nType, int cx, int cy)
 {
     CDialogEx::OnSize(nType, cx, cy);
+
+    m_clientWidth = cx;
+    m_clientHeight = cy;
+
+    ClampScroll();
     Invalidate();
 }
 
@@ -70,53 +68,160 @@ BOOL CMFCUIDlg::OnEraseBkgnd(CDC* pDC)
     return TRUE;
 }
 
+// ─── Scroll helpers ───────────────────────────────────────────────
+void CMFCUIDlg::ClampScroll()
+{
+    CRect rc;
+    GetClientRect(&rc);
+    int viewH = rc.Height();
+    int maxScroll = max(0, m_totalHeight - viewH);
+    if (m_scrollY < 0)         m_scrollY = 0;
+    if (m_scrollY > maxScroll) m_scrollY = maxScroll;
+}
+
+// Translates a point from screen space into content space
+CPoint CMFCUIDlg::ContentPoint(CPoint screenPt)
+{
+    return CPoint(screenPt.x, screenPt.y + m_scrollY);
+}
+
+// ─── Mouse Wheel ─────────────────────────────────────────────────
+BOOL CMFCUIDlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
+{
+    // zDelta: +120 = scroll up, -120 = scroll down
+    int step = 60;  // pixels per notch
+    m_scrollY -= (zDelta / 120) * step;
+    ClampScroll();
+    Invalidate();
+    return TRUE;
+}
+
+// ─── Click drag scroll ────────────────────────────────────────────
+void CMFCUIDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+    m_bDragging = true;
+    m_dragStartY = point.y;
+    m_dragStartScroll = m_scrollY;
+    SetCapture();
+    CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+void CMFCUIDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+    if (m_bDragging)
+    {
+        int delta = m_dragStartY - point.y;  // drag up = scroll down
+        m_scrollY = m_dragStartScroll + delta;
+        ClampScroll();
+        Invalidate();
+    }
+    CDialogEx::OnMouseMove(nFlags, point);
+}
+
+// ─── Paint ────────────────────────────────────────────────────────
 void CMFCUIDlg::OnPaint()
 {
     CPaintDC dc(this);
     CRect rcClient;
     GetClientRect(&rcClient);
 
+    // ── Step 1: Calculate total content height ───────────────────
+    // Base content height + extra rows if advanced is expanded
+    double scaleY = (double)m_clientHeight / (double)BASE_H;
+    if (scaleY < 0.4) scaleY = 0.4;
+    int rowH = max(36, (int)(44.0 * scaleY));
+
+    int extraAdvanced = m_bAdvancedExpanded ? rowH * 6 : 0;
+    int extraDataHistory = m_bDataHistoryExpanded ? rowH * 7 : 0;
+
+    // Base bottom of DataHistory header = base y 800 + base h 48
+    int baseDataHistBottom = 800 + 48;
+    m_totalHeight = (int)(baseDataHistBottom * scaleY)
+        + extraAdvanced
+        + extraDataHistory
+        + 40;
+
+    m_totalHeight = max(m_totalHeight, rcClient.Height());
+
+    m_totalHeight =
+        max(m_totalHeight, rcClient.Height());
+
+    ClampScroll();
+
+    // ── Step 2: Create a tall offscreen bitmap (content space) ───
+    int contentW = rcClient.Width();
+    int contentH = m_totalHeight;
+
     CDC memDC;
     memDC.CreateCompatibleDC(&dc);
     CBitmap bmp;
-    bmp.CreateCompatibleBitmap(&dc, rcClient.Width(), rcClient.Height());
+    bmp.CreateCompatibleBitmap(&dc, contentW, contentH);
     CBitmap* pOldBmp = memDC.SelectObject(&bmp);
 
-    DrawBackground(&memDC, rcClient);
-    DrawHeader(&memDC, rcClient);
-    DrawBatteryOverview(&memDC, rcClient);   // slot 1 - unchanged
-    DrawQuickActions(&memDC, rcClient);      // slot 2 - was 4
-    DrawChargeRate(&memDC, rcClient);        // slot 3 - was 2
-    DrawBasicBatteryInfo(&memDC, rcClient);  // slot 4 - was 3
+    // Content rect — full height
+    CRect rcContent(0, 0, contentW, contentH);
 
-    DrawAdvancedInfo(&memDC, rcClient);
+    // ── Step 3: Draw everything into the tall bitmap ─────────────
+    DrawBackground(&memDC, rcContent);
+    DrawHeader(&memDC, rcContent);
+    DrawBatteryOverview(&memDC, rcContent);
+    DrawQuickActions(&memDC, rcContent);
+    DrawChargeRate(&memDC, rcContent);
+    DrawBasicBatteryInfo(&memDC, rcContent);
+    DrawAdvancedInfo(&memDC, rcContent);
 
+    DrawDataHistory(&memDC, rcContent);
 
+    // ── Step 4: Blit only the visible portion to screen ──────────
+    dc.BitBlt(
+        0, 0,                        // dest top-left on screen
+        rcClient.Width(),            // dest width
+        rcClient.Height(),           // dest height
+        &memDC,
+        0, m_scrollY,                // source: offset by scroll
+        SRCCOPY);
 
-    dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
 }
 
+// ─── LButtonUp — translate point into content space ──────────────
 void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
-    if (m_rcBtnAutoTest.PtInRect(point))
-        MessageBox(_T("Auto Test started!"), _T("Auto Test"), MB_OK | MB_ICONINFORMATION);
-    else if (m_rcBtnViewLog.PtInRect(point))
-        MessageBox(_T("Opening View Log..."), _T("View Log"), MB_OK | MB_ICONINFORMATION);
-    else if (m_rcBtnLanguage.PtInRect(point))
+    if (m_bDragging)
     {
-        m_bJapanese = !m_bJapanese;   // toggle
-        Invalidate();                  // redraw immediately
+        m_bDragging = false;
+        ReleaseCapture();
+
+        // If it was a real drag (moved more than 4px), don't fire clicks
+        int dragDist = abs(point.y - m_dragStartY);
+        if (dragDist > 4)
+        {
+            CDialogEx::OnLButtonUp(nFlags, point);
+            return;
+        }
     }
 
-    // Advanced info toggle
-    if (m_rcBtnAdvanced.PtInRect(point))
+    // Translate screen point → content point
+    CPoint cp = ContentPoint(point);
+
+    if (m_rcBtnAutoTest.PtInRect(cp))
+        MessageBox(_T("Auto Test started!"), _T("Auto Test"),
+            MB_OK | MB_ICONINFORMATION);
+    else if (m_rcBtnViewLog.PtInRect(cp))
+        MessageBox(_T("Opening View Log..."), _T("View Log"),
+            MB_OK | MB_ICONINFORMATION);
+    else if (m_rcBtnLanguage.PtInRect(cp))
+    {
+        m_bJapanese = !m_bJapanese;
+        Invalidate();
+    }
+
+    if (m_rcBtnAdvanced.PtInRect(cp))
     {
         m_bAdvancedExpanded = !m_bAdvancedExpanded;
         Invalidate();
     }
 
-    // Advanced sub-buttons (only active when expanded)
     if (m_bAdvancedExpanded)
     {
         const TCHAR* btnNames[] = {
@@ -129,7 +234,7 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
         };
         for (int i = 0; i < 6; i++)
         {
-            if (m_rcAdvBtn[i].PtInRect(point))
+            if (m_rcAdvBtn[i].PtInRect(cp))
             {
                 CString msg;
                 msg.Format(_T("%s clicked!"), btnNames[i]);
@@ -139,53 +244,67 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
         }
     }
 
+    if (m_rcBtnDataHistory.PtInRect(cp))
+    {
+        m_bDataHistoryExpanded = !m_bDataHistoryExpanded;
+        Invalidate();
+    }
+
+    if (m_bDataHistoryExpanded)
+    {
+        const TCHAR* dhNames[] = {
+            _T("Battery Report"),
+            _T("Charge History"),
+            _T("Discharge History"),
+            _T("Temperature Log"),
+            _T("Cycle Report"),
+            _T("Power Events"),
+            _T("Full Export")
+        };
+        for (int i = 0; i < 7; i++)
+        {
+            if (m_rcDataHistBtn[i].PtInRect(cp))
+            {
+                CString msg;
+                msg.Format(_T("%s clicked!"), dhNames[i]);
+                MessageBox(msg, dhNames[i], MB_OK | MB_ICONINFORMATION);
+                break;
+            }
+        }
+    }
+
     CDialogEx::OnLButtonUp(nFlags, point);
 }
 
 // ─── Scale Helpers ────────────────────────────────────────────────
-// These convert base-design pixels into actual pixels for current window size
 int CMFCUIDlg::SW(int baseW, int clientWidth)
 {
     double scaleX = (double)clientWidth / BASE_W;
-
-    if (scaleX < 0.8)
-        scaleX = 0.8;
-    if (scaleX > 1.5)
-        scaleX = 1.5;
-
+    if (scaleX < 0.8) scaleX = 0.8;
+    if (scaleX > 1.5) scaleX = 1.5;
     return (int)(baseW * scaleX);
 }
 
 int CMFCUIDlg::SH(int baseH, int clientHeight)
 {
     double scaleY = (double)clientHeight / BASE_H;
-
-    if (scaleY < 0.8)
-        scaleY = 0.8;
-    if (scaleY > 1.5)
-        scaleY = 1.5;
-
+    if (scaleY < 0.8) scaleY = 0.8;
+    if (scaleY > 1.5) scaleY = 1.5;
     return (int)(baseH * scaleY);
 }
 
 int CMFCUIDlg::SF(int baseFont, int clientWidth)
 {
     double scale = (double)clientWidth / BASE_W;
-
-    if (scale < 0.8)
-        scale = 0.8;
-    if (scale > 1.4)
-        scale = 1.4;
-
+    if (scale < 0.8) scale = 0.8;
+    if (scale > 1.4) scale = 1.4;
     int size = (int)(baseFont * scale);
-
     int minSize = max(6, baseFont - 2);
     int maxSize = baseFont + 8;
-
     return min(max(size, minSize), maxSize);
 }
 
-// ─── Utility: Rounded Rectangle ──────────────────────────────────
+// ─── Utilities ────────────────────────────────────────────────────
 void CMFCUIDlg::DrawRoundRect(CDC* pDC, CRect rc, int radius,
     COLORREF bg, COLORREF border)
 {
@@ -198,12 +317,12 @@ void CMFCUIDlg::DrawRoundRect(CDC* pDC, CRect rc, int radius,
     pDC->SelectObject(pOldP);
 }
 
-// ─── Utility: Draw Text ──────────────────────────────────────────
 void CMFCUIDlg::DrawTextEx(CDC* pDC, const CString& text, CRect rc,
     COLORREF color, int fontSize, bool bold, UINT format)
 {
     LOGFONT lf = {};
-    lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfHeight = -MulDiv(fontSize,
+        GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
     lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
     lf.lfQuality = CLEARTYPE_QUALITY;
     _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
@@ -216,27 +335,27 @@ void CMFCUIDlg::DrawTextEx(CDC* pDC, const CString& text, CRect rc,
     pDC->SelectObject(pOld);
 }
 
-// ─── Draw Background ─────────────────────────────────────────────
 void CMFCUIDlg::DrawBackground(CDC* pDC, CRect rc)
 {
+    int W = m_clientWidth;
+    int H = m_clientHeight;
+
     CBrush br(CLR_BG);
     pDC->FillRect(&rc, &br);
 }
 
-// ─── Draw Header ─────────────────────────────────────────────────
 void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
 {
-    int W = rc.Width(), H = rc.Height();
-    int mx = SW(20, W);   // horizontal margin
-    int y = SH(16, H);   // top padding
+    int W = m_clientWidth;
+    int H = m_clientHeight;
+    int mx = SW(20, W);
+    int y = SH(16, H);
 
-    // Title
     CRect rcTitle(mx, y, rc.right - mx, y + SH(32, H));
     DrawTextEx(pDC, _T("Battery Health & Monitor"), rcTitle,
         CLR_TITLE, SF(14, W), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // Divider
     int divY = y + SH(36, H);
     CPen pen(PS_SOLID, 1, CLR_BORDER);
     CPen* pOld = pDC->SelectObject(&pen);
@@ -244,7 +363,6 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
     pDC->LineTo(rc.right - mx, divY);
     pDC->SelectObject(pOld);
 
-    // Subtitle
     CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
     DrawTextEx(pDC, _T("Device ID: 123456789  |  Model: ABC-123"), rcSub,
         CLR_SUBTITLE, SF(8, W), false,

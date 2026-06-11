@@ -230,6 +230,7 @@
     <ClCompile Include="DrawSecAdvancedInfo.cpp" />
     <ClCompile Include="DrawSecBasicInfo.cpp" />
     <ClCompile Include="DrawSecChargeRate.cpp" />
+    <ClCompile Include="DrawSecDataHistory.cpp" />
     <ClCompile Include="DrawSecOverview.cpp" />
     <ClCompile Include="DrawSecQuickActions.cpp" />
     <ClCompile Include="MFCUIDlg.cpp" />

@@ -161,6 +161,9 @@
     <ClCompile Include="DrawSecAdvancedInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DrawSecDataHistory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="BatteryHelth.rc">
