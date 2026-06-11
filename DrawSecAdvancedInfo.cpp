@@ -139,7 +139,7 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
     int mx = SW(16, W);
 
     // ── Header row height (always visible) ───────────────────────
-    int hdrTop = SH(736, H);
+    int hdrTop = SH(860, H);
     int hdrH = SH(48, H);
     hdrH = max(32, hdrH);
     int hdrBottom = hdrTop + hdrH;

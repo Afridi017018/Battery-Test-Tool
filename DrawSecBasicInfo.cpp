@@ -149,7 +149,7 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
 
     // ── Card bounds ──────────────────────────────────────────────
     int cardTop = SH(614, H);
-    int cardBottom = SH(724, H);
+    int cardBottom = SH(840, H);
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
     DrawRoundRect(pDC, rcCard, SW(10, W), CLR_CARD, CLR_BORDER);
 
@@ -180,124 +180,74 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     int innerBottom = rcCard.bottom - SH(8, H);
     int totalW = innerRight - innerLeft;
     int gap = max(3, SW(6, W));
-    int tileW = (totalW - gap * 2) / 3;
-    int tileH = innerBottom - innerTop;
+    int rows = 2;
+    int cols = 3;
 
-    // Guard: if tiles are too small don't draw garbage
-    if (tileW < 20 || tileH < 20) return;
+    int vGap = gap;
 
-    // ── Tile 1: Voltage ───────────────────────────────────────────
+    int tileW = (totalW - gap * (cols - 1)) / cols;
+    int tileH = (innerBottom - innerTop - vGap) / rows;
+
+   
+
+    // PASTE HERE ↓↓↓
     CRect rcT1(innerLeft,
         innerTop,
         innerLeft + tileW,
+        innerTop + tileH);
+
+    CRect rcT2(innerLeft + tileW + gap,
+        innerTop,
+        innerLeft + tileW * 2 + gap,
+        innerTop + tileH);
+
+    CRect rcT3(innerLeft + tileW * 2 + gap * 2,
+        innerTop,
+        innerRight,
+        innerTop + tileH);
+
+    CRect rcT4(innerLeft,
+        innerTop + tileH + vGap,
+        innerLeft + tileW,
         innerBottom);
+
+    CRect rcT5(innerLeft + tileW + gap,
+        innerTop + tileH + vGap,
+        innerLeft + tileW * 2 + gap,
+        innerBottom);
+
+    CRect rcT6(innerLeft + tileW * 2 + gap * 2,
+        innerTop + tileH + vGap,
+        innerRight,
+        innerBottom);
+
     DrawInfoTile(pDC, rcT1,
+        _T("Name"), _T("Battery A"),
+        CLR_DARK_TEXT,
+        false, _T(""), 0);
+
+    DrawInfoTile(pDC, rcT2,
+        _T("Battery Id"), _T("BAT-001"),
+        CLR_DARK_TEXT,
+        false, _T(""), 0);
+
+    DrawInfoTile(pDC, rcT3,
+        _T("Time Remaining"), _T("02:35"),
+        CLR_DARK_TEXT,
+        false, _T(""), 0);
+
+    DrawInfoTile(pDC, rcT4,
         _T("Voltage"), _T("12.5 V"),
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
-    // ── Tile 2: Temperature ───────────────────────────────────────
-    CRect rcT2(innerLeft + tileW + gap,
-        innerTop,
-        innerLeft + tileW * 2 + gap,
-        innerBottom);
-    DrawInfoTile(pDC, rcT2,
-        _T("Temperature"), _T("32 \u00B0C"),
+    DrawInfoTile(pDC, rcT5,
+        _T("Temperature"), _T("32 °C"),
         CLR_DARK_TEXT,
-        true, _T("\u2193"), RGB(30, 120, 220));
+        true, _T("↓"), RGB(30, 120, 220));
 
-    // ── Tile 3: Status (custom — red dot + "Good") ────────────────
-    CRect rcT3(innerLeft + tileW * 2 + gap * 2,
-        innerTop,
-        innerRight,
-        innerBottom);
-
-    int TW = rcT3.Width();
-    int TH = rcT3.Height();
-    int radius = max(4, min(TW, TH) / 10);
-
-    // Background
-    {
-        CBrush br(RGB(250, 251, 253));
-        CPen   pen(PS_SOLID, 1, RGB(220, 225, 235));
-        CBrush* pOldB = pDC->SelectObject(&br);
-        CPen* pOldP = pDC->SelectObject(&pen);
-        pDC->RoundRect(rcT3, CPoint(radius, radius));
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-    }
-
-    int padX3 = max(4, TW * 8 / 100);
-    int lblTop3 = rcT3.top + max(3, TH * 10 / 100);
-    int lblBot3 = rcT3.top + TH * 46 / 100;
-    int divY3 = rcT3.top + TH * 50 / 100;
-    int valTop3 = rcT3.top + TH * 54 / 100;
-    int valBot3 = rcT3.bottom - max(3, TH * 8 / 100);
-    int lblMidY = (lblTop3 + lblBot3) / 2;
-
-    // Red dot — radius scales with tile
-    int dotR = max(3, min(TW, TH) * 5 / 100);
-    int dotCX = rcT3.left + padX3 + dotR;
-    int dotCY = lblMidY;
-    {
-        CBrush dotBr(CLR_RED);
-        CPen   dotPen(PS_SOLID, 1, CLR_RED);
-        CBrush* pOldB = pDC->SelectObject(&dotBr);
-        CPen* pOldP = pDC->SelectObject(&dotPen);
-        pDC->Ellipse(dotCX - dotR, dotCY - dotR,
-            dotCX + dotR, dotCY + dotR);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-    }
-
-    // "Status" label
-    int lblFS3 = TileFont(TW, TH, 8);
-    {
-        CRect rcLbl3(dotCX + dotR + max(2, TW / 20),
-            lblTop3,
-            rcT3.right - max(2, TW / 20),
-            lblBot3);
-        LOGFONT lf = {};
-        lf.lfHeight = -MulDiv(lblFS3,
-            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-        lf.lfWeight = FW_NORMAL;
-        lf.lfQuality = CLEARTYPE_QUALITY;
-        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-        CFont f; f.CreateFontIndirect(&lf);
-        CFont* pOld = pDC->SelectObject(&f);
-        pDC->SetTextColor(RGB(90, 100, 120));
-        pDC->SetBkMode(TRANSPARENT);
-        pDC->DrawText(_T("Status"), &rcLbl3,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        pDC->SelectObject(pOld);
-    }
-
-    // Inner divider
-    {
-        CPen dp(PS_SOLID, 1, RGB(230, 233, 240));
-        CPen* pOld = pDC->SelectObject(&dp);
-        pDC->MoveTo(rcT3.left + TW * 6 / 100, divY3);
-        pDC->LineTo(rcT3.right - TW * 6 / 100, divY3);
-        pDC->SelectObject(pOld);
-    }
-
-    // "Good" value
-    int valFS3 = TileFont(TW, TH, 11);
-    {
-        CRect rcVal3(rcT3.left + padX3, valTop3,
-            rcT3.right - max(2, TW / 20), valBot3);
-        LOGFONT lf = {};
-        lf.lfHeight = -MulDiv(valFS3,
-            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-        lf.lfWeight = FW_BOLD;
-        lf.lfQuality = CLEARTYPE_QUALITY;
-        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-        CFont f; f.CreateFontIndirect(&lf);
-        CFont* pOld = pDC->SelectObject(&f);
-        pDC->SetTextColor(CLR_GREEN);
-        pDC->SetBkMode(TRANSPARENT);
-        pDC->DrawText(_T("Good"), &rcVal3,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        pDC->SelectObject(pOld);
-    }
+    DrawInfoTile(pDC, rcT6,
+        _T("Health"), _T("Good"),
+        CLR_GREEN,
+        false, _T(""), 0);
 }

@@ -135,7 +135,7 @@ void CMFCUIDlg::OnPaint()
     int extraDataHistory = m_bDataHistoryExpanded ? rowH * 7 : 0;
 
     // Base bottom of DataHistory header = base y 800 + base h 48
-    int baseDataHistBottom = 800 + 48;
+    int baseDataHistBottom = 980 + 48;
     m_totalHeight = (int)(baseDataHistBottom * scaleY)
         + extraAdvanced
         + extraDataHistory

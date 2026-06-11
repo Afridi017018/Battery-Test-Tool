@@ -144,7 +144,7 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
 
     // ── Calculate where Advanced section ends ─────────────────────
     // Advanced header base top=736, base h=48
-    int advHdrTop = (int)(736.0 * scaleY);
+    int advHdrTop = (int)(860.0 * scaleY);
     int advHdrH = max(32, (int)(48.0 * scaleY));
     int advHdrBottom = advHdrTop + advHdrH;
 
