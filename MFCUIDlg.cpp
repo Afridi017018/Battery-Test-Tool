@@ -131,7 +131,7 @@ void CMFCUIDlg::OnPaint()
     if (scaleY < 0.4) scaleY = 0.4;
     int rowH = max(36, (int)(44.0 * scaleY));
 
-    int extraAdvanced = m_bAdvancedExpanded ? rowH * 6 : 0;
+    int extraAdvanced = m_bAdvancedExpanded ? rowH * 7 : 0;
     int extraDataHistory = m_bDataHistoryExpanded ? rowH * 7 : 0;
 
     // Base bottom of DataHistory header = base y 800 + base h 48
@@ -219,22 +219,29 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     if (m_rcBtnAdvanced.PtInRect(cp))
     {
         m_bAdvancedExpanded = !m_bAdvancedExpanded;
+
+        if (!m_bAdvancedExpanded)
+        {
+            for (int i = 0; i < 7; i++)
+                m_rcAdvBtn[i].SetRectEmpty();
+        }
         Invalidate();
     }
-
-    if (m_bAdvancedExpanded)
+    else if (m_bAdvancedExpanded)
     {
         const TCHAR* btnNames[] = {
+            _T("Cpu Load Test"),
+            _T("Discharge Test"),
             _T("Active Life Trend"),
-            _T("Check Power Status"),
-            _T("Button 3"),
-            _T("Button 4"),
-            _T("Button 5"),
-            _T("Button 6")
+            _T("Standby Life Trend"),
+            _T("Running Application"),
+            _T("Detect Manipulation"),
+            _T("Check Power State")
         };
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 7; i++)
         {
-            if (m_rcAdvBtn[i].PtInRect(cp))
+            if (!m_rcAdvBtn[i].IsRectEmpty() &&
+                m_rcAdvBtn[i].PtInRect(cp))
             {
                 CString msg;
                 msg.Format(_T("%s clicked!"), btnNames[i]);
@@ -247,23 +254,32 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     if (m_rcBtnDataHistory.PtInRect(cp))
     {
         m_bDataHistoryExpanded = !m_bDataHistoryExpanded;
+
+        // Clear all sub-button rects immediately so stale
+        // rects never fire when collapsed
+        if (!m_bDataHistoryExpanded)
+        {
+            for (int i = 0; i < 7; i++)
+                m_rcDataHistBtn[i].SetRectEmpty();
+        }
         Invalidate();
     }
-
-    if (m_bDataHistoryExpanded)
+    else if (m_bDataHistoryExpanded)
     {
+        // Only check sub-buttons if header was NOT clicked
         const TCHAR* dhNames[] = {
+            _T("Charge and History"),
+            _T("Export to CSV"),
+            _T("Sleep Logs"),
+            _T("Usage History"),
+            _T("Capacity History"),
             _T("Battery Report"),
-            _T("Charge History"),
-            _T("Discharge History"),
-            _T("Temperature Log"),
-            _T("Cycle Report"),
-            _T("Power Events"),
-            _T("Full Export")
+            _T("View Power State Logs")
         };
         for (int i = 0; i < 7; i++)
         {
-            if (m_rcDataHistBtn[i].PtInRect(cp))
+            if (!m_rcDataHistBtn[i].IsRectEmpty() &&
+                m_rcDataHistBtn[i].PtInRect(cp))
             {
                 CString msg;
                 msg.Format(_T("%s clicked!"), dhNames[i]);

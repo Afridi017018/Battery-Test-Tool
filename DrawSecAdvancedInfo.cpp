@@ -229,18 +229,19 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
         const TCHAR* icon;
         COLORREF     iconBg;
     };
-    BtnDef defs[6] = {
-        { _T("Active Life Trend"),   _T("~"), RGB(80,  160, 240) },
-        { _T("Check Power Status"),  _T("P"), RGB(60,  180,  80) },
-        { _T("Battery Report"),      _T("B"), RGB(220, 120,  40) },
-        { _T("Charge History"),      _T("H"), RGB(160,  80, 220) },
-        { _T("Temperature Log"),     _T("T"), RGB(220,  60,  60) },
-        { _T("Device Settings"),     _T("S"), RGB(100, 100, 120) },
+    BtnDef defs[7] = {
+        { _T("Cpu Load Test"),        _T("C"), RGB(30,  120, 220) },
+        { _T("Discharge Test"),       _T("D"), RGB(220,  60,  60) },
+        { _T("Active Life Trend"),    _T("A"), RGB(40,  180,  80) },
+        { _T("Standby Life Trend"),   _T("S"), RGB(160,  80, 220) },
+        { _T("Running Application"),  _T("R"), RGB(220, 140,  30) },
+        { _T("Detect Manipulation"),  _T("M"), RGB(80,  160, 200) },
+        { _T("Check Power State"),    _T("P"), RGB(100, 100, 120) },
     };
 
     int rowFS = AdvFont(CW, rowH, 9);
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 7; i++)
     {
         int rowTop = bodyTop + i * rowH;
         int rowBottom = rowTop + rowH;
@@ -249,7 +250,7 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
         m_rcAdvBtn[i] = rcRow;
 
         // Last row gets rounded bottom corners
-        bool isLast = (i == 5);
+        bool isLast = (i == 6);
 
         if (isLast)
         {

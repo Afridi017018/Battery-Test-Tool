@@ -150,8 +150,8 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
 
     int rowH = max(36, (int)(44.0 * scaleY));
 
-    // If advanced is expanded, skip past its 6 rows
-    int advBodyH = m_bAdvancedExpanded ? rowH * 6 : 0;
+    // If advanced is expanded, skip past its 7 rows
+    int advBodyH = m_bAdvancedExpanded ? rowH * 7 : 0;
 
     // Gap between sections
     int gap = max(8, (int)(16.0 * scaleY));
@@ -233,13 +233,13 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
         COLORREF     iconBg;
     };
     RowDef defs[7] = {
-        { _T("Battery Report"),      _T("R"), RGB(30,  120, 220) },
-        { _T("Charge History"),      _T("C"), RGB(40,  180,  80) },
-        { _T("Discharge History"),   _T("D"), RGB(220, 120,  40) },
-        { _T("Temperature Log"),     _T("T"), RGB(220,  60,  60) },
-        { _T("Cycle Report"),        _T("Y"), RGB(160,  80, 220) },
-        { _T("Power Events"),        _T("P"), RGB(80,  160, 200) },
-        { _T("Full Export"),         _T("E"), RGB(60,  140,  80) },
+        { _T("Charge and History"),      _T("C"), RGB(30,  120, 220) },
+        { _T("Export to CSV"),           _T("E"), RGB(40,  180,  80) },
+        { _T("Sleep Logs"),              _T("S"), RGB(160,  80, 220) },
+        { _T("Usage History"),           _T("U"), RGB(220, 120,  40) },
+        { _T("Capacity History"),        _T("H"), RGB(220,  60,  60) },
+        { _T("Battery Report"),          _T("B"), RGB(80,  160, 200) },
+        { _T("View Power State Logs"),   _T("P"), RGB(60,  140,  80) },
     };
 
     int rowFS = DhFont(CW, rowH, 9);

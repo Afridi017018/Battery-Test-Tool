@@ -77,7 +77,7 @@ private:
 
     // ── Advanced Info hit rects ───────────────────────────────────
     CRect m_rcBtnAdvanced;
-    CRect m_rcAdvBtn[6];
+    CRect m_rcAdvBtn[7];
 
     // ── State ─────────────────────────────────────────────────────
     bool m_bJapanese = false;
