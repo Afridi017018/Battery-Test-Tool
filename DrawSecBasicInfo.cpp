@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include "MFCUIDlg.h"
+#include "BatteryHelthDlg.h"
 
 // ─────────────────────────────────────────────────────────────────
 // Responsive font size for a tile:
@@ -221,7 +222,7 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
         innerRight,
         innerBottom);
 
-    DrawInfoTile(pDC, rcT1,
+    /*DrawInfoTile(pDC, rcT1,
         _T("Name"), _T("Battery A"),
         CLR_DARK_TEXT,
         false, _T(""), 0);
@@ -234,20 +235,58 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     DrawInfoTile(pDC, rcT3,
         _T("Time Remaining"), _T("02:35"),
         CLR_DARK_TEXT,
+        false, _T(""), 0);*/
+
+    // read real data safely
+    CString battName = _T("Unknown");
+    CString timeLeft = _T("--:--");
+    CString health = _T("Unknown");
+    CString battId = _T("Unknown");
+	CString voltage = _T("Unknown");
+	CString temperature = _T("Unknown");
+
+    if (m_pBattDlg)   // always check pointer first!
+    {
+        // grab real values from BatteryHelthDlg
+        battId = m_pBattDlg->m_fullManufacturer;
+        /*healthStr = m_pBattDlg->m_cpuLoadResult;*/
+        battName = m_pBattDlg->battName;
+        // charging state example
+        bool charging = m_pBattDlg->IsCharging();
+        timeLeft = m_pBattDlg->remain;
+
+        voltage = m_pBattDlg->out;
+        temperature = m_pBattDlg->t;
+        health = m_pBattDlg->healthStr;
+    }
+
+    DrawInfoTile(pDC, rcT1,
+        _T("Name"), battName,    // ← real data now
+        CLR_DARK_TEXT,
+        false, _T(""), 0);
+
+    DrawInfoTile(pDC, rcT2,
+        _T("Battery Id"), battId,
+        CLR_DARK_TEXT,
+        false, _T(""), 0);
+
+    DrawInfoTile(pDC, rcT3,
+        _T("Time Remaining"), timeLeft,   // ← real data
+        CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT4,
-        _T("Voltage"), _T("12.5 V"),
+        _T("Voltage"), voltage,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT5,
-        _T("Temperature"), _T("32 °C"),
+        _T("Temperature"), temperature,
         CLR_DARK_TEXT,
         true, _T("↓"), RGB(30, 120, 220));
 
     DrawInfoTile(pDC, rcT6,
-        _T("Health"), _T("Good"),
-        CLR_GREEN,
+        _T("Health"), health,
+        CLR_DARK_TEXT,
         false, _T(""), 0);
 }

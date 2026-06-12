@@ -26,6 +26,8 @@
 #include "BatteryHelth.h"        
 #include "CAutoProgressDlg.h"
 
+#include "MFCUIDlg.h"
+
 #pragma comment(lib, "User32.lib")
 
 
@@ -402,6 +404,7 @@ public:
 	// add this new member:
 	bool m_autoCancelled = false;
 
+
 	public:
       void CancelAutoTest();
 
@@ -409,6 +412,18 @@ public:
 	  afx_msg void OnBnClickedResult();
 	  CButton m_autoBtn;
 	  afx_msg void OnBnClickedNewui();
+
+	  CMFCUIDlg* m_pNewUI = nullptr;
+
+	  CString statusText;
+	  CString battName;
+	  CString remain;
+	  CString out;
+	  CString t;
+	  CString healthStr;
+	  CString pct;
+
+
 };
 
 

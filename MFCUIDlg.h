@@ -3,6 +3,10 @@
 #include <afxwin.h>
 #include <vector>
 
+
+class CBatteryHelthDlg;
+
+
 // ─── Base design dimensions ───────────────────────────────────────
 #define BASE_W  500
 #define BASE_H  900
@@ -24,6 +28,7 @@ class CMFCUIDlg : public CDialogEx
 {
 public:
     CMFCUIDlg(CWnd* pParent = nullptr);
+   /* void SetBatteryDlg(CBatteryHelthDlg* pDlg) { m_pBattDlg = pDlg; }*/
     enum { IDD = IDD_MFCUI };
 
 protected:
@@ -100,5 +105,9 @@ private:
     bool  m_bDataHistoryExpanded = false;
     CRect m_rcBtnDataHistory;
     CRect m_rcDataHistBtn[7];
+
+public:
+    void SetBatteryDlg(CBatteryHelthDlg* p) { m_pBattDlg = p; }
+    CBatteryHelthDlg* m_pBattDlg = nullptr;
 
 };

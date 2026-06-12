@@ -809,6 +809,7 @@ static void UpdateLabel(CWnd* pDlg, int ctrlId, const CString& text)
         if (s_base.cx <= 0) s_base.cx = 1;
         if (s_base.cy <= 0) s_base.cy = 1;
     }
+
     base.cx = s_base.cx;
     base.cy = s_base.cy;
 
@@ -1094,6 +1095,14 @@ BOOL CBatteryHelthDlg::OnInitDialog()
         CoUninitialize();
         return FALSE;
     }
+
+    // ← ADD THESE LINES before return TRUE
+    m_pNewUI = new CMFCUIDlg(this);
+    m_pNewUI->SetBatteryDlg(this);
+    m_pNewUI->Create(IDD_MFCUI, this);
+    m_pNewUI->ShowWindow(SW_SHOW);
+
+   /* return TRUE;*/
 
     // Battery progress
     m_BatteryProgress.SetRange(0, 100);
@@ -2856,18 +2865,21 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
         if (fullCap_mWh > 0 && designForHealth_mWh > 0) {
             double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
-            CString healthStr; healthStr.Format(L"%.2f %%", health);
+      
+            healthStr.Format(L"%.2f %%", health);
             UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
             m_reportData.health = healthStr;
         }
         else {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_HEALTH, L"");
+				healthStr = L"Unknown";
                 UpdateLabel(this, IDC_BATT_HEALTH, L"Unknown");
                 m_reportData.health = "Unknown";
             }
             else {
                 UpdateLabel(this, IDC_BATT_HEALTH, L"");
+				healthStr = L"不明";
                 UpdateLabel(this, IDC_BATT_HEALTH, L"不明");
                 m_reportData.health = "不明";
             }
@@ -2917,6 +2929,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
     if (SUCCEEDED(pObj->Get(L"Name", 0, &vt, 0, 0))) {
         CString name = (vt.vt != VT_NULL && vt.vt != VT_EMPTY) ? vt.bstrVal : L"Unknown";
+		battName = name;
         UpdateLabel(this, IDC_BATT_NAME, name);
 		m_reportData.bid = name;
         VariantClear(&vt);
@@ -2924,11 +2937,13 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     else {
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_NAME, L"");
+            battName = L"Unknown";
             UpdateLabel(this, IDC_BATT_NAME, L"Unknown");
             m_reportData.bid = "Unknown";
         }
         else {
             UpdateLabel(this, IDC_BATT_NAME, L"");
+            battName = "不明";
             UpdateLabel(this, IDC_BATT_NAME, L"不明");
             m_reportData.bid = "不明";
         }
@@ -3109,7 +3124,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
     // 1) Status / Percent / Time (rate-based ETA + 5s gate + percent-lock)
     // ----------------------------
     VARIANT vt{};
-    CString statusText;
+    
     if (m_lang == Lang::EN) {
         statusText = L"Unknown";
 		m_reportData.status = "Unknown";
@@ -3147,7 +3162,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
     SYSTEM_POWER_STATUS sps{};
     if (GetSystemPowerStatus(&sps)) {
         // Battery % + progress
-        CString pct;
+        
         int pctNow = -1;
         if (sps.BatteryLifePercent != 255) {
             pctNow = (int)sps.BatteryLifePercent;
@@ -3233,7 +3248,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
         static double     s_lockedEtaHours = -1.0;
         static ULONGLONG  s_readyAtMs = 0;
 
-        CString remain;
+        
         double  etaHours = -1.0;
         const bool onAC = (sps.ACLineStatus == 1);
         const bool fully = (batteryStatus == 3 || pctNow == 100);
@@ -3412,17 +3427,20 @@ void CBatteryHelthDlg::GetBatteryInfo()
         CString voltageStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStatus", L"Voltage");
         if (voltageStr != L"Not available") {
             double volts = _wtoi(voltageStr) / 1000.0;
-            CString out; out.Format(L"%.2f V", volts);
+             
+            out.Format(L"%.2f V", volts);
             UpdateLabel(this, IDC_BATT_VOLTAGE, out);
 			m_reportData.voltage = out;
         }
         else {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_VOLTAGE, L"Unknown");
+				out = L"Unknown";
 				m_reportData.voltage = "Unknown";
             }
             else {
                 UpdateLabel(this, IDC_BATT_VOLTAGE, L"不明");
+				out = L"不明";
 				m_reportData.voltage = "不明";
             }
         }
@@ -3432,7 +3450,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
     // 10) Temperature (if avail)
     // --------------------------
     {
-        CString t = QueryBatteryTemperature();
+        t = QueryBatteryTemperature();
         if (t == L"Not available") {
             if (m_lang == Lang::EN) {
                 t = L"Unknown";
@@ -4331,6 +4349,9 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
         if (nIDEvent == 2) {
             GetBatteryInfo();
             CheckBatteryDecreaseNotify();
+
+            if (m_pNewUI && ::IsWindow(m_pNewUI->GetSafeHwnd()))
+                m_pNewUI->Invalidate();
         }
 
         if (nIDEvent == 1) {

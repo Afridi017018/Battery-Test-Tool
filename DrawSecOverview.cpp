@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include "BatteryHelthDlg.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -134,6 +135,16 @@ void CMFCUIDlg::DrawCircularGauge(
 // ─────────────────────────────────────────────────────────────────
 void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 {
+	
+    CString status = _T("Unknown");
+
+	CString percentText = _T("Unknown");
+
+    status = m_pBattDlg->statusText;
+	percentText = m_pBattDlg->pct;
+
+
+
     int W = m_clientWidth;
     int H = m_clientHeight;
     int mx = SW(16, W);
@@ -215,7 +226,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     gaugeCY = max(gaugeCY, rcLeft.top + gaugeR + LH * 5 / 100);
 
     CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);
-    DrawCircularGauge(pDC, gaugeCenter, gaugeR, 0.78f);
+    DrawCircularGauge(pDC, gaugeCenter, gaugeR, 0.79f);
 
     // "► Charging" below gauge
     int belowY = gaugeCY + gaugeR + max(4, LH * 5 / 100);
@@ -225,7 +236,11 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     {
         CRect rcChg(rcLeft.left, belowY,
             rcLeft.right, belowY + rowH);
-        DrawTextEx(pDC, _T("\u25BA Charging"), rcChg,
+        
+        CString chgText;
+        chgText.Format(_T("\u25BA %s"), status);
+
+        DrawTextEx(pDC, chgText, rcChg,
             CLR_GREEN, OvFont(LW, LH, 8), true,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
@@ -276,44 +291,71 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     // Row heights proportional to panel
     int rowUnit = max(12, RH * 16 / 180);
 
-    // "Full Charge Capacity:" label
-    int y0 = capDivY + max(4, RH * 6 / 180);
-    CRect rcFC_Lbl(rpx, y0,
-        rcRight.right - RW * 4 / 100, y0 + rowUnit);
-    DrawTextEx(pDC, _T("Full Charge Capacity:"), rcFC_Lbl,
+    int y = capDivY + max(4, RH * 6 / 180);
+
+    // Design Capacity
+    DrawTextEx(pDC, _T("Design Capacity:"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_MID_TEXT, OvFont(RW, RH, 7), false,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // "4,200 mAh" value
-    int y1 = y0 + rowUnit;
-    if (y1 + rowUnit <= rcRight.bottom - RH * 4 / 100)
-    {
-        CRect rcFC_Val(rpx, y1,
-            rcRight.right - RW * 4 / 100, y1 + rowUnit);
-        DrawTextEx(pDC, _T("4,200 mAh"), rcFC_Val,
-            CLR_DARK_TEXT, OvFont(RW, RH, 10), true,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    }
+    y += rowUnit;
 
-    // "Cycle Count:" label
-    int y2 = y1 + rowUnit + max(4, RH * 8 / 180);
-    if (y2 + rowUnit <= rcRight.bottom - RH * 4 / 100)
-    {
-        CRect rcCC_Lbl(rpx, y2,
-            rcRight.right - RW * 4 / 100, y2 + rowUnit);
-        DrawTextEx(pDC, _T("Cycle Count:"), rcCC_Lbl,
-            CLR_MID_TEXT, OvFont(RW, RH, 7), false,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    }
+    DrawTextEx(pDC, _T("4,500 mAh"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // "152" value
-    int y3 = y2 + rowUnit;
-    if (y3 + rowUnit <= rcRight.bottom - RH * 4 / 100)
-    {
-        CRect rcCC_Val(rpx, y3,
-            rcRight.right - RW * 4 / 100, y3 + rowUnit);
-        DrawTextEx(pDC, _T("152"), rcCC_Val,
-            CLR_DARK_TEXT, OvFont(RW, RH, 10), true,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    }
+    y += rowUnit + 4;
+
+    // Full Charge Capacity
+    DrawTextEx(pDC, _T("Full Charge Capacity:"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    y += rowUnit;
+
+    DrawTextEx(pDC, _T("4,200 mAh"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    y += rowUnit + 4;
+
+    // Current Capacity
+    DrawTextEx(pDC, _T("Current Capacity:"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    y += rowUnit;
+
+    DrawTextEx(pDC, _T("3,950 mAh"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    y += rowUnit + 4;
+
+    // Cycle Count
+    DrawTextEx(pDC, _T("Cycle Count:"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    y += rowUnit;
+
+    DrawTextEx(pDC, _T("152"),
+        CRect(rpx, y,
+            rcRight.right - RW * 4 / 100, y + rowUnit),
+        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
