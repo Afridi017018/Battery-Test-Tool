@@ -116,4 +116,7 @@ public:
     void SetBatteryDlg(CBatteryHelthDlg* p) { m_pBattDlg = p; }
     CBatteryHelthDlg* m_pBattDlg = nullptr;
 
+public:
+    bool m_bDialogBusy = false;
+
 };

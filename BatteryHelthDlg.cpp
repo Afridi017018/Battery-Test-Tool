@@ -3689,6 +3689,10 @@ void CBatteryHelthDlg::StopDischargeTest()
     if (m_pDischargeDlg)
         m_pDischargeDlg->ShowWindow(SW_HIDE);
 
+    if (m_pNewUI)
+        m_pNewUI->EnableWindow(TRUE);
+
+
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(TRUE);
 
     if (m_lang == Lang::EN)
@@ -4021,6 +4025,10 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 
     m_pDischargeDlg->CenterWindow();
     m_pDischargeDlg->ShowWindow(SW_SHOW);
+
+    if (m_pNewUI)
+        m_pNewUI->EnableWindow(FALSE);
+
 }
 
 //void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
@@ -4553,6 +4561,8 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                     // ✅ FIX: Hide the progress dialog before showing the result dialog
                     if (m_pDischargeDlg)
                         m_pDischargeDlg->ShowWindow(SW_HIDE);
+                    if (m_pNewUI)
+                        m_pNewUI->EnableWindow(TRUE);
 
                     CDischargeDlg dlg;
                     dlg.eng_lang = (m_lang == Lang::EN);
@@ -4974,23 +4984,23 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
     // Check current CPU usage before starting
     double usage = GetCurrentCPUUsage();
-    if (usage >= 90)
-    {
-        CString msg;
+    //if (usage >= 90)
+    //{
+    //    CString msg;
 
-        //en2jp
+    //    //en2jp
 
-        if (m_lang == Lang::EN) {
-            msg.Format(L"CPU usage is currently too high (%.0f%%). Please close background applications first.", usage);
-        }
-        else {
-            msg.Format(L"現在CPU使用率が高すぎます（ % .0f % %）。まずバックグラウンドアプリケーションを閉じてください。", usage);
-        }
+    //    if (m_lang == Lang::EN) {
+    //        msg.Format(L"CPU usage is currently too high (%.0f%%). Please close background applications first.", usage);
+    //    }
+    //    else {
+    //        msg.Format(L"現在CPU使用率が高すぎます（ % .0f % %）。まずバックグラウンドアプリケーションを閉じてください。", usage);
+    //    }
 
 
-        ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
-        return;
-    }
+    //    ::MessageBox(this->m_hWnd, msg, L"CPU Usage Warning", MB_OK | MB_ICONWARNING);
+    //    return;
+    //}
 
     // Get initial battery percentage
     SYSTEM_POWER_STATUS sps;
@@ -5039,7 +5049,8 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
     m_pCpuDlg->CenterWindow();
     m_pCpuDlg->ShowWindow(SW_SHOW);
 
-
+    if (m_pNewUI)
+        m_pNewUI->EnableWindow(FALSE);
 
     // Launch CPU load threads
     std::thread([this]()
@@ -5207,6 +5218,11 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     {
         KillTimer(m_cpuLoadTimerID);
 
+        if (m_pNewUI)
+        {
+            m_pNewUI->m_bDialogBusy = false;
+        }
+
     }
 
 
@@ -5309,6 +5325,9 @@ LRESULT CBatteryHelthDlg::OnCPULoadFinished(WPARAM wParam, LPARAM lParam)
     // Re-enable the Discharge Test button after finishing
     GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(TRUE);
 
+
+    if (m_pNewUI)
+        m_pNewUI->EnableWindow(TRUE);
 
     return 0;
 }

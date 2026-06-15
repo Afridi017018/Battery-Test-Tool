@@ -186,9 +186,13 @@ void CMFCUIDlg::OnPaint()
     memDC.SelectObject(pOldBmp);
 }
 
+
 // ─── LButtonUp — translate point into content space ──────────────
 void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
+    if (m_bDialogBusy)
+        return;
+
     if (m_bDragging)
     {
         m_bDragging = false;
@@ -245,9 +249,37 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
             if (!m_rcAdvBtn[i].IsRectEmpty() &&
                 m_rcAdvBtn[i].PtInRect(cp))
             {
-                CString msg;
-                msg.Format(_T("%s clicked!"), btnNames[i]);
-                MessageBox(msg, btnNames[i], MB_OK | MB_ICONINFORMATION);
+                if (!m_pBattDlg)
+                {
+                    MessageBox(_T("Battery dialog not linked."), _T("Error"), MB_OK | MB_ICONWARNING);
+                    break;
+                }
+
+                switch (i)
+                {
+                case 0:
+                    m_bDialogBusy = true;
+                    m_pBattDlg->OnBnClickedBtnCpuload();
+                    return;
+                case 1: // Discharge Test
+                    m_pBattDlg->OnBnClickedBtnDischarge();
+                    break;
+                case 2: // Active Life Trend
+                    m_pBattDlg->OnBnClickedBtnActive();
+                    break;
+                case 3: // Standby Life Trend
+                    m_pBattDlg->OnBnClickedBtnStandby();
+                    break;
+                case 4: // Running Application
+                    m_pBattDlg->OnBnClickedBtnBgapp();
+                    break;
+                case 5: // Detect Manipulation
+                    m_pBattDlg->OnBnClickedBtnManipulatioin();
+                    break;
+                case 6: // Check Power State
+                    m_pBattDlg->OnBnClickedSoh();
+                    break;
+                }
                 break;
             }
         }
