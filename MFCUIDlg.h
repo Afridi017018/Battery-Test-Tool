@@ -63,8 +63,14 @@ private:
     void DrawTextEx(CDC* pDC, const CString& text, CRect rc,
         COLORREF color, int fontSize, bool bold,
         UINT format = DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    /*void DrawCircularGauge(CDC* pDC, CPoint center,
+        int radius, float percent);*/
+
+    /*void DrawCircularGauge(CDC* pDC, CPoint center,
+        int radius, const CString& percentText);*/
+
     void DrawCircularGauge(CDC* pDC, CPoint center,
-        int radius, float percent);
+        int radius, const CString& percentText, bool isCharging);
 
     // ── Scale helpers ─────────────────────────────────────────────
     int SW(int baseWidth, int clientWidth);

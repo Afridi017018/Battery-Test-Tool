@@ -422,6 +422,10 @@ public:
 	  CString t;
 	  CString healthStr;
 	  CString pct;
+	  CString designCapStr;
+	  CString fullCapStr;
+	  CString currCapOut;
+	  CString cycles;
 
 
 };

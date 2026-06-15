@@ -24,19 +24,164 @@ static int OvFont(int refW, int refH, int baseSize)
     return max(6, (int)(baseSize * scale));
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Draw Circular Gauge — fully responsive
-// ─────────────────────────────────────────────────────────────────
+//// ─────────────────────────────────────────────────────────────────
+//// Draw Circular Gauge — fully responsive
+//// ─────────────────────────────────────────────────────────────────
+//void CMFCUIDlg::DrawCircularGauge(
+//    CDC* pDC,
+//    CPoint center,
+//    int    radius,
+//    const CString& percentText,
+//    bool   isCharging)
+//{
+//    if (radius < 8) return;
+//
+//    int pctVal = _wtoi(percentText);
+//    pctVal = max(0, min(pctVal, 100));
+//    float percent = pctVal / 100.0f;
+//
+//    float gdiStart = 225.0f;
+//    float sweepTotal = (pctVal >= 100) ? 360.0f : 270.0f;
+//
+//    auto DrawArc = [&](float angleDeg, float sweepDeg,
+//        COLORREF col, int penWidth)
+//        {
+//            if (sweepDeg <= 0.0f) return;
+//            CPen arcPen(PS_SOLID, penWidth, col);
+//            CPen* pOld = pDC->SelectObject(&arcPen);
+//            pDC->SelectStockObject(NULL_BRUSH);
+//
+//           /* int N = max(4, (int)(sweepDeg * 2.0f));*/
+//            int N = max(360, (int)(sweepDeg * 4.0f));
+//            std::vector<POINT> pts;
+//            pts.reserve(N + 1);
+//            for (int i = 0; i <= N; i++)
+//            {
+//                float t = (angleDeg + sweepDeg * i / N)
+//                    * (float)(M_PI / 180.0);
+//                pts.push_back({
+//                    center.x + (int)(radius * cos(t)),
+//                    center.y + (int)(radius * sin(t)) });
+//            }
+//
+//            if (sweepDeg >= 360.0f)
+//                pts.push_back(pts.front());
+//
+//            pDC->Polyline(pts.data(), (int)pts.size());
+//            pDC->SelectObject(pOld);
+//        };
+//
+//    int trackW = max(3, radius / 6);
+//
+//    // Track background
+//    DrawArc(gdiStart, sweepTotal, RGB(220, 225, 235), trackW);
+//
+//
+//    // Filled portion
+//    if (percent > 0.0f)
+//    {
+//        float filled = sweepTotal * percent;
+//
+//        if (pctVal >= 100)
+//        {
+//            // Draw a full 360° ring using the SAME arc routine/points
+//            // as the track, so it overlaps exactly (no seam/partial arc).
+//            DrawArc(gdiStart, 360.0f, CLR_GREEN, trackW);
+//        }
+//        else if (isCharging)
+//        {
+//            float greenPart = filled * 0.88f;
+//            float yellowPart = filled * 0.12f;
+//            DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
+//            DrawArc(gdiStart + greenPart, yellowPart, CLR_BLUE, trackW);
+//        }
+//        else
+//        {
+//            if (pctVal <= 20)
+//            {
+//                DrawArc(gdiStart, filled, CLR_RED, trackW);
+//            }
+//            else
+//            {
+//                float greenPart = filled * 0.88f;
+//                float yellowPart = filled * 0.12f;
+//                DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
+//                DrawArc(gdiStart + greenPart, yellowPart, CLR_YELLOW, trackW);
+//            }
+//        }
+//    }
+//
+//    // ── Center text: use real string, e.g. "78%" ─────────────────
+//    CString strNum = percentText;
+//    strNum.Replace(_T("%"), _T(""));   // remove % so we can append our own symbol
+//    strNum.Trim();
+//
+//    int numFS = max(6, radius * 52 / 100);
+//    int symFS = max(5, radius * 22 / 100);
+//
+//    // Measure actual pixel width of the number string
+//    LOGFONT lf = {};
+//    lf.lfHeight = -MulDiv(numFS, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+//    lf.lfWeight = FW_BOLD;
+//    lf.lfQuality = CLEARTYPE_QUALITY;
+//    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+//    CFont numFont;
+//    numFont.CreateFontIndirect(&lf);
+//    CFont* pOldFont = pDC->SelectObject(&numFont);
+//    CSize numSize = pDC->GetTextExtent(strNum);
+//    pDC->SelectObject(pOldFont);
+//
+//    // Measure % symbol width
+//    LOGFONT lf2 = {};
+//    lf2.lfHeight = -MulDiv(symFS, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+//    lf2.lfWeight = FW_NORMAL;
+//    lf2.lfQuality = CLEARTYPE_QUALITY;
+//    _tcscpy_s(lf2.lfFaceName, _T("Segoe UI"));
+//    CFont symFont;
+//    symFont.CreateFontIndirect(&lf2);
+//    pOldFont = pDC->SelectObject(&symFont);
+//    CSize symSize = pDC->GetTextExtent(_T("%"));
+//    pDC->SelectObject(pOldFont);
+//
+//    // Total width of "78%" together, centred on gauge center
+//    int totalW = numSize.cx + symSize.cx;
+//    int startX = center.x - totalW / 2;
+//    int textCY = center.y;  // vertical center of number
+//
+//    // Number rect
+//    CRect rcNum(startX,
+//        textCY - numSize.cy / 2,
+//        startX + numSize.cx,
+//        textCY + numSize.cy / 2);
+//    DrawTextEx(pDC, strNum, rcNum, CLR_DARK_TEXT, numFS, true,
+//        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+//
+//    // "%" rect — immediately right of number, raised slightly
+//    CRect rcSym(startX + numSize.cx,
+//        textCY - numSize.cy / 2,
+//        startX + numSize.cx + symSize.cx + 2,
+//        textCY);
+//    DrawTextEx(pDC, _T("%"), rcSym, CLR_DARK_TEXT, symFS, false,
+//        DT_LEFT | DT_TOP | DT_SINGLELINE);
+//}
+
+
 void CMFCUIDlg::DrawCircularGauge(
     CDC* pDC,
     CPoint center,
     int    radius,
-    float  percent)
+    const CString& percentText,
+    bool   isCharging)
 {
     if (radius < 8) return;
 
-    float gdiStart = 225.0f;
-    float sweepTotal = 270.0f;
+    int pctVal = _wtoi(percentText);
+    pctVal = max(0, min(pctVal, 100));
+    float percent = pctVal / 100.0f;
+
+    // Full circle gauge: 0% = 0° filled, 100% = 360° filled
+    float gdiStart = 270.0f;   // start at top (12 o'clock)
+    float sweepTotal = 360.0f;
 
     auto DrawArc = [&](float angleDeg, float sweepDeg,
         COLORREF col, int penWidth)
@@ -46,7 +191,7 @@ void CMFCUIDlg::DrawCircularGauge(
             CPen* pOld = pDC->SelectObject(&arcPen);
             pDC->SelectStockObject(NULL_BRUSH);
 
-            int N = max(4, (int)(sweepDeg * 2.0f));
+            int N = max(360, (int)(sweepDeg * 4.0f));
             std::vector<POINT> pts;
             pts.reserve(N + 1);
             for (int i = 0; i <= N; i++)
@@ -57,29 +202,75 @@ void CMFCUIDlg::DrawCircularGauge(
                     center.x + (int)(radius * cos(t)),
                     center.y + (int)(radius * sin(t)) });
             }
+
+            if (sweepDeg >= 360.0f)
+                pts.push_back(pts.front());
+
             pDC->Polyline(pts.data(), (int)pts.size());
             pDC->SelectObject(pOld);
         };
 
     int trackW = max(3, radius / 6);
 
-    // Track background
+    // Track background — always a full circle
     DrawArc(gdiStart, sweepTotal, RGB(220, 225, 235), trackW);
 
-    // Filled portion
+    // Filled portion — proportional to percent (1% = 3.6°)
+    /*if (percent > 0.0f)
+    {
+        float filled = sweepTotal * percent;
+
+        if (isCharging)
+        {
+            float greenPart = filled * 0.88f;
+            float yellowPart = filled * 0.12f;
+            DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
+            DrawArc(gdiStart + greenPart, yellowPart, CLR_BLUE, trackW);
+        }
+        else
+        {
+            if (pctVal <= 20)
+            {
+                DrawArc(gdiStart, filled, CLR_RED, trackW);
+            }
+            else
+            {
+                float greenPart = filled * 0.88f;
+                float yellowPart = filled * 0.12f;
+                DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
+                DrawArc(gdiStart + greenPart, yellowPart, CLR_YELLOW, trackW);
+            }
+        }
+    }*/
+
+
+    // Filled portion — proportional to percent (1% = 3.6°)
     if (percent > 0.0f)
     {
         float filled = sweepTotal * percent;
-        float greenPart = filled * 0.88f;
-        float yellowPart = filled * 0.12f;
-        DrawArc(gdiStart, greenPart, CLR_GREEN, trackW);
-        DrawArc(gdiStart + greenPart, yellowPart, CLR_YELLOW, trackW);
-    }
 
-    // ── Center text: "78%" ───────────────────────────────────────
-    int pctVal = (int)(percent * 100.0f);
-    CString strNum;
-    strNum.Format(_T("%d"), pctVal);
+        if (isCharging)
+        {
+            // Charging: solid green, no blue tip
+            DrawArc(gdiStart, filled, CLR_GREEN, trackW);
+        }
+        else
+        {
+            // Discharging: red when low, green otherwise — no yellow tip
+            if (pctVal <= 20)
+            {
+                DrawArc(gdiStart, filled, CLR_RED, trackW);
+            }
+            else
+            {
+                DrawArc(gdiStart, filled, CLR_GREEN, trackW);
+            }
+        }
+    }
+    // ── Center text: use real string, e.g. "78%" ─────────────────
+    CString strNum = percentText;
+    strNum.Replace(_T("%"), _T(""));   // remove % so we can append our own symbol
+    strNum.Trim();
 
     int numFS = max(6, radius * 52 / 100);
     int symFS = max(5, radius * 22 / 100);
@@ -140,10 +331,19 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
 	CString percentText = _T("Unknown");
 
+    CString designCapacity = _T("Unknown"); 
+    CString fullCapacity = _T("Unknown");
+    CString currentCapacity = _T("Unknown");
+    CString cycles = _T("Unknown");
+
     status = m_pBattDlg->statusText;
 	percentText = m_pBattDlg->pct;
 
-
+    designCapacity = m_pBattDlg->designCapStr;
+	fullCapacity = m_pBattDlg->fullCapStr;
+	currentCapacity = m_pBattDlg->currCapOut;
+	cycles = m_pBattDlg->cycles;
+        
 
     int W = m_clientWidth;
     int H = m_clientHeight;
@@ -226,7 +426,17 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     gaugeCY = max(gaugeCY, rcLeft.top + gaugeR + LH * 5 / 100);
 
     CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);
-    DrawCircularGauge(pDC, gaugeCenter, gaugeR, 0.79f);
+
+    CString pctStr = _T("0%");
+    bool charging = false;
+
+    if (m_pBattDlg)
+    {
+        pctStr = m_pBattDlg->pct;
+        charging = m_pBattDlg->IsCharging();
+    }
+
+    DrawCircularGauge(pDC, gaugeCenter, gaugeR, pctStr, charging);
 
     // "► Charging" below gauge
     int belowY = gaugeCY + gaugeR + max(4, LH * 5 / 100);
@@ -302,7 +512,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     y += rowUnit;
 
-    DrawTextEx(pDC, _T("4,500 mAh"),
+    DrawTextEx(pDC, designCapacity,
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
@@ -319,7 +529,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     y += rowUnit;
 
-    DrawTextEx(pDC, _T("4,200 mAh"),
+    DrawTextEx(pDC, fullCapacity,
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
@@ -336,7 +546,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     y += rowUnit;
 
-    DrawTextEx(pDC, _T("3,950 mAh"),
+    DrawTextEx(pDC, currentCapacity,
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
@@ -353,7 +563,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     y += rowUnit;
 
-    DrawTextEx(pDC, _T("152"),
+    DrawTextEx(pDC, cycles,
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_DARK_TEXT, OvFont(RW, RH, 9), true,

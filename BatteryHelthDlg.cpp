@@ -2623,7 +2623,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // ---------------------------------------
     // 2) Full Charge Capacity (current WMI)
     // ---------------------------------------
-    CString fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
+    fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
     int     fullCap_mWh = 0;
 
     if (fullCapStr != L"Not available") {
@@ -2649,7 +2649,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // ---------------------------------------
     // 3) Design Capacity (current WMI)
     // ---------------------------------------
-    CString designCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
+    designCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryStaticData", L"DesignedCapacity");
     int     designCapWmi_mWh = 0;
 
     if (designCapStr != L"Not available") {
@@ -2953,7 +2953,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // 9) Cycle Count (vendor/WMI)
     // --------------------------
     {
-        CString cycles = QueryBatteryCycleCount(); // your helper
+        cycles = QueryBatteryCycleCount(); // your helper
         if (cycles != L"Not available" && cycles != L"0")
         {
             if (m_lang == Lang::EN) {
@@ -3388,7 +3388,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
 		m_reportData.remainingTime = remain;
 
         // ----- Current (Remaining) Capacity -----
-        CString currCapOut;
+        
         if (remaining_mWh > 0) {
             currCapOut.Format(L"%d mWh", remaining_mWh);
         }
