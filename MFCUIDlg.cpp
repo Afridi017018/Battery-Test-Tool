@@ -300,9 +300,8 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     }
     else if (m_bDataHistoryExpanded)
     {
-        // Only check sub-buttons if header was NOT clicked
         const TCHAR* dhNames[] = {
-            _T("Charge and History"),
+            _T("Charge History"),
             _T("Export to CSV"),
             _T("Sleep Logs"),
             _T("Usage History"),
@@ -315,9 +314,36 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
             if (!m_rcDataHistBtn[i].IsRectEmpty() &&
                 m_rcDataHistBtn[i].PtInRect(cp))
             {
-                CString msg;
-                msg.Format(_T("%s clicked!"), dhNames[i]);
-                MessageBox(msg, dhNames[i], MB_OK | MB_ICONINFORMATION);
+                if (!m_pBattDlg)
+                {
+                    MessageBox(_T("Battery dialog not linked."), _T("Error"), MB_OK | MB_ICONWARNING);
+                    break;
+                }
+
+                switch (i)
+                {
+                case 0: // Charge and History
+                    m_pBattDlg->OnBnClickedBtnHistory();
+                    break;
+                case 1: // Export to CSV
+                    m_pBattDlg->OnBnClickedBtnUploadpdf();
+                    break;
+                case 2: // Sleep Logs
+                    m_pBattDlg->OnBnClickedBtnSleep();
+                    break;
+                case 3: // Usage History
+                    m_pBattDlg->OnBnClickedBtnUsage();
+                    break;
+                case 4: // Capacity History
+                    m_pBattDlg->OnBnClickedBtnCaphis();
+                    break;
+                case 5: // Battery Report
+                    m_pBattDlg->OnBnClickedBtnBreport();
+                    break;
+                case 6: // View Power State Logs
+                    m_pBattDlg->OnBnClickedResult();
+                    break;
+                }
                 break;
             }
         }
