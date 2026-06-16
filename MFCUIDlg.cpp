@@ -34,6 +34,7 @@ BEGIN_MESSAGE_MAP(CMFCUIDlg, CDialogEx)
     ON_WM_MOUSEMOVE()
     ON_WM_MOUSEWHEEL()
     ON_WM_SIZE()
+    ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
@@ -51,7 +52,21 @@ BOOL CMFCUIDlg::OnInitDialog()
     SetWindowText(_T("Battery Health & Monitor"));
     ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
+
+    SetTimer(1, 1000, NULL);
+
     return TRUE;
+}
+
+
+void CMFCUIDlg::OnTimer(UINT_PTR nIDEvent)
+{
+    if (nIDEvent == 1)
+    {
+        Invalidate(FALSE);
+    }
+
+    CDialogEx::OnTimer(nIDEvent);
 }
 
 void CMFCUIDlg::OnSize(UINT nType, int cx, int cy)
@@ -191,7 +206,14 @@ void CMFCUIDlg::OnPaint()
 void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
     if (m_bDialogBusy)
+    {
+        if (m_bDragging)
+        {
+            m_bDragging = false;
+            ReleaseCapture();
+        }
         return;
+    }
 
     if (m_bDragging)
     {
@@ -260,6 +282,7 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
                 case 0:
                     m_bDialogBusy = true;
                     m_pBattDlg->OnBnClickedBtnCpuload();
+                    m_bDialogBusy = false;   // reset when dialog closes
                     return;
                 case 1: // Discharge Test
                     m_pBattDlg->OnBnClickedBtnDischarge();

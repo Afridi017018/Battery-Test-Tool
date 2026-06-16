@@ -38,20 +38,20 @@ class CCPUProgressDlg;
 // CBatteryHelthDlg dialog
 class CBatteryHelthDlg : public CDialogEx
 {
-// Construction
+	// Construction
 public:
 	CBatteryHelthDlg(CWnd* pParent = nullptr);	// standard constructor
 
-// Dialog Data
+	// Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_BATTERYHELTH_DIALOG };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
 
-// Implementation
+	// Implementation
 protected:
 	HICON m_hIcon;
 
@@ -164,7 +164,7 @@ public:
 
 	void BringControlToFront(int controlId);
 
-	
+
 
 	CProgressCtrl m_discharge_progress;
 
@@ -178,123 +178,123 @@ public:
 	CButton Button1;
 
 
-	public:
-		// All the button control IDs you want to owner-draw
-		std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE, 
-			IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS, 
-			IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
-			IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN, IDC_BTN_RATEINFO,
-			IDC_BTN_BGAPP,IDC_BTN_SLEEP, IDC_BTN_BREPORT, IDC_SOH, IDC_RESULT
-		};
+public:
+	// All the button control IDs you want to owner-draw
+	std::vector<UINT> m_buttonIds{ IDC_BTN_CPULOAD, IDC_BTN_DISCHARGE,
+		IDC_BTN_HISTORY, IDC_BTN_UPLOADPDF, IDC_BTN_CAPHIS,
+		IDC_BTN_ACTIVE, IDC_BTN_STANDBY,
+		IDC_BTN_USAGE,IDC_BTN_MANIPULATIOIN, IDC_BTN_RATEINFO,
+		IDC_BTN_BGAPP,IDC_BTN_SLEEP, IDC_BTN_BREPORT, IDC_SOH, IDC_RESULT
+	};
 
-		// Per-button hover state, keyed by control ID
-		std::unordered_map<UINT, BOOL> m_hover;
+	// Per-button hover state, keyed by control ID
+	std::unordered_map<UINT, BOOL> m_hover;
 
-		// (Optional) Per-button PNG resource ID (if each button uses a different PNG)
-		std::unordered_map<UINT, UINT> m_pngById{
-			{ IDC_BTN_CPULOAD, IDB_PNG1 },
-			{ IDC_BTN_DISCHARGE, IDB_PNG2 },
-			{ IDC_BTN_HISTORY, IDB_PNG3 },
-			{ IDC_BTN_UPLOADPDF, IDB_PNG4 },
-			{ IDC_BTN_CAPHIS, IDB_PNG5 },
-	   /*{ IDC_BTN_PREDICTION, IDB_PNG6 },*/
-			{ IDC_BTN_ACTIVE, IDB_PNG7 },
-		    { IDC_BTN_STANDBY, IDB_PNG8 },
-			{ IDC_BTN_USAGE, IDB_PNG9 },
-			{ IDC_BTN_MANIPULATIOIN, IDB_PNG10 },
-		    { IDC_BTN_RATEINFO, IDB_PNG11 },	
-			{IDC_BTN_BGAPP, IDB_PNG12},
-			{IDC_BTN_SLEEP, IDB_PNG13},
-			{IDC_BTN_BREPORT, IDB_PNG14},
-			{IDC_SOH, IDB_PNG15 },
-			{ IDC_RESULT, IDB_PNG16 }
-		/*	{IDC_AUTO, IDB_PNG11 }*/
-		};
+	// (Optional) Per-button PNG resource ID (if each button uses a different PNG)
+	std::unordered_map<UINT, UINT> m_pngById{
+		{ IDC_BTN_CPULOAD, IDB_PNG1 },
+		{ IDC_BTN_DISCHARGE, IDB_PNG2 },
+		{ IDC_BTN_HISTORY, IDB_PNG3 },
+		{ IDC_BTN_UPLOADPDF, IDB_PNG4 },
+		{ IDC_BTN_CAPHIS, IDB_PNG5 },
+		/*{ IDC_BTN_PREDICTION, IDB_PNG6 },*/
+			 { IDC_BTN_ACTIVE, IDB_PNG7 },
+			 { IDC_BTN_STANDBY, IDB_PNG8 },
+			 { IDC_BTN_USAGE, IDB_PNG9 },
+			 { IDC_BTN_MANIPULATIOIN, IDB_PNG10 },
+			 { IDC_BTN_RATEINFO, IDB_PNG11 },
+			 {IDC_BTN_BGAPP, IDB_PNG12},
+			 {IDC_BTN_SLEEP, IDB_PNG13},
+			 {IDC_BTN_BREPORT, IDB_PNG14},
+			 {IDC_SOH, IDB_PNG15 },
+			 { IDC_RESULT, IDB_PNG16 }
+			 /*	{IDC_AUTO, IDB_PNG11 }*/
+	};
 
-		void UpdateStaticNoGhosting(int ctrlId, const CString& text);
-		CStatic textEdit;
-
-
-		CToolTipCtrl m_toolTip;   
-
-		virtual BOOL PreTranslateMessage(MSG* pMsg); 
-		void InitToolTips();
+	void UpdateStaticNoGhosting(int ctrlId, const CString& text);
+	CStatic textEdit;
 
 
+	CToolTipCtrl m_toolTip;
 
-		public:
-				double m_dpiScaleFactor;
-				int m_baseWidth;
-				int m_baseHeight;
-
-				// Base font sizes (your original design sizes)
-				int m_baseFontSize;        // e.g., 16 for main text
-				int m_baseHeaderFontSize;  // e.g., 24 for headers
-				int m_baseSmallFontSize;   // e.g., 12 for small text
-
-				// Methods
-				void CalculateDPIScale();
-				void ScaleDialog();
-				int ScaleDPI(int value);
-				void CreateScaledFonts();
-				void ApplyScaledFonts();
-
-				CFont m_fontNormal;
-				CFont m_fontBold;
-				CFont m_fontHeader;
-				CFont m_fontSmall;
-
-				// Add this line:
-				afx_msg LRESULT OnDpiChanged(WPARAM wParam, LPARAM lParam);
-
-			public:
-				struct BatteryCapacityRecord {
-					COleDateTime date;     // parsed; if parsing fails, .m_dt == 0
-					CString      dateText; // original text from the report
-					int          fullCharge_mWh = 0;
-					int          design_mWh = 0;
-					double       healthPct = 0.0; // 100 * full/design
-				};
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	void InitToolTips();
 
 
-				bool GetBatteryCapacityHistory(std::vector<BatteryCapacityRecord>& out);
 
-				void GetStaticBatteryInfo();
+public:
+	double m_dpiScaleFactor;
+	int m_baseWidth;
+	int m_baseHeight;
 
-				afx_msg void OnBnClickedBtnCaphis();
+	// Base font sizes (your original design sizes)
+	int m_baseFontSize;        // e.g., 16 for main text
+	int m_baseHeaderFontSize;  // e.g., 24 for headers
+	int m_baseSmallFontSize;   // e.g., 12 for small text
+
+	// Methods
+	void CalculateDPIScale();
+	void ScaleDialog();
+	int ScaleDPI(int value);
+	void CreateScaledFonts();
+	void ApplyScaledFonts();
+
+	CFont m_fontNormal;
+	CFont m_fontBold;
+	CFont m_fontHeader;
+	CFont m_fontSmall;
+
+	// Add this line:
+	afx_msg LRESULT OnDpiChanged(WPARAM wParam, LPARAM lParam);
+
+public:
+	struct BatteryCapacityRecord {
+		COleDateTime date;     // parsed; if parsing fails, .m_dt == 0
+		CString      dateText; // original text from the report
+		int          fullCharge_mWh = 0;
+		int          design_mWh = 0;
+		double       healthPct = 0.0; // 100 * full/design
+	};
 
 
-				struct BatteryHealthPrediction {
-					int          targetPct = 0;     
-					bool         valid = false;
-					COleDateTime predictedDate;
-					CString      note;
-				};
+	bool GetBatteryCapacityHistory(std::vector<BatteryCapacityRecord>& out);
+
+	void GetStaticBatteryInfo();
+
+	afx_msg void OnBnClickedBtnCaphis();
 
 
-	
-				afx_msg void OnBnClickedBtnPrediction();
-				afx_msg void OnBnClickedBtnActive();
-				afx_msg void OnBnClickedBtnStandby();
-				afx_msg void OnBnClickedButton1();
+	struct BatteryHealthPrediction {
+		int          targetPct = 0;
+		bool         valid = false;
+		COleDateTime predictedDate;
+		CString      note;
+	};
 
 
-				public:
-					
-					afx_msg void OnBnClickedButton2();
-					afx_msg void OnBnClickedUsage();
-					afx_msg void OnBnClickedBtnUsage();
-					afx_msg void OnBnClickedBtnManipulatioin();
+
+	afx_msg void OnBnClickedBtnPrediction();
+	afx_msg void OnBnClickedBtnActive();
+	afx_msg void OnBnClickedBtnStandby();
+	afx_msg void OnBnClickedButton1();
 
 
-					protected:
-		/*				virtual void DoDataExchange(CDataExchange* pDX) override;*/
-				/*		virtual BOOL OnInitDialog() override;*/
+public:
 
-						afx_msg void OnBnClickedBtnShow2();
-	
+	afx_msg void OnBnClickedButton2();
+	afx_msg void OnBnClickedUsage();
+	afx_msg void OnBnClickedBtnUsage();
+	afx_msg void OnBnClickedBtnManipulatioin();
 
-				
+
+protected:
+	/*				virtual void DoDataExchange(CDataExchange* pDX) override;*/
+			/*		virtual BOOL OnInitDialog() override;*/
+
+	afx_msg void OnBnClickedBtnShow2();
+
+
+
 
 protected:
 	// --- Report builder ---
@@ -332,23 +332,23 @@ public:
 	afx_msg void OnBnClickedBtnRateinfo();
 
 
-	protected:
-		// === Toggle state ===
-		enum class Lang { EN, JP };
-		Lang m_lang = Lang::EN; // default: English
+protected:
+	// === Toggle state ===
+	enum class Lang { EN, JP };
+	Lang m_lang = Lang::EN; // default: English
 
-		// Helpers
-		void RedrawToggleButtons();
-		void DrawToggleButton(LPDRAWITEMSTRUCT lpDrawItemStruct, bool active, const wchar_t* text);
-	
+	// Helpers
+	void RedrawToggleButtons();
+	void DrawToggleButton(LPDRAWITEMSTRUCT lpDrawItemStruct, bool active, const wchar_t* text);
 
-		void UpdateLanguageTexts();
 
-		// Single power-broadcast sink for the whole app
-		afx_msg UINT OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData);
+	void UpdateLanguageTexts();
 
-		// Power setting notification handle (display on/off/dim)
-		HPOWERNOTIFY m_hDispNotify = nullptr;
+	// Single power-broadcast sink for the whole app
+	afx_msg UINT OnPowerBroadcast(UINT nPowerEvent, LPARAM nEventData);
+
+	// Power setting notification handle (display on/off/dim)
+	HPOWERNOTIFY m_hDispNotify = nullptr;
 
 
 public:
@@ -370,16 +370,16 @@ public:
 
 	afx_msg void OnBnClickedBtnBreport();
 
-	CDischargeProgressDlg* m_pDischargeDlg;
+	/*CDischargeProgressDlg* m_pDischargeDlg;*/
 	void StopDischargeTest();
 
-	CCPUProgressDlg* m_pCpuDlg;
+	/*CCPUProgressDlg* m_pCpuDlg;*/
 
 	int designCapValue = -1;
 
 	void StopCpuLoadTest();
 
-	CString m_fullManufacturer;  
+	CString m_fullManufacturer;
 
 
 	bool IsCharging();
@@ -393,7 +393,7 @@ public:
 	int               m_autoElapsed = 0;
 	UINT_PTR          m_autoTimerID = 5;     // confirm 5 is unused
 	CString           m_autoPhase;                 // L"CPU" or L"DISCHARGE"
-	CAutoProgressDlg* m_pAutoDlg = nullptr;
+	/*CAutoProgressDlg* m_pAutoDlg = nullptr;*/
 
 	// message handler + helper
 	afx_msg LRESULT OnAutoTestCPUDone(WPARAM wParam, LPARAM lParam);
@@ -405,31 +405,34 @@ public:
 	bool m_autoCancelled = false;
 
 
-	public:
-      void CancelAutoTest();
+public:
+	void CancelAutoTest();
 
-	  afx_msg void OnBnClickedSoh();
-	  afx_msg void OnBnClickedResult();
-	  CButton m_autoBtn;
-	  afx_msg void OnBnClickedNewui();
+	afx_msg void OnBnClickedSoh();
+	afx_msg void OnBnClickedResult();
+	CButton m_autoBtn;
+	afx_msg void OnBnClickedNewui();
 
-	  CMFCUIDlg* m_pNewUI = nullptr;
+	CMFCUIDlg* m_pNewUI = nullptr;
 
-	  CString statusText;
-	  CString battName;
-	  CString remain;
-	  CString out;
-	  CString t;
-	  CString healthStr;
-	  CString pct;
-	  CString designCapStr;
-	  CString fullCapStr;
-	  CString currCapOut;
-	  CString cycles;
+	CString statusText;
+	CString battName;
+	CString remain;
+	CString out;
+	CString t;
+	CString healthStr;
+	CString pct;
+	CString designCapStr;
+	CString fullCapStr;
+	CString currCapOut;
+	CString cycles;
 
-
+	// BatteryHelthDlg.h
+	CDischargeProgressDlg* m_pDischargeDlg = nullptr;
+	CCPUProgressDlg* m_pCpuDlg = nullptr;
+	CAutoProgressDlg* m_pAutoDlg = nullptr;
+	// m_pNewUI is already nullptr in your header; ensure all raw pointers are initialized
 };
 
 
 //////////////////okokokok
-

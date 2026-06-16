@@ -1,4 +1,4 @@
-
+﻿
 // BatteryHelth.cpp : Defines the class behaviors for the application.
 //
 
@@ -64,7 +64,7 @@ BOOL CBatteryHelthApp::InitInstance()
 
 	// Create the shell manager, in case the dialog contains
 	// any shell tree view or shell list view controls.
-	CShellManager *pShellManager = new CShellManager;
+	CShellManager* pShellManager = new CShellManager;
 
 	// Activate "Windows Native" visual manager for enabling themes in MFC controls
 	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
@@ -84,10 +84,20 @@ BOOL CBatteryHelthApp::InitInstance()
 	GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, nullptr);
 
 
+	/*CBatteryHelthDlg dlg;
+	m_pMainWnd = &dlg;
+	INT_PTR nResponse = dlg.DoModal();*/
 
-	CBatteryHelthDlg dlg;
+	CBatteryHelthDlg* pBackend = new CBatteryHelthDlg;
+	pBackend->Create(IDD_BATTERYHELTH_DIALOG);
+	/*pBackend->ShowWindow(SW_HIDE);*/
+
+	CMFCUIDlg dlg;
+	dlg.SetBatteryDlg(pBackend);
+
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
+
 	if (nResponse == IDOK)
 	{
 		// TODO: Place code here to handle when the dialog is
@@ -126,4 +136,3 @@ int CBatteryHelthApp::ExitInstance()
 	GdiplusShutdown(m_gdiplusToken);
 	return CWinApp::ExitInstance();
 }
-

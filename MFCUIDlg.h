@@ -28,7 +28,7 @@ class CMFCUIDlg : public CDialogEx
 {
 public:
     CMFCUIDlg(CWnd* pParent = nullptr);
-   /* void SetBatteryDlg(CBatteryHelthDlg* pDlg) { m_pBattDlg = pDlg; }*/
+    /* void SetBatteryDlg(CBatteryHelthDlg* pDlg) { m_pBattDlg = pDlg; }*/
     enum { IDD = IDD_MFCUI };
 
 protected:
@@ -66,8 +66,8 @@ private:
     /*void DrawCircularGauge(CDC* pDC, CPoint center,
         int radius, float percent);*/
 
-    /*void DrawCircularGauge(CDC* pDC, CPoint center,
-        int radius, const CString& percentText);*/
+        /*void DrawCircularGauge(CDC* pDC, CPoint center,
+            int radius, const CString& percentText);*/
 
     void DrawCircularGauge(CDC* pDC, CPoint center,
         int radius, const CString& percentText, bool isCharging);
@@ -118,5 +118,8 @@ public:
 
 public:
     bool m_bDialogBusy = false;
+    void ClearDialogBusy() { m_bDialogBusy = false; }
+
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
 
 };
