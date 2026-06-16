@@ -195,7 +195,7 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
 
     CRect rcTitle(rcHeader.left + pad, rcHeader.top,
         rcHeader.right - hdrH - pad, rcHeader.bottom);
-    DrawTextEx(pDC, _T("Data & History"), rcTitle,
+    DrawTextEx(pDC, _T("Data and History"), rcTitle,
         CLR_TITLE, titleFS, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
