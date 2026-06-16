@@ -1,51 +1,80 @@
 ﻿// DrawSecChargeRate.cpp
+// Charge / Discharge Rate card for CMFCUIDlg
+// Watt vs Time chart — mirrors CRateInfoDlg::DrawLivePowerChart style
+// but rendered with GDI (CDC) instead of GDI+.
+//
+// NOTE: No NOMINMAX / #undef tricks here.
+// We use __min / __max (MSVC intrinsics) everywhere so we never
+// conflict with the Windows min/max macros that MFC headers define.
 
 #include "pch.h"
 #include "MFCUIDlg.h"
 
 #include <cmath>
 #include <vector>
-#include <algorithm>
+#include <algorithm>   // std::min_element
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 // ─────────────────────────────────────────────────────────────────
-// Scale font relative to a reference card size
+// Scale a font relative to card dimensions
 // ─────────────────────────────────────────────────────────────────
 static int CardFont(int cardW, int cardH, int baseSize)
 {
-    float scaleW = (float)cardW / 468.0f;   // reference card width at BASE_W=500
-    float scaleH = (float)cardH / 192.0f;   // reference card height
-    float scale = min(scaleW, scaleH);
-    scale = max(0.55f, min(scale, 1.6f));
-    return max(6, (int)(baseSize * scale));
+    float scaleW = (float)cardW / 468.0f;
+    float scaleH = (float)cardH / 192.0f;
+    float scale = __min(scaleW, scaleH);
+    scale = __max(0.55f, __min(scale, 1.6f));
+    return __max(6, (int)(baseSize * scale));
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Filled waveform polygon
+// Helper: draw a single text string via CDC
 // ─────────────────────────────────────────────────────────────────
-static void FillWave(
-    CDC* pDC,
-    const std::vector<std::pair<int, float>>& pts,
+static void CardText(CDC* pDC, const CString& str, CRect rc,
+    COLORREF clr, int ptSize, bool bold,
+    UINT fmt = DT_LEFT | DT_VCENTER | DT_SINGLELINE)
+{
+    LOGFONT lf = {};
+    lf.lfHeight = -MulDiv(ptSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+    lf.lfQuality = CLEARTYPE_QUALITY;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    CFont font;
+    font.CreateFontIndirect(&lf);
+    CFont* pOld = pDC->SelectObject(&font);
+    pDC->SetTextColor(clr);
+    pDC->SetBkMode(TRANSPARENT);
+    pDC->DrawText(str, &rc, fmt);
+    pDC->SelectObject(pOld);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Filled + outlined area waveform
+// topPts : pixel points along the top of the wave, left to right
+// yBaseline : Y pixel for 0 W (bottom of chart)
+// ─────────────────────────────────────────────────────────────────
+static void FillWave(CDC* pDC,
+    const std::vector<POINT>& topPts,
     int yBaseline,
     COLORREF fillColor,
     COLORREF lineColor)
 {
-    if (pts.size() < 2) return;
+    if (topPts.size() < 2) return;
 
+    // Closed polygon: baseline → top curve → baseline
     std::vector<POINT> poly;
-    poly.reserve(pts.size() * 2 + 2);
-    for (auto& p : pts)
-        poly.push_back({ p.first, (int)p.second });
-    for (int i = (int)pts.size() - 1; i >= 0; i--)
-        poly.push_back({ pts[i].first, yBaseline });
+    poly.reserve(topPts.size() + 2);
+    poly.push_back({ topPts.front().x, yBaseline });
+    for (const auto& p : topPts) poly.push_back(p);
+    poly.push_back({ topPts.back().x, yBaseline });
 
-    CBrush br(fillColor);
-    CPen   penNull(PS_NULL, 0, (COLORREF)0);
-    CBrush* pOldB = pDC->SelectObject(&br);
-    CPen* pOldP = pDC->SelectObject(&penNull);
+    CBrush  fillBr(fillColor);
+    CPen    nullPen(PS_NULL, 0, (COLORREF)0);
+    CBrush* pOldB = pDC->SelectObject(&fillBr);
+    CPen* pOldP = pDC->SelectObject(&nullPen);
     pDC->Polygon(poly.data(), (int)poly.size());
     pDC->SelectObject(pOldB);
     pDC->SelectObject(pOldP);
@@ -53,316 +82,376 @@ static void FillWave(
     // Top outline
     CPen linePen(PS_SOLID, 2, lineColor);
     pOldP = pDC->SelectObject(&linePen);
-    std::vector<POINT> line;
-    for (auto& p : pts)
-        line.push_back({ p.first, (int)p.second });
-    pDC->Polyline(line.data(), (int)line.size());
+    pDC->Polyline(topPts.data(), (int)topPts.size());
     pDC->SelectObject(pOldP);
 }
 
 // ─────────────────────────────────────────────────────────────────
 // DrawChargeRate
+// Card: SH(410) .. SH(602) — same vertical slot as original.
+// Chart: Watt (Y) vs Time in seconds (X), single active series,
+//        auto-scaled Y, 5 grid lines, area fill, live badge,
+//        peak annotation, legend.
 // ─────────────────────────────────────────────────────────────────
-void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect rc)
+void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
 {
-    int W = m_clientWidth;
-    int H = m_clientHeight;
-    int mx = SW(16, W);
+    const int W = m_clientWidth;
+    const int H = m_clientHeight;
+    const int mx = SW(16, W);
 
-    // ── Card bounds ──────────────────────────────────────────────
-    int cardTop = SH(410, H);
-    int cardBottom = SH(602, H);
+    // ── Card bounds (same as original) ───────────────────────────
+    const int cardTop = SH(410, H);
+    const int cardBottom = SH(602, H);
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
-
-    // Guard
     if (rcCard.Width() < 60 || rcCard.Height() < 40) return;
 
-    DrawRoundRect(pDC, rcCard, SW(10, W), CLR_CARD, CLR_BORDER);
+    // Card background + border
+    {
+        CBrush  br(CLR_CARD);
+        CPen    pen(PS_SOLID, 1, CLR_BORDER);
+        CBrush* pOldB = pDC->SelectObject(&br);
+        CPen* pOldP = pDC->SelectObject(&pen);
+        int r = SW(10, W);
+        pDC->RoundRect(rcCard, CPoint(r, r));
+        pDC->SelectObject(pOldB);
+        pDC->SelectObject(pOldP);
+    }
 
-    int CW = rcCard.Width();
-    int CH = rcCard.Height();
-    int pad = max(6, CW * 14 / 468);
+    const int CW = rcCard.Width();
+    const int CH = rcCard.Height();
+    const int pad = __max(6, CW * 14 / 468);
 
-    // ── Card title ───────────────────────────────────────────────
-    int titleH = max(16, CH * 20 / 192);
-    CRect rcTitle(
-        rcCard.left + pad, rcCard.top + CH * 8 / 192,
-        rcCard.right - pad, rcCard.top + CH * 8 / 192 + titleH);
-    DrawTextEx(pDC, _T("Charge / Discharge Rate"), rcTitle,
-        CLR_TITLE, CardFont(CW, CH, 10), true,
+    // ── Title ────────────────────────────────────────────────────
+    const int titleH = __max(16, CH * 20 / 192);
+    CRect rcTitle(rcCard.left + pad,
+        rcCard.top + CH * 6 / 192,
+        rcCard.right - pad,
+        rcCard.top + CH * 6 / 192 + titleH);
+    CardText(pDC, _T("Charge / Discharge Rate (W vs Time)"),
+        rcTitle, CLR_TITLE, CardFont(CW, CH, 10), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // Divider under title
-    int divY = rcCard.top + CH * 30 / 192;
+    // ── Divider ──────────────────────────────────────────────────
+    const int divY = rcCard.top + CH * 28 / 192;
     {
-        CPen divPen(PS_SOLID, 1, CLR_BORDER);
+        CPen  divPen(PS_SOLID, 1, CLR_BORDER);
         CPen* pOldP = pDC->SelectObject(&divPen);
         pDC->MoveTo(rcCard.left + CW * 10 / 468, divY);
         pDC->LineTo(rcCard.right - CW * 10 / 468, divY);
         pDC->SelectObject(pOldP);
     }
 
-    // ── "Current Rate:" label + value ────────────────────────────
-    int rateRowH = max(14, CH * 18 / 192);
-    int rateTop = divY + CH * 4 / 192;
+    // ── Current Rate label + value ───────────────────────────────
+    const int rateRowH = __max(14, CH * 18 / 192);
+    const int rateTop = divY + CH * 4 / 192;
 
-    CRect rcRateLbl(rcCard.left + pad, rateTop,
+    CRect rcRateLbl(rcCard.left + pad,
+        rateTop,
         rcCard.left + pad + CW * 85 / 468,
         rateTop + rateRowH);
-    DrawTextEx(pDC, _T("Current Rate:"), rcRateLbl,
+    CardText(pDC, _T("Current Rate:"), rcRateLbl,
         CLR_MID_TEXT, CardFont(CW, CH, 8), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    CRect rcRateVal(rcCard.left + pad + CW * 88 / 468, rateTop,
-        rcCard.right - pad, rateTop + rateRowH);
-    DrawTextEx(pDC, _T("-2.35 W"), rcRateVal,
-        CLR_BLUE, CardFont(CW, CH, 9), true,
+    CString  rateText;
+    COLORREF rateClr = CLR_MID_TEXT;
+
+    if (m_last.currentRate_mW > 0)
+    {
+        rateText.Format(_T("+%.2f W  Charging"),
+            m_last.currentRate_mW / 1000.0);
+        rateClr = CLR_GREEN;
+    }
+    else if (m_last.currentRate_mW < 0)
+    {
+        rateText.Format(_T("-%.2f W  Discharging"),
+            fabs((double)m_last.currentRate_mW) / 1000.0);
+        rateClr = CLR_RED;
+    }
+    else
+    {
+        rateText = _T("0.00 W  Idle");
+        rateClr = CLR_MID_TEXT;
+    }
+
+    CRect rcRateVal(rcCard.left + pad + CW * 90 / 468,
+        rateTop,
+        rcCard.right - pad,
+        rateTop + rateRowH);
+    CardText(pDC, rateText, rcRateVal,
+        rateClr, CardFont(CW, CH, 9), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // ── Chart area ───────────────────────────────────────────────
-    // Y-axis label column width: proportional to card width
-    int yAxisW = max(18, CW * 36 / 468);
-    int xPadR = max(8, CW * 12 / 468);
-    int xPadBot = max(14, CH * 26 / 192);  // room for X labels
-    int chartTop = rateTop + rateRowH + CH * 6 / 192;
-    int chartBottom = rcCard.bottom - xPadBot;
-    int chartLeft = rcCard.left + yAxisW;
-    int chartRight = rcCard.right - xPadR;
+    // ── Which series is active? ───────────────────────────────────
+    const bool showCharge = (m_last.currentRate_mW >= 0);
+    const std::vector<float>& series =
+        showCharge ? m_samplesChargeW : m_samplesDischargeW;
+    const int N = kWindowSeconds;
 
-    // Clamp so chart never goes outside card
-    chartTop = max(chartTop, rcCard.top + 2);
-    chartBottom = min(chartBottom, rcCard.bottom - 2);
-    chartLeft = max(chartLeft, rcCard.left + 2);
-    chartRight = min(chartRight, rcCard.right - 2);
-
-    int chartW = chartRight - chartLeft;
-    int chartH = chartBottom - chartTop;
-
+    // ── Chart geometry ────────────────────────────────────────────
+    const int yAxisW = __max(22, CW * 38 / 468);   // Y-label column
+    const int xPadR = __max(8, CW * 12 / 468);   // right padding
+    const int xPadBot = __max(16, CH * 28 / 192);   // X-label row
+    const int chartTop = rateTop + rateRowH + CH * 5 / 192;
+    const int chartBot = rcCard.bottom - xPadBot;
+    const int chartLeft = rcCard.left + yAxisW;
+    const int chartRight = rcCard.right - xPadR;
+    const int chartW = chartRight - chartLeft;
+    const int chartH = chartBot - chartTop;
     if (chartW < 20 || chartH < 20) return;
 
-    // Baseline at 62% from top (positive region above)
-    int yBaseline = chartTop + chartH * 62 / 100;
-
-    // yScale: 6W maps to 55% of chart height
-    float yScale = (float)chartH * 0.55f / 6.0f;
-
-    // ── Y axis grid + labels ─────────────────────────────────────
-    struct YLine { float val; };
-    std::vector<YLine> yLines = { {6.0f}, {2.0f}, {0.0f}, {-2.0f} };
-    int axisFS = CardFont(CW, CH, 6);
-
-    for (auto& yl : yLines)
+    // ── Auto-scale Y axis ─────────────────────────────────────────
+    float maxW = 1.0f;
     {
-        int yPx = yBaseline - (int)(yl.val * yScale);
-        // Keep inside chart vertically
-        if (yPx < chartTop - 2 || yPx > chartBottom + 2) continue;
+        int count = m_filled ? N : m_cursor;
+        for (int i = 0; i < count; i++)
+        {
+            int   idx = m_filled ? (m_cursor + i) % N : i;
+            float v = series[idx];
+            if (!std::isnan(v) && v > maxW) maxW = v;
+        }
+    }
+    maxW *= 1.15f;                              // 15% headroom
+    {
+        float rounded = ceilf(maxW * 2.0f) / 2.0f;   // round to 0.5 W
+        maxW = (rounded > 1.0f) ? rounded : 1.0f;
+    }
 
-        CPen gridPen(PS_DOT, 1, RGB(210, 215, 225));
+    // ── Pixel mapping helpers ─────────────────────────────────────
+    // mapX: sample index k (0..N-1) → pixel X
+    auto mapX = [&](int k) -> int {
+        return chartLeft + (int)((float)k * (float)chartW / (float)(N - 1));
+        };
+    // mapY: watts → pixel Y (0 W = chartBot, maxW = chartTop)
+    auto mapY = [&](float watts) -> int {
+        float t = (maxW <= 0.0f) ? 0.0f : (watts / maxW);
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+        return chartBot - (int)(t * (float)chartH);
+        };
+    // idxOf: logical position k → sample value (NaN if not yet filled)
+    auto idxOf = [&](int k) -> float {
+        if (!m_filled && k >= m_cursor) return kMissing;
+        int base = m_filled ? m_cursor : 0;
+        int real = m_filled ? (base + k) % N : k;
+        return series[real];
+        };
+
+    // ── Y axis: 5 grid lines + labels ────────────────────────────
+    const int gridLines = 5;
+    const int axisFS = CardFont(CW, CH, 6);
+
+    for (int i = 0; i <= gridLines; i++)
+    {
+        float val = maxW * (float)i / (float)gridLines;
+        int   yPx = mapY(val);
+        if (yPx < chartTop - 2 || yPx > chartBot + 2) continue;
+
+        CPen  gridPen(PS_DOT, 1, RGB(210, 215, 225));
         CPen* pOldP = pDC->SelectObject(&gridPen);
         pDC->MoveTo(chartLeft, yPx);
         pDC->LineTo(chartRight, yPx);
         pDC->SelectObject(pOldP);
 
         CString lbl;
-        if (yl.val == 0.0f) lbl = _T("0");
-        else                 lbl.Format(_T("%.0f"), yl.val);
+        if (val < 0.05f) lbl = _T("0");
+        else             lbl.Format(_T("%.1f"), val);
 
         CRect rcLbl(rcCard.left + 2, yPx - CH * 8 / 192,
-            chartLeft - 2, yPx + CH * 8 / 192);
-        DrawTextEx(pDC, lbl, rcLbl, CLR_MID_TEXT, axisFS, false,
+            chartLeft - 3, yPx + CH * 8 / 192);
+        CardText(pDC, lbl, rcLbl, CLR_MID_TEXT, axisFS, false,
             DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     }
 
-    // "W" unit
-    CRect rcUnit(rcCard.left + 2, chartTop,
-        chartLeft - 2, chartTop + CH * 14 / 192);
-    DrawTextEx(pDC, _T("W"), rcUnit, CLR_MID_TEXT, axisFS, false,
-        DT_RIGHT | DT_TOP | DT_SINGLELINE);
-
-    // ── Waveform sample points ────────────────────────────────────
-    int N = 120;
-    std::vector<std::pair<int, float>> greenPts, bluePts, redPts;
-
-    for (int i = 0; i <= N; i++)
+    // "W" unit at top of Y axis
     {
-        float t = (float)i / N;
-        int   px = chartLeft + (int)(t * chartW);
-
-        if (t <= 0.40f)
-        {
-            float lt = t / 0.40f;
-            float val = 5.48f * (float)exp(-12.0 * (lt - 0.35) * (lt - 0.35));
-            val = max(0.0f, val);
-            int yPx = yBaseline - (int)(val * yScale);
-            yPx = max(chartTop, min(yPx, chartBottom)); // clamp inside chart
-            greenPts.push_back({ px, (float)yPx });
-        }
-        if (t >= 0.35f && t <= 0.62f)
-        {
-            float lt = (t - 0.35f) / 0.27f;
-            float val = 1.2f * (float)exp(-8.0 * (lt - 0.5) * (lt - 0.5));
-            val = max(0.0f, val);
-            int yPx = yBaseline - (int)(val * yScale);
-            yPx = max(chartTop, min(yPx, chartBottom));
-            bluePts.push_back({ px, (float)yPx });
-        }
-        if (t >= 0.58f)
-        {
-            float lt = (t - 0.58f) / 0.42f;
-            float val = 6.72f * (float)exp(-10.0 * (lt - 0.45) * (lt - 0.45));
-            val = max(0.0f, val);
-            int yPx = yBaseline + (int)(val * yScale);
-            yPx = max(chartTop, min(yPx, chartBottom));
-            redPts.push_back({ px, (float)yPx });
-        }
+        CRect rcUnit(rcCard.left + 2, chartTop,
+            chartLeft - 3, chartTop + CH * 14 / 192);
+        CardText(pDC, _T("W"), rcUnit, CLR_MID_TEXT, axisFS, false,
+            DT_RIGHT | DT_TOP | DT_SINGLELINE);
     }
 
-    // ── Clip all waveform drawing strictly inside chart rect ──────
-    CRgn clipRgn;
-    clipRgn.CreateRectRgn(chartLeft, chartTop, chartRight, chartBottom);
-    pDC->SelectClipRgn(&clipRgn);
-
-    FillWave(pDC, greenPts, yBaseline,
-        RGB(180, 230, 180), RGB(60, 180, 80));
-    FillWave(pDC, bluePts, yBaseline,
-        RGB(180, 210, 240), RGB(60, 140, 220));
-
-    if (redPts.size() >= 2)
+    // ── Axis lines (Y spine + X baseline) ────────────────────────
     {
-        std::vector<POINT> redPoly;
-        redPoly.push_back({ redPts.front().first, yBaseline });
-        for (auto& p : redPts)
-            redPoly.push_back({ p.first, (int)p.second });
-        redPoly.push_back({ redPts.back().first, yBaseline });
-
-        CBrush  redBr(RGB(240, 180, 180));
-        CPen    nullPen(PS_NULL, 0, (COLORREF)0);
-        CBrush* pOldB = pDC->SelectObject(&redBr);
-        CPen* pOldP = pDC->SelectObject(&nullPen);
-        pDC->Polygon(redPoly.data(), (int)redPoly.size());
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-
-        CPen redLine(PS_SOLID, 2, CLR_RED);
-        pOldP = pDC->SelectObject(&redLine);
-        std::vector<POINT> redLineP;
-        for (auto& p : redPts)
-            redLineP.push_back({ p.first, (int)p.second });
-        pDC->Polyline(redLineP.data(), (int)redLineP.size());
+        CPen  axisPen(PS_SOLID, 1, RGB(180, 185, 200));
+        CPen* pOldP = pDC->SelectObject(&axisPen);
+        pDC->MoveTo(chartLeft, chartTop);
+        pDC->LineTo(chartLeft, chartBot);
+        pDC->MoveTo(chartLeft, chartBot);
+        pDC->LineTo(chartRight, chartBot);
         pDC->SelectObject(pOldP);
     }
 
-    // Remove waveform clip
-    pDC->SelectClipRgn(nullptr);
-
-    // ── Baseline ─────────────────────────────────────────────────
+    // ── Build waveform points ─────────────────────────────────────
+    std::vector<POINT> wavePts;
+    wavePts.reserve(N);
+    for (int k = 0; k < N; k++)
     {
-        CPen basePen(PS_SOLID, 1, RGB(180, 185, 195));
-        CPen* pOldP = pDC->SelectObject(&basePen);
-        pDC->MoveTo(chartLeft, yBaseline);
-        pDC->LineTo(chartRight, yBaseline);
-        pDC->SelectObject(pOldP);
+        float v = idxOf(k);
+        if (!std::isnan(v))
+            wavePts.push_back({ mapX(k), mapY(v) });
     }
 
-    // ── Peak annotations (drawn OUTSIDE clip so labels show) ─────
-    int annotFS = CardFont(CW, CH, 7);
-    int dotSz = max(3, min(CW, CH) * 4 / 468);
-
-    // Green peak
+    // ── Draw area fill (clipped to chart rect) ────────────────────
     {
-        int peakX = chartLeft + (int)(0.40f * 0.35f * chartW);
-        int peakY = yBaseline - (int)(5.48f * yScale);
-        peakY = max(chartTop, peakY);   // clamp
+        CRgn clipRgn;
+        clipRgn.CreateRectRgn(chartLeft, chartTop, chartRight, chartBot);
+        pDC->SelectClipRgn(&clipRgn);
 
-        // Dashed drop line
-        CPen dashPen(PS_DOT, 1, CLR_GREEN);
-        CPen* pOldP = pDC->SelectObject(&dashPen);
-        pDC->MoveTo(peakX, peakY);
-        pDC->LineTo(peakX, yBaseline);
-        pDC->SelectObject(pOldP);
+        if (showCharge)
+            FillWave(pDC, wavePts, chartBot, RGB(185, 235, 185), CLR_GREEN);
+        else
+            FillWave(pDC, wavePts, chartBot, RGB(245, 185, 185), CLR_RED);
 
-        // Dot
-        CBrush dotBr(CLR_GREEN);
-        CPen   dotPen(PS_SOLID, 1, CLR_GREEN);
-        pOldP = pDC->SelectObject(&dotPen);
-        CBrush* pOldB = pDC->SelectObject(&dotBr);
-        pDC->Ellipse(peakX - dotSz, peakY - dotSz, peakX + dotSz, peakY + dotSz);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
+        pDC->SelectClipRgn(nullptr);
+    }
 
-        // Label — anchored above dot, clamped to card
-        int lblH = max(12, CH * 16 / 192);
-        int lblW = max(50, CW * 80 / 468);
-        int lblX = max(rcCard.left + 2, peakX - lblW / 4);
-        int lblY = max(rcCard.top + 2, peakY - lblH - dotSz);
-        CRect rcLbl(lblX, lblY, lblX + lblW, lblY + lblH);
-        DrawTextEx(pDC, _T("Peak 5.48 W"), rcLbl,
-            CLR_GREEN, annotFS, true,
+    // ── X axis: time labels (0 s … 120 s) ────────────────────────
+    {
+        const int nTicks = 5;
+        const int xLblH = __max(10, xPadBot - 4);
+        const int halfLW = __max(18, chartW / (nTicks * 2));
+        const int xFS = CardFont(CW, CH, 6);
+
+        for (int i = 0; i < nTicks; i++)
+        {
+            int secVal = (int)((float)N * i / (float)(nTicks - 1));
+            int xPx = mapX((int)((float)(N - 1) * i / (float)(nTicks - 1)));
+
+            CString lbl;
+            lbl.Format(_T("%ds"), secVal);
+
+            int lx = __max(rcCard.left, xPx - halfLW);
+            int rx = __min(rcCard.right, xPx + halfLW);
+            CRect rcXLbl(lx, chartBot + 3, rx, chartBot + 3 + xLblH);
+            CardText(pDC, lbl, rcXLbl, CLR_MID_TEXT, xFS, false,
+                DT_CENTER | DT_TOP | DT_SINGLELINE);
+        }
+
+        // "Time (s)" centred below ticks
+        CRect rcXUnit(chartLeft, chartBot + 3, chartRight, chartBot + 3 + xLblH);
+        CardText(pDC, _T("Time (s)"), rcXUnit, CLR_SUBTITLE,
+            __max(axisFS - 1, 5), false,
+            DT_CENTER | DT_TOP | DT_SINGLELINE);
+    }
+
+    // ── Live value badge (top-right of chart) ────────────────────
+    {
+        float latest = kMissing;
+        if (m_filled || m_cursor > 0)
+        {
+            int newestIdx = (m_cursor + N - 1) % N;
+            latest = series[newestIdx];
+        }
+
+        CString  badge;
+        COLORREF badgeClr;
+
+        if (std::isnan(latest))
+        {
+            badge = showCharge ? _T("-- W (not charging)")
+                : _T("-- W (not discharging)");
+            badgeClr = CLR_SUBTITLE;
+        }
+        else
+        {
+            badge.Format(_T("%.2f W"), latest);
+            badgeClr = showCharge ? CLR_GREEN : CLR_RED;
+        }
+
+        int bdgW = __max(70, CW * 110 / 468);
+        int bdgH = __max(12, CH * 16 / 192);
+        CRect rcBadge(chartRight - bdgW - 2,
+            chartTop + 3,
+            chartRight - 2,
+            chartTop + 3 + bdgH);
+        CardText(pDC, badge, rcBadge, badgeClr,
+            CardFont(CW, CH, 8), true,
+            DT_RIGHT | DT_TOP | DT_SINGLELINE);
+    }
+
+    // ── Peak annotation (only when we have data) ──────────────────
+    if ((int)wavePts.size() >= 2)
+    {
+        // Highest point = lowest Y pixel value
+        auto itPeak = std::min_element(wavePts.begin(), wavePts.end(),
+            [](const POINT& a, const POINT& b) { return a.y < b.y; });
+
+        if (itPeak != wavePts.end())
+        {
+            int      px = itPeak->x;
+            int      py = itPeak->y;
+            COLORREF clrPeak = showCharge ? CLR_GREEN : CLR_RED;
+
+            // Clamp inside chart
+            if (py < chartTop + 2) py = chartTop + 2;
+            if (py > chartBot - 2) py = chartBot - 2;
+
+            // Dashed drop line from peak to baseline
+            {
+                CPen  dashPen(PS_DOT, 1, clrPeak);
+                CPen* pOldP = pDC->SelectObject(&dashPen);
+                pDC->MoveTo(px, py);
+                pDC->LineTo(px, chartBot);
+                pDC->SelectObject(pOldP);
+            }
+
+            // Dot at peak
+            const int dotR = __max(3, __min(CW, CH) * 4 / 468);
+            {
+                CBrush  dotBr(clrPeak);
+                CPen    dotPen(PS_SOLID, 1, clrPeak);
+                CBrush* pOldB = pDC->SelectObject(&dotBr);
+                CPen* pOldP = pDC->SelectObject(&dotPen);
+                pDC->Ellipse(px - dotR, py - dotR, px + dotR, py + dotR);
+                pDC->SelectObject(pOldB);
+                pDC->SelectObject(pOldP);
+            }
+
+            // Actual peak watt value
+            float peakW = 0.0f;
+            {
+                int count = m_filled ? N : m_cursor;
+                for (int i = 0; i < count; i++)
+                {
+                    int   idx = m_filled ? (m_cursor + i) % N : i;
+                    float v = series[idx];
+                    if (!std::isnan(v) && v > peakW) peakW = v;
+                }
+            }
+
+            // Peak label: above and right of the dot
+            int lblH = __max(12, CH * 16 / 192);
+            int lblW = __max(60, CW * 90 / 468);
+            int lblX = px + dotR + 4;
+            if (lblX + lblW > chartRight - 2) lblX = chartRight - lblW - 2;
+            int lblY = py - lblH - dotR - 2;
+            if (lblY < rcCard.top + 2) lblY = rcCard.top + 2;
+
+            CString peakLbl;
+            peakLbl.Format(showCharge ? _T("Peak +%.2f W")
+                : _T("Peak -%.2f W"), peakW);
+
+            CRect rcPeak(lblX, lblY, lblX + lblW, lblY + lblH);
+            CardText(pDC, peakLbl, rcPeak, clrPeak,
+                CardFont(CW, CH, 7), true,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        }
+    }
+
+    // ── Legend (bottom-left of chart) ────────────────────────────
+    {
+        const int legFS = CardFont(CW, CH, 7);
+        const int legH = __max(10, CH * 14 / 192);
+        const int legW = __max(80, CW * 120 / 468);
+        CRect rcLeg(chartLeft + 4,
+            chartBot - legH - 3,
+            chartLeft + 4 + legW,
+            chartBot - 3);
+
+        CString  legTxt = showCharge ? _T("Charge rate") : _T("Discharge rate");
+        COLORREF legClr = showCharge ? CLR_GREEN : CLR_RED;
+        CardText(pDC, legTxt, rcLeg, legClr, legFS, true,
             DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    }
-
-    // Red peak
-    {
-        int peakX = chartLeft + (int)((0.58f + 0.42f * 0.45f) * chartW);
-        int peakY = yBaseline + (int)(6.72f * yScale);
-        peakY = min(chartBottom, peakY); // clamp
-
-        CPen dashPen(PS_DOT, 1, CLR_RED);
-        CPen* pOldP = pDC->SelectObject(&dashPen);
-        pDC->MoveTo(peakX, yBaseline);
-        pDC->LineTo(peakX, peakY);
-        pDC->SelectObject(pOldP);
-
-        CBrush hollowBr(RGB(255, 255, 255));
-        CPen   dotPen(PS_SOLID, 2, CLR_RED);
-        pOldP = pDC->SelectObject(&dotPen);
-        CBrush* pOldB = pDC->SelectObject(&hollowBr);
-        pDC->Ellipse(peakX - dotSz, peakY - dotSz, peakX + dotSz, peakY + dotSz);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-
-        // "Peak -6.72 W" — above the dot
-        int lblH = max(12, CH * 16 / 192);
-        int lblW = max(60, CW * 90 / 468);
-        int lblX = max(rcCard.left + 2, peakX - lblW / 2);
-        // clamp right edge inside card
-        if (lblX + lblW > rcCard.right - 2)
-            lblX = rcCard.right - 2 - lblW;
-        int lblY = max(rcCard.top + 2,
-            min(peakY - lblH * 2 - dotSz,
-                chartBottom - lblH * 2));
-        CRect rcPkLbl(lblX, lblY, lblX + lblW, lblY + lblH);
-        DrawTextEx(pDC, _T("Peak -6.72 W"), rcPkLbl,
-            CLR_RED, annotFS, true,
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-        // "Alert!" — right of dot, clamped
-        int alW = max(40, CW * 55 / 468);
-        int alX = min(peakX + dotSz + 4, rcCard.right - alW - 2);
-        int alY = peakY - lblH / 2;
-        CRect rcAlert(alX, alY, alX + alW, alY + lblH);
-        DrawTextEx(pDC, _T("Alert !"), rcAlert,
-            CLR_RED, annotFS, true,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    }
-
-    // ── X axis labels ─────────────────────────────────────────────
-    const TCHAR* xLabels[] = {
-        _T("5 min"), _T("5 min"), _T("10 min"),
-        _T("15 min"), _T("20 min"), _T("25 min") };
-    int nLabels = 6;
-    int xLblH = max(10, xPadBot - 4);
-    int xLblHalf = max(16, chartW / (nLabels * 2));
-
-    for (int i = 0; i < nLabels; i++)
-    {
-        int xPx = chartLeft + chartW * i / (nLabels - 1);
-        // clamp label rect inside card horizontally
-        int lx = max(rcCard.left, xPx - xLblHalf);
-        int rx = min(rcCard.right, xPx + xLblHalf);
-        CRect rcXLbl(lx, chartBottom + 2, rx, chartBottom + 2 + xLblH);
-        DrawTextEx(pDC, xLabels[i], rcXLbl,
-            CLR_MID_TEXT, CardFont(CW, CH, 6), false,
-            DT_CENTER | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
 }

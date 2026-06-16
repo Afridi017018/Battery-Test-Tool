@@ -38,7 +38,10 @@ BEGIN_MESSAGE_MAP(CMFCUIDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
-    : CDialogEx(IDD_MFCUI, pParent) {
+    : CDialogEx(IDD_MFCUI, pParent)
+{
+    m_samplesChargeW.resize(kWindowSeconds, kMissing);
+    m_samplesDischargeW.resize(kWindowSeconds, kMissing);
 }
 
 void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
@@ -63,6 +66,7 @@ void CMFCUIDlg::OnTimer(UINT_PTR nIDEvent)
 {
     if (nIDEvent == 1)
     {
+        UpdateChargeRate();
         Invalidate(FALSE);
     }
 
@@ -78,6 +82,35 @@ void CMFCUIDlg::OnSize(UINT nType, int cx, int cy)
 
     ClampScroll();
     Invalidate();
+}
+
+void CMFCUIDlg::UpdateChargeRate()
+{
+    int lang = 0;
+
+    m_last = m_estimator.GetBatteryTime(lang);
+
+    float chargeW = kMissing;
+    float dischargeW = kMissing;
+
+    if (m_last.currentRate_mW > 0)
+    {
+        chargeW =
+            (float)m_last.currentRate_mW / 1000.0f;
+    }
+    else if (m_last.currentRate_mW < 0)
+    {
+        dischargeW =
+            fabs((float)m_last.currentRate_mW) / 1000.0f;
+    }
+
+    m_samplesChargeW[m_cursor] = chargeW;
+    m_samplesDischargeW[m_cursor] = dischargeW;
+
+    m_cursor = (m_cursor + 1) % kWindowSeconds;
+
+    if (!m_filled && m_cursor == 0)
+        m_filled = true;
 }
 
 BOOL CMFCUIDlg::OnEraseBkgnd(CDC* pDC)
@@ -236,9 +269,9 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     {
         m_pBattDlg->OnBnClickedAuto();
     }
-       /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
-            MB_OK | MB_ICONINFORMATION);*/
-    
+    /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
+         MB_OK | MB_ICONINFORMATION);*/
+
     else if (m_rcBtnLanguage.PtInRect(cp))
     {
         m_bJapanese = !m_bJapanese;

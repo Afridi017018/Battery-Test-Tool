@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "resource.h"
 #include <afxwin.h>
+#include <limits>
+#include "CRateInfoDlg.h"
 #include <vector>
 
 
@@ -121,5 +123,22 @@ public:
     void ClearDialogBusy() { m_bDialogBusy = false; }
 
     afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+public:
+
+    BatteryTimeEstimator m_estimator;
+    BatteryTimeInfo      m_last;
+
+    static constexpr int kWindowSeconds = 120;
+    static constexpr float kMissing =
+        std::numeric_limits<float>::quiet_NaN();
+
+    std::vector<float> m_samplesChargeW;
+    std::vector<float> m_samplesDischargeW;
+
+    int  m_cursor = 0;
+    bool m_filled = false;
+
+    void UpdateChargeRate();
 
 };
