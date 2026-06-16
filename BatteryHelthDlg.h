@@ -332,7 +332,7 @@ public:
 	afx_msg void OnBnClickedBtnRateinfo();
 
 
-protected:
+public:
 	// === Toggle state ===
 	enum class Lang { EN, JP };
 	Lang m_lang = Lang::EN; // default: English
@@ -434,6 +434,7 @@ public:
 	CCPUProgressDlg* m_pCpuDlg = nullptr;
 	CAutoProgressDlg* m_pAutoDlg = nullptr;
 	// m_pNewUI is already nullptr in your header; ensure all raw pointers are initialized
+
 };
 
 

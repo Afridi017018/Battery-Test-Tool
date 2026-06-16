@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include "MFCUIDlg.h"
+#include "BatteryHelthDlg.h"
 
 // ─────────────────────────────────────────────────────────────────
 // Scale font relative to button dimensions
@@ -166,8 +167,14 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         }
 
         // Label
-        CString langLabel = m_bJapanese ? _T("\u65E5\u672C\u8A9E")
+        /*CString langLabel = m_bJapanese ? _T("\u65E5\u672C\u8A9E")
+            : _T("English");*/
+
+        CString langLabel =
+            (m_pBattDlg && m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
+            ? _T("日本語")
             : _T("English");
+
         int arrowW = max(8, bW * 10 / 100);
         int textX = dotCX + dotR + max(3, bW * 4 / 100);
 

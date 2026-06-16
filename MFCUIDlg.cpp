@@ -272,9 +272,30 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
          MB_OK | MB_ICONINFORMATION);*/
 
-    else if (m_rcBtnLanguage.PtInRect(cp))
+   /* else if (m_rcBtnLanguage.PtInRect(cp))
     {
         m_bJapanese = !m_bJapanese;
+        Invalidate();
+    }*/
+
+    else if (m_rcBtnLanguage.PtInRect(cp))
+    {
+        if (m_pBattDlg)
+        {
+            // Toggle the language on the battery dialog
+            if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
+                m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::JP;
+            else
+                m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::EN;
+
+            // Keep m_bJapanese in sync (used elsewhere in drawing)
+            m_bJapanese = (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP);
+        }
+        else
+        {
+            // Fallback if dialog not linked yet
+            m_bJapanese = !m_bJapanese;
+        }
         Invalidate();
     }
 
