@@ -427,6 +427,8 @@ public:
 	CString currCapOut;
 	CString cycles;
 
+	CString deviceId;
+
 	// BatteryHelthDlg.h
 	CDischargeProgressDlg* m_pDischargeDlg = nullptr;
 	CCPUProgressDlg* m_pCpuDlg = nullptr;

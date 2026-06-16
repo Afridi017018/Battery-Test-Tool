@@ -97,9 +97,13 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     int innerLeft = rcCard.left + CW * 10 / 468;
     int innerRight = rcCard.right - CW * 10 / 468;
+    /*int totalBtnW = innerRight - innerLeft;
+    int gapW = max(4, CW * 8 / 468);
+    int btnW = (totalBtnW - gapW * 2) / 3;*/
+
     int totalBtnW = innerRight - innerLeft;
     int gapW = max(4, CW * 8 / 468);
-    int btnW = (totalBtnW - gapW * 2) / 3;
+    int btnW = (totalBtnW - gapW) / 2;
 
     if (btnW < 10) return;
 
@@ -119,61 +123,11 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         CLR_BORDER,             // grey border
         btnRadius);
 
-    // ── Button 2: View Log (outline style) ───────────────────────
-    m_rcBtnViewLog = CRect(
-        innerLeft + btnW + gapW,
-        btnAreaTop,
-        innerLeft + btnW * 2 + gapW,
-        btnAreaBottom);
-
-    // Draw outline button manually for the play icon + text layout
-    {
-        CBrush br(RGB(255, 255, 255));
-        CPen   pen(PS_SOLID, 1, CLR_BORDER);
-        CBrush* pOldB = pDC->SelectObject(&br);
-        CPen* pOldP = pDC->SelectObject(&pen);
-        pDC->RoundRect(m_rcBtnViewLog, CPoint(btnRadius, btnRadius));
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-    }
-
-    // Play triangle icon
-    {
-        int bW = m_rcBtnViewLog.Width();
-        int bH = m_rcBtnViewLog.Height();
-        int triH = max(6, bH * 40 / 100);
-        int triW = max(4, triH * 6 / 10);
-        int triX = m_rcBtnViewLog.left + bW * 22 / 100;
-        int triY = m_rcBtnViewLog.top + (bH - triH) / 2;
-
-        POINT tri[3] = {
-            { triX,        triY },
-            { triX,        triY + triH },
-            { triX + triW, triY + triH / 2 }
-        };
-        CBrush triBr(CLR_BLUE);
-        CPen   triPen(PS_SOLID, 1, CLR_BLUE);
-        CBrush* pOldB = pDC->SelectObject(&triBr);
-        CPen* pOldP = pDC->SelectObject(&triPen);
-        pDC->Polygon(tri, 3);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-
-        // "View Log" text — shifted right of icon
-        int textX = triX + triW + max(3, bW * 4 / 100);
-        CRect rcTxt(textX,
-            m_rcBtnViewLog.top,
-            m_rcBtnViewLog.right - max(3, bW * 4 / 100),
-            m_rcBtnViewLog.bottom);
-        DrawTextEx(pDC, _T("View Log"), rcTxt,
-            CLR_DARK_TEXT,
-            BtnFont(bW, bH, 9), false,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    }
+   
 
     // ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
     m_rcBtnLanguage = CRect(
-        innerLeft + btnW * 2 + gapW * 2,
+        innerLeft + btnW + gapW,
         btnAreaTop,
         innerRight,
         btnAreaBottom);

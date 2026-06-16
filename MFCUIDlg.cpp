@@ -233,11 +233,12 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     CPoint cp = ContentPoint(point);
 
     if (m_rcBtnAutoTest.PtInRect(cp))
-        MessageBox(_T("Auto Test started!"), _T("Auto Test"),
-            MB_OK | MB_ICONINFORMATION);
-    else if (m_rcBtnViewLog.PtInRect(cp))
-        MessageBox(_T("Opening View Log..."), _T("View Log"),
-            MB_OK | MB_ICONINFORMATION);
+    {
+        m_pBattDlg->OnBnClickedAuto();
+    }
+       /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
+            MB_OK | MB_ICONINFORMATION);*/
+    
     else if (m_rcBtnLanguage.PtInRect(cp))
     {
         m_bJapanese = !m_bJapanese;
@@ -451,7 +452,7 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
     int y = SH(16, H);
 
     CRect rcTitle(mx, y, rc.right - mx, y + SH(32, H));
-    DrawTextEx(pDC, _T("Battery Health & Monitor"), rcTitle,
+    DrawTextEx(pDC, _T("Battery Health and Performance Monitor"), rcTitle,
         CLR_TITLE, SF(14, W), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -462,8 +463,19 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
     pDC->LineTo(rc.right - mx, divY);
     pDC->SelectObject(pOld);
 
-    CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
+    /*CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
     DrawTextEx(pDC, _T("Device ID: 123456789  |  Model: ABC-123"), rcSub,
         CLR_SUBTITLE, SF(8, W), false,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);*/
+
+    CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
+
+    CString strDeviceId;
+    if (m_pBattDlg)
+        strDeviceId = m_pBattDlg->deviceId;
+
+    DrawTextEx(pDC, strDeviceId, rcSub,
+        CLR_SUBTITLE, SF(8, W), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
 }

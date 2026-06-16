@@ -2552,10 +2552,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DID, L"");
+				deviceId = L"Failed to create IWbemLocator";
                 UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
             }
             else {
                 UpdateLabel(this, IDC_BATT_DID, L"");
+				deviceId = L"IWbemLocator の作成に失敗しました";
                 UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
             }
         }
@@ -2566,10 +2568,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     if (FAILED(hr) || !pSvc) {
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"Could not connect to WMI";
             UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"WMI に接続できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
         }
 
@@ -2584,10 +2588,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"Could not set proxy blanket";
             UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"プロキシ ブランケットを設定できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
 
@@ -2607,10 +2613,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"WMI query failed";
             UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"WMI クエリに失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
         }
 
@@ -2626,10 +2634,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     if (uReturn == 0 || !pObj) {
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"No battery found";
             UpdateLabel(this, IDC_BATT_DID, L"No battery found");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
+			deviceId = L"バッテリーが見つかりません";
             UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
         }
         pEnumerator->Release(); pSvc->Release(); pLoc->Release();
@@ -3013,9 +3023,10 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
                 VARIANT v{};
                 if (SUCCEEDED(pUUID->Get(L"UUID", 0, &v, 0, 0))) {
                     CString uuid = (v.vt != VT_NULL && v.vt != VT_EMPTY) ? v.bstrVal : L"Not available";
-                    UpdateLabel(this, IDC_BATT_DID, L"ID - " + uuid);
+					deviceId = L"Device ID - " + uuid;
+                    UpdateLabel(this, IDC_BATT_DID, L"Device ID - " + uuid);
 
-                    m_reportData.uuid = L"ID - " + uuid;
+                    m_reportData.uuid = L"Device ID - " + uuid;
 
                     VariantClear(&v);
                 }
@@ -3024,12 +3035,14 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             else {
                 if (m_lang == Lang::EN) {
                     UpdateLabel(this, IDC_BATT_DID, L"");
+					deviceId = L"Not available";
                     UpdateLabel(this, IDC_BATT_DID, L"Not available");
 
                     m_reportData.uuid = L"Not available";
                 }
                 else {
                     UpdateLabel(this, IDC_BATT_DID, L"");
+					deviceId = L"利用不可";
                     UpdateLabel(this, IDC_BATT_DID, L"利用不可");
 
                     m_reportData.uuid = L"利用不可";
@@ -3040,11 +3053,13 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         else {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DID, L"");
+				deviceId = L"Not available";
                 UpdateLabel(this, IDC_BATT_DID, L"Not available");
                 m_reportData.uuid = L"Not available";
             }
             else {
                 UpdateLabel(this, IDC_BATT_DID, L"");
+				deviceId = L"利用不可";
                 UpdateLabel(this, IDC_BATT_DID, L"利用不可");
 
                 m_reportData.uuid = L"利用不可";
@@ -3078,10 +3093,12 @@ void CBatteryHelthDlg::GetBatteryInfo()
         IID_IWbemLocator, (LPVOID*)&pLoc);
     if (FAILED(hr) || !pLoc) {
         if (m_lang == Lang::EN) {
+			deviceId = L"Failed to create IWbemLocator";
             UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
 
         }
         else {
+			deviceId = L"IWbemLocator の作成に失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
         }
         return;
@@ -3089,9 +3106,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
     hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
     if (FAILED(hr) || !pSvc) {
         if (m_lang == Lang::EN) {
+			deviceId = L"Could not connect to WMI";
             UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
         }
         else {
+			deviceId = L"WMI に接続できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
         }
         pLoc->Release();
@@ -3102,9 +3121,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
         NULL, EOAC_NONE);
     if (FAILED(hr)) {
         if (m_lang == Lang::EN) {
+			deviceId = L"Could not set proxy blanket";
             UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
         }
         else {
+			deviceId = L"プロキシ ブランケットを設定できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
         pSvc->Release(); pLoc->Release();
@@ -3118,9 +3139,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
         NULL, &pEnumerator);
     if (FAILED(hr) || !pEnumerator) {
         if (m_lang == Lang::EN) {
+			deviceId = L"WMI query failed";
             UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         }
         else {
+			deviceId = L"WMI クエリに失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
         }
 
@@ -3132,9 +3155,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
     hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
     if (uReturn == 0 || !pObj) {
         if (m_lang == Lang::EN) {
+			deviceId = L"No battery found";
             UpdateLabel(this, IDC_BATT_DID, L"No battery found");
         }
         else {
+			deviceId = L"バッテリーが見つかりません";
             UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
         }
         pEnumerator->Release(); pSvc->Release(); pLoc->Release();
