@@ -160,7 +160,10 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     CRect rcTitle(
         rcCard.left + pad, rcCard.top + SH(8, H),
         rcCard.right - pad, rcCard.top + SH(28, H));
-    DrawTextEx(pDC, _T("Basic Battery Info"), rcTitle,
+    DrawTextEx(pDC,
+        L(_T("Basic Battery Info"),
+            _T("基本バッテリー情報")),
+        rcTitle,
         CLR_TITLE, SF(10, W), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -261,32 +264,44 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     }
 
     DrawInfoTile(pDC, rcT1,
-        _T("Name"), battName,    // ← real data now
+        L(_T("Name"),
+            _T("名称")),
+        battName,    // ← real data now
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT2,
-        _T("Battery Id"), battId,
+        L(_T("Battery Id"),
+            _T("バッテリーID")),
+        battId,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT3,
-        _T("Time Remaining"), timeLeft,   // ← real data
+        L(_T("Time Remaining"),
+            _T("残り時間")),
+        timeLeft,   // ← real data
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT4,
-        _T("Voltage"), voltage,
+        L(_T("Voltage"),
+            _T("電圧")),
+        voltage,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT5,
-        _T("Temperature"), temperature,
+        L(_T("Temperature"),
+            _T("温度")),
+        temperature,
         CLR_DARK_TEXT,
         true, _T("↓"), RGB(30, 120, 220));
 
     DrawInfoTile(pDC, rcT6,
-        _T("Health"), health,
+        L(_T("Health"),
+            _T("健全性")),
+        health,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 }

@@ -75,8 +75,13 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
     CRect rcTitle(
         rcCard.left + pad, rcCard.top + CH * 8 / 90,
         rcCard.right - pad, rcCard.top + CH * 8 / 90 + titleH);
-    DrawTextEx(pDC, _T("Quick Actions"), rcTitle,
-        CLR_TITLE, max(6, (int)(min(CW, CH) * 10 / 90)), true,
+    DrawTextEx(pDC,
+        L(_T("Quick Actions"),
+            _T("クイックアクション")),
+        rcTitle,
+        CLR_TITLE,
+        max(6, (int)(min(CW, CH) * 10 / 90)),
+        true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Divider
@@ -118,10 +123,11 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         btnAreaBottom);
 
     DrawQAButton(pDC, m_rcBtnAutoTest,
-        _T("Auto Test"),
-        RGB(255, 255, 255),     // white background
-        CLR_DARK_TEXT,          // dark text
-        CLR_BORDER,             // grey border
+        L(_T("Auto Test"),
+            _T("自動テスト")),
+        RGB(255, 255, 255),
+        CLR_DARK_TEXT,
+        CLR_BORDER,
         btnRadius);
 
    

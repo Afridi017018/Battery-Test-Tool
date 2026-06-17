@@ -195,7 +195,10 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
 
     CRect rcTitle(rcHeader.left + pad, rcHeader.top,
         rcHeader.right - hdrH - pad, rcHeader.bottom);
-    DrawTextEx(pDC, _T("Data and History"), rcTitle,
+    DrawTextEx(pDC,
+        L(_T("Data and History"),
+            _T("データと履歴")),
+        rcTitle,
         CLR_TITLE, titleFS, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -228,18 +231,18 @@ void CMFCUIDlg::DrawDataHistory(CDC* pDC, CRect rc)
     if (!m_bDataHistoryExpanded) return;
 
     struct RowDef {
-        const TCHAR* label;
-        const TCHAR* icon;
-        COLORREF     iconBg;
+        CString  label;
+        CString  icon;
+        COLORREF iconBg;
     };
     RowDef defs[7] = {
-        { _T("Charge and History"),      _T("C"), RGB(30,  120, 220) },
-        { _T("Export to CSV"),           _T("E"), RGB(40,  180,  80) },
-        { _T("Sleep Logs"),              _T("S"), RGB(160,  80, 220) },
-        { _T("Usage History"),           _T("U"), RGB(220, 120,  40) },
-        { _T("Capacity History"),        _T("H"), RGB(220,  60,  60) },
-        { _T("Battery Report"),          _T("B"), RGB(80,  160, 200) },
-        { _T("View Power State Logs"),   _T("P"), RGB(60,  140,  80) },
+    { L(_T("Charge and History"),    _T("充電履歴")),         _T("C"), RGB(30, 120, 220) },
+    { L(_T("Export to CSV"),         _T("CSV出力")),         _T("E"), RGB(40, 180, 80) },
+    { L(_T("Sleep Logs"),            _T("スリープログ")),     _T("S"), RGB(160, 80, 220) },
+    { L(_T("Usage History"),         _T("使用履歴")),         _T("U"), RGB(220, 120, 40) },
+    { L(_T("Capacity History"),      _T("容量履歴")),         _T("H"), RGB(220, 60, 60) },
+    { L(_T("Battery Report"),        _T("バッテリーレポート")), _T("B"), RGB(80, 160, 200) },
+    { L(_T("View Power State Logs"), _T("電源状態ログ表示")), _T("P"), RGB(60, 140, 80) },
     };
 
     int rowFS = DhFont(CW, rowH, 9);

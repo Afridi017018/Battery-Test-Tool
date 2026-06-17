@@ -141,4 +141,6 @@ public:
 
     void UpdateChargeRate();
 
+
+    CString L(const CString& en, const CString& jp);
 };

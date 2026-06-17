@@ -369,7 +369,10 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         rcCard.top + CH * 8 / 220,
         rcCard.right - pad,
         rcCard.top + CH * 8 / 220 + titleH);
-    DrawTextEx(pDC, _T("Battery Overview"), rcTitle,
+    DrawTextEx(pDC,
+        L(_T("Battery Overview"),
+            _T("バッテリー概要")),
+        rcTitle,
         CLR_TITLE, OvFont(CW, CH, 10), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -411,7 +414,10 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         rcLeft.top + LH * 5 / 100,
         rcLeft.right - LW * 4 / 100,
         rcLeft.top + LH * 5 / 100 + sLblH);
-    DrawTextEx(pDC, _T("Status"), rcStatusLbl,
+    DrawTextEx(pDC,
+        L(_T("Status"),
+            _T("状態")),
+        rcStatusLbl,
         CLR_MID_TEXT, OvFont(LW, LH, 8), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -461,7 +467,10 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     {
         CRect rcPwr(rcLeft.left, pwrY,
             rcLeft.right, pwrY + rowH);
-        DrawTextEx(pDC, _T("Power: 12.5 V"), rcPwr,
+        DrawTextEx(pDC,
+            L(_T("Power: 12.5 V"),
+                _T("電圧: 12.5 V")),
+            rcPwr,
             CLR_MID_TEXT, OvFont(LW, LH, 8), false,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
@@ -484,7 +493,10 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         rcRight.top + RH * 5 / 100,
         rcRight.right - RW * 4 / 100,
         rcRight.top + RH * 5 / 100 + capHdrH);
-    DrawTextEx(pDC, _T("Capacity"), rcCapHdr,
+    DrawTextEx(pDC,
+        L(_T("Capacity"),
+            _T("容量")),
+        rcCapHdr,
         CLR_MID_TEXT, OvFont(RW, RH, 8), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -504,7 +516,9 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     int y = capDivY + max(4, RH * 6 / 180);
 
     // Design Capacity
-    DrawTextEx(pDC, _T("Design Capacity:"),
+    DrawTextEx(pDC,
+        L(_T("Design Capacity:"),
+            _T("設計容量:")),
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_MID_TEXT, OvFont(RW, RH, 7), false,
@@ -521,7 +535,9 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     y += rowUnit + 4;
 
     // Full Charge Capacity
-    DrawTextEx(pDC, _T("Full Charge Capacity:"),
+    DrawTextEx(pDC,
+        L(_T("Full Charge Capacity:"),
+            _T("満充電容量:")),
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_MID_TEXT, OvFont(RW, RH, 7), false,
@@ -538,7 +554,9 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     y += rowUnit + 4;
 
     // Current Capacity
-    DrawTextEx(pDC, _T("Current Capacity:"),
+    DrawTextEx(pDC,
+        L(_T("Current Capacity:"),
+            _T("現在容量:")),
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_MID_TEXT, OvFont(RW, RH, 7), false,
@@ -555,7 +573,9 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     y += rowUnit + 4;
 
     // Cycle Count
-    DrawTextEx(pDC, _T("Cycle Count:"),
+    DrawTextEx(pDC,
+        L(_T("Cycle Count:"),
+            _T("サイクル回数:")),
         CRect(rpx, y,
             rcRight.right - RW * 4 / 100, y + rowUnit),
         CLR_MID_TEXT, OvFont(RW, RH, 7), false,

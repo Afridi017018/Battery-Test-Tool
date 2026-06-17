@@ -181,7 +181,10 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
 
     CRect rcTitle(rcHeader.left + pad, rcHeader.top,
         rcHeader.right - hdrH - pad, rcHeader.bottom);
-    DrawTextEx(pDC, _T("Advanced Info"), rcTitle,
+    DrawTextEx(pDC,
+        L(_T("Advance Info"),
+            _T("詳細情報")),
+        rcTitle,
         CLR_TITLE, titleFS, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -225,18 +228,18 @@ void CMFCUIDlg::DrawAdvancedInfo(CDC* pDC, CRect rc)
 
     // Button definitions
     struct BtnDef {
-        const TCHAR* label;
-        const TCHAR* icon;
-        COLORREF     iconBg;
+        CString  label;
+        CString  icon;
+        COLORREF iconBg;
     };
     BtnDef defs[7] = {
-        { _T("Cpu Load Test"),        _T("C"), RGB(30,  120, 220) },
-        { _T("Discharge Test"),       _T("D"), RGB(220,  60,  60) },
-        { _T("Active Life Trend"),    _T("A"), RGB(40,  180,  80) },
-        { _T("Standby Life Trend"),   _T("S"), RGB(160,  80, 220) },
-        { _T("Running Application"),  _T("R"), RGB(220, 140,  30) },
-        { _T("Detect Manipulation"),  _T("M"), RGB(80,  160, 200) },
-        { _T("Check Power State"),    _T("P"), RGB(100, 100, 120) },
+    { L(_T("Cpu Load Test"),       _T("CPU負荷テスト")),      _T("C"), RGB(30, 120, 220) },
+    { L(_T("Discharge Test"),      _T("放電テスト")),         _T("D"), RGB(220, 60, 60) },
+    { L(_T("Active Life Trend"),   _T("アクティブ寿命推移")), _T("A"), RGB(40, 180, 80) },
+    { L(_T("Standby Life Trend"),  _T("スタンバイ寿命推移")), _T("S"), RGB(160, 80, 220) },
+    { L(_T("Running Application"), _T("実行中アプリ")),       _T("R"), RGB(220, 140, 30) },
+    { L(_T("Detect Manipulation"), _T("改ざん検出")),         _T("M"), RGB(80, 160, 200) },
+    { L(_T("Check Power State"),   _T("電源状態確認")),       _T("P"), RGB(100, 100, 120) },
     };
 
     int rowFS = AdvFont(CW, rowH, 9);

@@ -11,7 +11,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define BASE_W  500
+#define BASE_W  800
 #define BASE_H  900
 
 #define CLR_BG        RGB(235, 238, 245)
@@ -52,7 +52,11 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CMFCUIDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
-    SetWindowText(_T("Battery Health & Monitor"));
+    SetWindowText(
+    (m_pBattDlg &&
+     m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+    ? _T("バッテリーテストツール")
+    : _T("Battery Test Tool"));
     ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 
@@ -282,20 +286,25 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     {
         if (m_pBattDlg)
         {
-            // Toggle the language on the battery dialog
             if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
                 m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::JP;
             else
                 m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::EN;
 
-            // Keep m_bJapanese in sync (used elsewhere in drawing)
-            m_bJapanese = (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP);
+            m_bJapanese =
+                (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP);
+
+            // ADD THIS
+            SetWindowText(
+                (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+                ? _T("バッテリーテストツール")
+                : _T("Battery Test Tool"));
         }
         else
         {
-            // Fallback if dialog not linked yet
             m_bJapanese = !m_bJapanese;
         }
+
         Invalidate();
     }
 
@@ -312,15 +321,17 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     }
     else if (m_bAdvancedExpanded)
     {
-        const TCHAR* btnNames[] = {
-            _T("Cpu Load Test"),
-            _T("Discharge Test"),
-            _T("Active Life Trend"),
-            _T("Standby Life Trend"),
-            _T("Running Application"),
-            _T("Detect Manipulation"),
-            _T("Check Power State")
+        CString btnNames[] =
+        {
+            L(_T("Cpu Load Test"), _T("CPU負荷テスト")),
+            L(_T("Discharge Test"), _T("放電テスト")),
+            L(_T("Active Life Trend"), _T("アクティブ寿命推移")),
+            L(_T("Standby Life Trend"), _T("スタンバイ寿命推移")),
+            L(_T("Running Application"), _T("実行中アプリ")),
+            L(_T("Detect Manipulation"), _T("改ざん検出")),
+            L(_T("Check Power State"), _T("電源状態確認"))
         };
+
         for (int i = 0; i < 7; i++)
         {
             if (!m_rcAdvBtn[i].IsRectEmpty() &&
@@ -378,14 +389,15 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     }
     else if (m_bDataHistoryExpanded)
     {
-        const TCHAR* dhNames[] = {
-            _T("Charge History"),
-            _T("Export to CSV"),
-            _T("Sleep Logs"),
-            _T("Usage History"),
-            _T("Capacity History"),
-            _T("Battery Report"),
-            _T("View Power State Logs")
+        CString dhNames[] =
+        {
+            L(_T("Charge History"), _T("充電履歴")),
+            L(_T("Export to CSV"), _T("CSV出力")),
+            L(_T("Sleep Logs"), _T("スリープログ")),
+            L(_T("Usage History"), _T("使用履歴")),
+            L(_T("Capacity History"), _T("容量履歴")),
+            L(_T("Battery Report"), _T("バッテリーレポート")),
+            L(_T("View Power State Logs"), _T("電源状態ログ表示"))
         };
         for (int i = 0; i < 7; i++)
         {
@@ -506,7 +518,12 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
     int y = SH(16, H);
 
     CRect rcTitle(mx, y, rc.right - mx, y + SH(32, H));
-    DrawTextEx(pDC, _T("Battery Health and Performance Monitor"), rcTitle,
+    CString strTitle =
+        (m_pBattDlg && m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+        ? _T("バッテリー状態および性能モニター")
+        : _T("Battery Health and Performance Monitor");
+
+    DrawTextEx(pDC, strTitle, rcTitle,
         CLR_TITLE, SF(14, W), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
@@ -532,4 +549,13 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
         CLR_SUBTITLE, SF(8, W), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
+}
+
+
+CString CMFCUIDlg::L(const CString& en, const CString& jp)
+{
+    return (m_pBattDlg &&
+        m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+        ? jp
+        : en;
 }

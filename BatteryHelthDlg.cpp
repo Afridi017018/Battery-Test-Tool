@@ -3023,10 +3023,10 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
                 VARIANT v{};
                 if (SUCCEEDED(pUUID->Get(L"UUID", 0, &v, 0, 0))) {
                     CString uuid = (v.vt != VT_NULL && v.vt != VT_EMPTY) ? v.bstrVal : L"Not available";
-					deviceId = L"Device ID - " + uuid;
-                    UpdateLabel(this, IDC_BATT_DID, L"Device ID - " + uuid);
+					deviceId = L"ID - " + uuid;
+                    UpdateLabel(this, IDC_BATT_DID, L"ID - " + uuid);
 
-                    m_reportData.uuid = L"Device ID - " + uuid;
+                    m_reportData.uuid = L"ID - " + uuid;
 
                     VariantClear(&v);
                 }
