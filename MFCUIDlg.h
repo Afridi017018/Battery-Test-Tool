@@ -71,8 +71,16 @@ private:
         /*void DrawCircularGauge(CDC* pDC, CPoint center,
             int radius, const CString& percentText);*/
 
-    void DrawCircularGauge(CDC* pDC, CPoint center,
-        int radius, const CString& percentText, bool isCharging);
+   /* void DrawCircularGauge(CDC* pDC, CPoint center,
+        int radius, const CString& percentText, bool isCharging);*/
+
+    void DrawCircularGauge(
+        CDC* pDC,
+        CPoint center,
+        int radius,
+        const CString& percentText,
+        bool isCharging,
+        bool isHealth);
 
     // ── Scale helpers ─────────────────────────────────────────────
     int SW(int baseWidth, int clientWidth);

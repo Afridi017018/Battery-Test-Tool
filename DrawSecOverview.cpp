@@ -169,9 +169,10 @@ static int OvFont(int refW, int refH, int baseSize)
 void CMFCUIDlg::DrawCircularGauge(
     CDC* pDC,
     CPoint center,
-    int    radius,
+    int radius,
     const CString& percentText,
-    bool   isCharging)
+    bool isCharging,
+    bool isHealth)
 {
     if (radius < 8) return;
 
@@ -249,31 +250,32 @@ void CMFCUIDlg::DrawCircularGauge(
     {
         float filled = sweepTotal * percent;
 
-        if (isCharging)
+        COLORREF gaugeColor = CLR_BLUE;
+
+        if (isHealth)
         {
-            // Charging: solid green, no blue tip
-            DrawArc(gdiStart, filled, CLR_GREEN, trackW);
+            if (pctVal >= 80)
+                gaugeColor = CLR_GREEN;
+            else if (pctVal >= 60)
+                gaugeColor = CLR_YELLOW;
+            else
+                gaugeColor = CLR_RED;
         }
         else
         {
-            // Discharging: red when low, green otherwise — no yellow tip
-            if (pctVal <= 20)
-            {
-                DrawArc(gdiStart, filled, CLR_RED, trackW);
-            }
-            else
-            {
-                DrawArc(gdiStart, filled, CLR_GREEN, trackW);
-            }
+            // Battery is always blue
+            gaugeColor = CLR_BLUE;
         }
+
+        DrawArc(gdiStart, filled, gaugeColor, trackW);
     }
     // ── Center text: use real string, e.g. "78%" ─────────────────
     CString strNum = percentText;
     strNum.Replace(_T("%"), _T(""));   // remove % so we can append our own symbol
     strNum.Trim();
 
-    int numFS = max(6, radius * 52 / 100);
-    int symFS = max(5, radius * 22 / 100);
+    int numFS = max(6, radius * 34 / 100);
+    int symFS = max(5, radius * 14 / 100);
 
     // Measure actual pixel width of the number string
     LOGFONT lf = {};
@@ -335,6 +337,9 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     CString fullCapacity = _T("Unknown");
     CString currentCapacity = _T("Unknown");
     CString cycles = _T("Unknown");
+    CString health = _T("Unknown");
+
+    health = m_pBattDlg->healthStr;
 
     status = m_pBattDlg->statusText;
 	percentText = m_pBattDlg->pct;
@@ -421,9 +426,13 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         CLR_MID_TEXT, OvFont(LW, LH, 8), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    // Gauge radius: 32% of smaller panel dimension, clamped
-    int gaugeR = min(LW, LH) * 32 / 100;
-    gaugeR = max(28, min(gaugeR, 70));
+    //// Gauge radius: 32% of smaller panel dimension, clamped
+    //int gaugeR = min(LW, LH) * 32 / 100;
+    //gaugeR = max(28, min(gaugeR, 70));
+
+    // Slightly bigger so values like 90.22% fit inside
+    int gaugeR = min(LW, LH) * 34 / 100;
+    gaugeR = max(38, min(gaugeR, 74));
 
     // Gauge center: horizontally centred, vertically after label
     int gaugeCY = rcLeft.top + LH * 18 / 100 + gaugeR;
@@ -431,7 +440,17 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     gaugeCY = min(gaugeCY, rcLeft.bottom - gaugeR - LH * 20 / 100);
     gaugeCY = max(gaugeCY, rcLeft.top + gaugeR + LH * 5 / 100);
 
-    CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);
+    /*CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);*/
+
+    int gaugeGap = max(20, LW / 10);
+
+    CPoint batteryCenter(
+        rcLeft.left + LW / 5,
+        gaugeCY);
+
+    CPoint healthCenter(
+        rcLeft.left + (LW * 4) / 5,
+        gaugeCY);
 
     CString pctStr = _T("0%");
     bool charging = false;
@@ -442,11 +461,62 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         charging = m_pBattDlg->IsCharging();
     }
 
-    DrawCircularGauge(pDC, gaugeCenter, gaugeR, pctStr, charging);
+
+
+    int rowH = max(10, LH * 14 / 100);
+
+    int labelY = gaugeCY + gaugeR + max(2, LH * 2 / 100);
+
+    CRect rcBattLbl(
+        batteryCenter.x - gaugeR,
+        labelY,
+        batteryCenter.x + gaugeR,
+        labelY + rowH);
+
+    DrawTextEx(
+        pDC,
+        L(_T("Battery"), _T("バッテリー")),
+        rcBattLbl,
+        CLR_MID_TEXT,
+        OvFont(LW, LH, 7),
+        false,
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    CRect rcHealthLbl(
+        healthCenter.x - gaugeR,
+        labelY,
+        healthCenter.x + gaugeR,
+        labelY + rowH);
+
+    DrawTextEx(
+        pDC,
+        L(_T("Health"), _T("健康")),
+        rcHealthLbl,
+        CLR_MID_TEXT,
+        OvFont(LW, LH, 7),
+        false,
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    // Battery %
+    DrawCircularGauge(
+        pDC,
+        batteryCenter,
+        gaugeR,
+        pctStr,
+        charging,
+        false);
+
+    // Health %
+    DrawCircularGauge(
+        pDC,
+        healthCenter,
+        gaugeR,
+        health,
+        false,
+        true);
 
     // "► Charging" below gauge
-    int belowY = gaugeCY + gaugeR + max(4, LH * 5 / 100);
-    int rowH = max(10, LH * 14 / 100);
+    int belowY = labelY + rowH + max(2, LH * 2 / 100);
 
     if (belowY + rowH <= rcLeft.bottom)
     {
