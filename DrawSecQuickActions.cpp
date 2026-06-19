@@ -107,9 +107,13 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
     int gapW = max(4, CW * 8 / 468);
     int btnW = (totalBtnW - gapW * 2) / 3;*/
 
+   /* int totalBtnW = innerRight - innerLeft;
+    int gapW = max(4, CW * 8 / 468);
+    int btnW = (totalBtnW - gapW) / 2;*/
+
     int totalBtnW = innerRight - innerLeft;
     int gapW = max(4, CW * 8 / 468);
-    int btnW = (totalBtnW - gapW) / 2;
+    int btnW = (totalBtnW - gapW * 2) / 3;
 
     if (btnW < 10) return;
 
@@ -132,73 +136,112 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
    
 
-    // ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
-    m_rcBtnLanguage = CRect(
+    //// ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
+    //m_rcBtnLanguage = CRect(
+    //    innerLeft + btnW + gapW,
+    //    btnAreaTop,
+    //    innerRight,
+    //    btnAreaBottom);
+
+    //{
+    //    COLORREF btnBg = RGB(255, 255, 255);   // always white
+    //    COLORREF btnBorder = CLR_BORDER;            // always grey
+    //    COLORREF txtColor = CLR_DARK_TEXT;         // always dark
+    //    COLORREF dotColor = CLR_RED;               // always red dot
+    //    COLORREF arrowClr = CLR_MID_TEXT;          // always grey arrow
+
+    //    CBrush br(btnBg);
+    //    CPen   pen(PS_SOLID, 1, btnBorder);
+    //    CBrush* pOldB = pDC->SelectObject(&br);
+    //    CPen* pOldP = pDC->SelectObject(&pen);
+    //    pDC->RoundRect(m_rcBtnLanguage, CPoint(btnRadius, btnRadius));
+    //    pDC->SelectObject(pOldB);
+    //    pDC->SelectObject(pOldP);
+
+    //    int bW = m_rcBtnLanguage.Width();
+    //    int bH = m_rcBtnLanguage.Height();
+
+    //    // Dot
+    //    int dotR = max(3, min(bW, bH) * 5 / 100);
+    //    int dotCX = m_rcBtnLanguage.left + bW * 14 / 100;
+    //    int dotCY = m_rcBtnLanguage.top + bH / 2;
+    //    {
+    //        CBrush dotBr(dotColor);
+    //        CPen   dotPen(PS_SOLID, 1, dotColor);
+    //        CBrush* pOldB2 = pDC->SelectObject(&dotBr);
+    //        CPen* pOldP2 = pDC->SelectObject(&dotPen);
+    //        pDC->Ellipse(dotCX - dotR, dotCY - dotR,
+    //            dotCX + dotR, dotCY + dotR);
+    //        pDC->SelectObject(pOldB2);
+    //        pDC->SelectObject(pOldP2);
+    //    }
+
+    //    // Label
+    //    /*CString langLabel = m_bJapanese ? _T("\u65E5\u672C\u8A9E")
+    //        : _T("English");*/
+
+    //    CString langLabel =
+    //        (m_pBattDlg && m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
+    //        ? _T("日本語")
+    //        : _T("English");
+
+    //    int arrowW = max(8, bW * 10 / 100);
+    //    int textX = dotCX + dotR + max(3, bW * 4 / 100);
+
+    //    CRect rcLangTxt(textX,
+    //        m_rcBtnLanguage.top,
+    //        m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
+    //        m_rcBtnLanguage.bottom);
+    //    DrawTextEx(pDC, langLabel, rcLangTxt,
+    //        txtColor, BtnFont(bW, bH, 9), false,
+    //        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+    //    // ">" arrow
+    //    CRect rcArrow(m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
+    //        m_rcBtnLanguage.top,
+    //        m_rcBtnLanguage.right - max(2, bW * 3 / 100),
+    //        m_rcBtnLanguage.bottom);
+    //    DrawTextEx(pDC, _T(">"), rcArrow,
+    //        arrowClr, BtnFont(bW, bH, 9), false,
+    //        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    //}
+
+    m_rcBtnLanguage.SetRectEmpty();
+
+    // Advanced Info
+    m_rcBtnAdvanced = CRect(
         innerLeft + btnW + gapW,
         btnAreaTop,
-        innerRight,
+        innerLeft + btnW * 2 + gapW,
         btnAreaBottom);
 
-    {
-        COLORREF btnBg = RGB(255, 255, 255);   // always white
-        COLORREF btnBorder = CLR_BORDER;            // always grey
-        COLORREF txtColor = CLR_DARK_TEXT;         // always dark
-        COLORREF dotColor = CLR_RED;               // always red dot
-        COLORREF arrowClr = CLR_MID_TEXT;          // always grey arrow
+    DrawQAButton(
+        pDC,
+        m_rcBtnAdvanced,
+        L(_T("Advanced Info"),
+            _T("詳細情報")),
+        RGB(255, 255, 255),
+        CLR_DARK_TEXT,
+        CLR_BORDER,
+        btnRadius);
 
-        CBrush br(btnBg);
-        CPen   pen(PS_SOLID, 1, btnBorder);
-        CBrush* pOldB = pDC->SelectObject(&br);
-        CPen* pOldP = pDC->SelectObject(&pen);
-        pDC->RoundRect(m_rcBtnLanguage, CPoint(btnRadius, btnRadius));
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
 
-        int bW = m_rcBtnLanguage.Width();
-        int bH = m_rcBtnLanguage.Height();
+    // Data & History
+    m_rcBtnDataHistory = CRect(
+        innerLeft + (btnW + gapW) * 2,
+        btnAreaTop,
+        innerLeft + (btnW + gapW) * 2 + btnW,
+        btnAreaBottom);
 
-        // Dot
-        int dotR = max(3, min(bW, bH) * 5 / 100);
-        int dotCX = m_rcBtnLanguage.left + bW * 14 / 100;
-        int dotCY = m_rcBtnLanguage.top + bH / 2;
-        {
-            CBrush dotBr(dotColor);
-            CPen   dotPen(PS_SOLID, 1, dotColor);
-            CBrush* pOldB2 = pDC->SelectObject(&dotBr);
-            CPen* pOldP2 = pDC->SelectObject(&dotPen);
-            pDC->Ellipse(dotCX - dotR, dotCY - dotR,
-                dotCX + dotR, dotCY + dotR);
-            pDC->SelectObject(pOldB2);
-            pDC->SelectObject(pOldP2);
-        }
+    DrawQAButton(
+        pDC,
+        m_rcBtnDataHistory,
+        L(_T("Data and History"),
+            _T("データと履歴")),
+        RGB(255, 255, 255),
+        CLR_DARK_TEXT,
+        CLR_BORDER,
+        btnRadius);
 
-        // Label
-        /*CString langLabel = m_bJapanese ? _T("\u65E5\u672C\u8A9E")
-            : _T("English");*/
 
-        CString langLabel =
-            (m_pBattDlg && m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
-            ? _T("日本語")
-            : _T("English");
-
-        int arrowW = max(8, bW * 10 / 100);
-        int textX = dotCX + dotR + max(3, bW * 4 / 100);
-
-        CRect rcLangTxt(textX,
-            m_rcBtnLanguage.top,
-            m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
-            m_rcBtnLanguage.bottom);
-        DrawTextEx(pDC, langLabel, rcLangTxt,
-            txtColor, BtnFont(bW, bH, 9), false,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-
-        // ">" arrow
-        CRect rcArrow(m_rcBtnLanguage.right - arrowW - max(2, bW * 3 / 100),
-            m_rcBtnLanguage.top,
-            m_rcBtnLanguage.right - max(2, bW * 3 / 100),
-            m_rcBtnLanguage.bottom);
-        DrawTextEx(pDC, _T(">"), rcArrow,
-            arrowClr, BtnFont(bW, bH, 9), false,
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    }
 }

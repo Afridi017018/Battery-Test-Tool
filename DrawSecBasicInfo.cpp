@@ -185,7 +185,7 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     int totalW = innerRight - innerLeft;
     int gap = max(3, SW(6, W));
     int rows = 2;
-    int cols = 3;
+    int cols = 2;
 
     int vGap = gap;
 
@@ -194,33 +194,26 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
 
    
 
-    // PASTE HERE ↓↓↓
-    CRect rcT1(innerLeft,
+    CRect rcT1(
+        innerLeft,
         innerTop,
         innerLeft + tileW,
         innerTop + tileH);
 
-    CRect rcT2(innerLeft + tileW + gap,
-        innerTop,
-        innerLeft + tileW * 2 + gap,
-        innerTop + tileH);
-
-    CRect rcT3(innerLeft + tileW * 2 + gap * 2,
+    CRect rcT2(
+        innerLeft + tileW + gap,
         innerTop,
         innerRight,
         innerTop + tileH);
 
-    CRect rcT4(innerLeft,
+    CRect rcT3(
+        innerLeft,
         innerTop + tileH + vGap,
         innerLeft + tileW,
         innerBottom);
 
-    CRect rcT5(innerLeft + tileW + gap,
-        innerTop + tileH + vGap,
-        innerLeft + tileW * 2 + gap,
-        innerBottom);
-
-    CRect rcT6(innerLeft + tileW * 2 + gap * 2,
+    CRect rcT4(
+        innerLeft + tileW + gap,
         innerTop + tileH + vGap,
         innerRight,
         innerBottom);
@@ -264,44 +257,26 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     }
 
     DrawInfoTile(pDC, rcT1,
-        L(_T("Name"),
-            _T("名称")),
-        battName,    // ← real data now
+        L(_T("Name"), _T("名称")),
+        battName,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT2,
-        L(_T("Battery Id"),
-            _T("バッテリーID")),
+        L(_T("Battery Id"), _T("バッテリーID")),
         battId,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT3,
-        L(_T("Time Remaining"),
-            _T("残り時間")),
-        timeLeft,   // ← real data
-        CLR_DARK_TEXT,
-        false, _T(""), 0);
-
-    DrawInfoTile(pDC, rcT4,
-        L(_T("Voltage"),
-            _T("電圧")),
+        L(_T("Voltage"), _T("電圧")),
         voltage,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 
-    DrawInfoTile(pDC, rcT5,
-        L(_T("Temperature"),
-            _T("温度")),
-        temperature,
-        CLR_DARK_TEXT,
-        true, _T("↓"), RGB(30, 120, 220));
-
-    DrawInfoTile(pDC, rcT6,
-        L(_T("Health"),
-            _T("健全性")),
-        health,
+    DrawInfoTile(pDC, rcT4,
+        L(_T("Time Remaining"), _T("残り時間")),
+        timeLeft,
         CLR_DARK_TEXT,
         false, _T(""), 0);
 }
