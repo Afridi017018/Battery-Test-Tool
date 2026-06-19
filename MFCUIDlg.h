@@ -7,11 +7,12 @@
 
 
 class CBatteryHelthDlg;
+class CABIDlg;          // new full-screen Advanced Info dialog (IDD_ABI)
 
 
 // ─── Base design dimensions ───────────────────────────────────────
-#define BASE_W  500
-#define BASE_H  900
+constexpr int BASE_W = 500;
+constexpr int BASE_H = 900;
 
 // ─── Color palette ────────────────────────────────────────────────
 #define CLR_BG        RGB(235, 238, 245)
@@ -28,6 +29,7 @@ class CBatteryHelthDlg;
 
 class CMFCUIDlg : public CDialogEx
 {
+
 public:
     CMFCUIDlg(CWnd* pParent = nullptr);
     /* void SetBatteryDlg(CBatteryHelthDlg* pDlg) { m_pBattDlg = pDlg; }*/
@@ -71,8 +73,8 @@ private:
         /*void DrawCircularGauge(CDC* pDC, CPoint center,
             int radius, const CString& percentText);*/
 
-   /* void DrawCircularGauge(CDC* pDC, CPoint center,
-        int radius, const CString& percentText, bool isCharging);*/
+            /* void DrawCircularGauge(CDC* pDC, CPoint center,
+                 int radius, const CString& percentText, bool isCharging);*/
 
     void DrawCircularGauge(
         CDC* pDC,
@@ -95,8 +97,10 @@ private:
     CRect m_rcBtnAutoTest;
     CRect m_rcBtnViewLog;
     CRect m_rcBtnLanguage;
+    CRect m_rcBtnAdvancedQA;   // "Advanced Info" button inside Quick Actions
+    // (was wrongly sharing m_rcBtnAdvanced below)
 
-    // ── Advanced Info hit rects ───────────────────────────────────
+// ── Advanced Info hit rects ───────────────────────────────────
     CRect m_rcBtnAdvanced;
     CRect m_rcAdvBtn[7];
 

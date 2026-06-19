@@ -107,9 +107,9 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
     int gapW = max(4, CW * 8 / 468);
     int btnW = (totalBtnW - gapW * 2) / 3;*/
 
-   /* int totalBtnW = innerRight - innerLeft;
-    int gapW = max(4, CW * 8 / 468);
-    int btnW = (totalBtnW - gapW) / 2;*/
+    /* int totalBtnW = innerRight - innerLeft;
+     int gapW = max(4, CW * 8 / 468);
+     int btnW = (totalBtnW - gapW) / 2;*/
 
     int totalBtnW = innerRight - innerLeft;
     int gapW = max(4, CW * 8 / 468);
@@ -134,7 +134,7 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         CLR_BORDER,
         btnRadius);
 
-   
+
 
     //// ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
     //m_rcBtnLanguage = CRect(
@@ -208,8 +208,8 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     m_rcBtnLanguage.SetRectEmpty();
 
-    // Advanced Info
-    m_rcBtnAdvanced = CRect(
+    // Advanced Info  (opens the full-screen CABIDlg — see OnLButtonUp)
+    m_rcBtnAdvancedQA = CRect(
         innerLeft + btnW + gapW,
         btnAreaTop,
         innerLeft + btnW * 2 + gapW,
@@ -217,7 +217,7 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     DrawQAButton(
         pDC,
-        m_rcBtnAdvanced,
+        m_rcBtnAdvancedQA,
         L(_T("Advanced Info"),
             _T("詳細情報")),
         RGB(255, 255, 255),

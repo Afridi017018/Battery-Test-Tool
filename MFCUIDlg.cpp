@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "framework.h"
 #include "MFCUIDlg.h"
+#include "ABIDlg.h"
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -53,10 +54,10 @@ BOOL CMFCUIDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
     SetWindowText(
-    (m_pBattDlg &&
-     m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
-    ? _T("バッテリーテストツール")
-    : _T("Battery Test Tool"));
+        (m_pBattDlg &&
+            m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+        ? _T("バッテリーテストツール")
+        : _T("Battery Test Tool"));
     ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 
@@ -276,11 +277,11 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
          MB_OK | MB_ICONINFORMATION);*/
 
-   /* else if (m_rcBtnLanguage.PtInRect(cp))
-    {
-        m_bJapanese = !m_bJapanese;
-        Invalidate();
-    }*/
+         /* else if (m_rcBtnLanguage.PtInRect(cp))
+          {
+              m_bJapanese = !m_bJapanese;
+              Invalidate();
+          }*/
 
     else if (m_rcBtnLanguage.PtInRect(cp))
     {
@@ -300,6 +301,7 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
                 ? _T("バッテリーテストツール")
                 : _T("Battery Test Tool"));
         }
+
         else
         {
             m_bJapanese = !m_bJapanese;
@@ -307,6 +309,16 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 
         Invalidate();
     }
+
+
+    if (m_rcBtnAdvancedQA.PtInRect(cp))
+    {
+        ShowWindow(SW_HIDE);
+        CABIDlg dlg(this);
+        dlg.DoModal();
+        ShowWindow(SW_SHOW);
+    }
+
 
     if (m_rcBtnAdvanced.PtInRect(cp))
     {

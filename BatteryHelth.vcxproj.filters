@@ -84,6 +84,9 @@
     <ClInclude Include="MFCUIDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ABIDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -162,6 +165,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DrawSecDataHistory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ABIDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

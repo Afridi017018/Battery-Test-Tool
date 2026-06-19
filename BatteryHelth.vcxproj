@@ -185,6 +185,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ABIDlg.h" />
     <ClInclude Include="BatteryHelth.h" />
     <ClInclude Include="BatteryHelthDlg.h" />
     <ClInclude Include="CAppReportDlg.h" />
@@ -210,6 +211,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ABIDlg.cpp" />
     <ClCompile Include="BatteryHelth.cpp" />
     <ClCompile Include="BatteryHelthDlg.cpp" />
     <ClCompile Include="CAppReportDlg.cpp" />
