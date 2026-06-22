@@ -4445,16 +4445,34 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 drainRate = static_cast<double>(drop) / (m_elapsedSeconds / 60.0);
 
             CString msg;
-            if (m_lang == Lang::EN)
-                msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)", progressPercent);
-            else
-                msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
 
             if (m_autoTestRunning)
             {
-                if (m_pAutoDlg)
+                // Auto Test discharge phase = 1 minute
+                if (m_lang == Lang::EN)
+                    msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", progressPercent);
+                else
+                    msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", progressPercent);
+            }
+            else
+            {
+                // Normal Discharge Test = 5 minutes
+                if (m_lang == Lang::EN)
+                    msg.Format(L"Please wait 5 minutes to complete. (%.0f%%)", progressPercent);
+                else
+                    msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
+            }
+
+            if (m_autoTestRunning)
+            {
+                /*if (m_pAutoDlg)
                     m_pAutoDlg->UpdateProgress(
                         (int)(37 + progressPercent * 63.0 / 100.0),
+                        2, msg);*/
+
+                if (m_pAutoDlg)
+                    m_pAutoDlg->UpdateProgress(
+                        (int)(50 + progressPercent * 50.0 / 100.0),
                         2, msg);
             }
             else
@@ -4575,7 +4593,7 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                 if (m_lang == Lang::EN)
                 {
                     m_dischargeResult.Format(
-                        L"Initial Charge2: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
+                        L"Initial Charge: %d%%, Final Charge: %d%%, Drop: %d%%, Drain Rate: %.2f %%/min",
                         m_initialBatteryPercent, sps.BatteryLifePercent, drop, drainRate);
 
                     m_reportData.disInitial = m_initialBatteryPercent;
@@ -4789,13 +4807,14 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             if (cpuPct > 100.0) cpuPct = 100.0;
 
             // Map CPU 0-100% into overall bar 0-37%
-            int overallPct = (int)(cpuPct * 37.0 / 100.0);
+            /*int overallPct = (int)(cpuPct * 37.0 / 100.0);*/
+            int overallPct = (int)(cpuPct * 50.0 / 100.0);
 
             CString msg;
             if (m_lang == Lang::EN)
-                msg.Format(L"Please wait 3 minutes to complete. (%.0f%%)", cpuPct);
+                msg.Format(L"Please wait 1 minutes to complete. (%.0f%%)", cpuPct);
             else
-                msg.Format(L"完了まで 3 分お待ちください。（ %.0f%%）", cpuPct);
+                msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", cpuPct);
 
             if (m_pAutoDlg)
                 m_pAutoDlg->UpdateProgress(overallPct, 1, msg);
@@ -8066,9 +8085,9 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     // ── Setup ────────────────────────────────────────────────────────────────
     m_autoTestRunning = true;
     m_autoElapsed = 0;
-    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480 s
+    m_autoTotalSeconds = (1 * 60) + (1 * 60);  // 480 s
     m_autoPhase = L"CPU";
-    m_cpuLoadDurationSeconds = 5 * 60;
+    m_cpuLoadDurationSeconds = 1 * 60;
     m_autoCancelled = false;
 
     GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
@@ -8084,8 +8103,8 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     m_pAutoDlg->ShowWindow(SW_SHOW);
     m_pAutoDlg->UpdateProgress(0, 1,
         m_lang == Lang::EN
-        ? L"Please wait 3 minutes to complete. (0%)"
-        : L"完了まで 3 分お待ちください。（ 0%）");
+        ? L"Please wait 1 minutes to complete. (0%)"
+        : L"完了まで 1 分お待ちください。（ 0%）");
 
     // ── Start overall progress timer ──────────────────────────────────────────
     SetTimer(m_autoTimerID, 1000, NULL);
@@ -8127,7 +8146,7 @@ void CBatteryHelthDlg::OnBnClickedAuto()
                 int    drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
                 double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
                 resultMsg.Format(
-                    L"Initial Charge1: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                    L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
                     m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
                     drop, (drop == 0 ? 0.0 : rate), gflops);
 
@@ -8182,11 +8201,11 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
     m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedSeconds = 0;
     m_elapsedMinutes = 0;
-    m_dischargeDurationMinutes = 5;
+    m_dischargeDurationMinutes = 1;
     m_dischargeTestRunning = true;
 
     if (m_pAutoDlg)
-        m_pAutoDlg->UpdateProgress(37, 2,
+        m_pAutoDlg->UpdateProgress(50, 2,
             m_lang == Lang::EN ? L"Starting discharge..." : L"放電開始中...");
 
     SetTimer(m_dischargeTimerID, 1000, NULL);

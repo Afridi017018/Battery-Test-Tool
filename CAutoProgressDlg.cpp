@@ -29,15 +29,15 @@ void CAutoProgressDlg::UpdateProgress(int totalPct, int phase, const CString& ph
 
     // Top label: overall percent
     CString overall;
-    overall.Format(L"Overall Progress: %d%%  (8 minutes total)", totalPct);
+    overall.Format(L"Overall Progress: %d%%  (2 minutes total)", totalPct);
     SetDlgItemText(IDC_AUTO_PROGRESS_LABEL, overall);
 
     // Bottom label: which phase
     CString phaseStr;
     if (phase == 1)
-        phaseStr.Format(L"Phase 1 / 2 — CPU Load (3 min): %s", (LPCWSTR)phaseMsg);
+        phaseStr.Format(L"Phase 1 / 2 — CPU Load (1 min): %s", (LPCWSTR)phaseMsg);
     else
-        phaseStr.Format(L"Phase 2 / 2 — Discharge (5 min): %s", (LPCWSTR)phaseMsg);
+        phaseStr.Format(L"Phase 2 / 2 — Discharge (1 min): %s", (LPCWSTR)phaseMsg);
 
     SetDlgItemText(IDC_AUTO_PHASE_LABEL, phaseStr);
 }

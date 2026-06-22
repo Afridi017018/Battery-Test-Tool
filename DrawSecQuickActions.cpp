@@ -226,8 +226,8 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         btnRadius);
 
 
-    // Data & History
-    m_rcBtnDataHistory = CRect(
+    // Data & History  (opens the full-screen CDHDlg — see OnLButtonUp)
+    m_rcBtnDataHistoryQA = CRect(
         innerLeft + (btnW + gapW) * 2,
         btnAreaTop,
         innerLeft + (btnW + gapW) * 2 + btnW,
@@ -235,7 +235,7 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     DrawQAButton(
         pDC,
-        m_rcBtnDataHistory,
+        m_rcBtnDataHistoryQA,
         L(_T("Data and History"),
             _T("データと履歴")),
         RGB(255, 255, 255),

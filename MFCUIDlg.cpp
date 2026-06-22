@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "MFCUIDlg.h"
 #include "ABIDlg.h"
+#include "DHDlg.h"
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -13,7 +14,7 @@
 #endif
 
 #define BASE_W  800
-#define BASE_H  900
+#define BASE_H  860
 
 #define CLR_BG        RGB(235, 238, 245)
 #define CLR_CARD      RGB(255, 255, 255)
@@ -182,24 +183,9 @@ void CMFCUIDlg::OnPaint()
 
     // ── Step 1: Calculate total content height ───────────────────
     // Base content height + extra rows if advanced is expanded
-    double scaleY = (double)m_clientHeight / (double)BASE_H;
-    if (scaleY < 0.4) scaleY = 0.4;
-    int rowH = max(36, (int)(44.0 * scaleY));
-
-    int extraAdvanced = m_bAdvancedExpanded ? rowH * 7 : 0;
-    int extraDataHistory = m_bDataHistoryExpanded ? rowH * 7 : 0;
-
-    // Base bottom of DataHistory header = base y 800 + base h 48
-    int baseDataHistBottom = 980 + 48;
-    m_totalHeight = (int)(baseDataHistBottom * scaleY)
-        + extraAdvanced
-        + extraDataHistory
-        + 40;
-
-    m_totalHeight = max(m_totalHeight, rcClient.Height());
-
-    m_totalHeight =
-        max(m_totalHeight, rcClient.Height());
+    // DrawAdvancedInfo and DrawDataHistory are now in their own dialogs
+    // (IDD_ABI / IDD_DH) — no extra height needed here.
+    m_totalHeight = rcClient.Height();   // never scrollable
 
     ClampScroll();
 
@@ -223,9 +209,11 @@ void CMFCUIDlg::OnPaint()
     DrawQuickActions(&memDC, rcContent);
     DrawChargeRate(&memDC, rcContent);
     DrawBasicBatteryInfo(&memDC, rcContent);
-    DrawAdvancedInfo(&memDC, rcContent);
+    // DrawAdvancedInfo moved to IDD_ABI (CABIDlg)
+    // DrawAdvancedInfo(&memDC, rcContent);
 
-    DrawDataHistory(&memDC, rcContent);
+    // DrawDataHistory moved to IDD_DH (CDHDlg)
+    // DrawDataHistory(&memDC, rcContent);
 
     // ── Step 4: Blit only the visible portion to screen ──────────
     dc.BitBlt(
@@ -384,6 +372,15 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
                 break;
             }
         }
+    }
+
+    // Quick Actions "Data and History" button → open full-screen CDHDlg
+    if (m_rcBtnDataHistoryQA.PtInRect(cp))
+    {
+        ShowWindow(SW_HIDE);
+        CDHDlg dlg(this);
+        dlg.DoModal();
+        ShowWindow(SW_SHOW);
     }
 
     if (m_rcBtnDataHistory.PtInRect(cp))

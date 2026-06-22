@@ -8,6 +8,7 @@
 
 class CBatteryHelthDlg;
 class CABIDlg;          // new full-screen Advanced Info dialog (IDD_ABI)
+class CDHDlg;           // new full-screen Data and History dialog (IDD_DH)
 
 
 // ─── Base design dimensions ───────────────────────────────────────
@@ -99,8 +100,9 @@ private:
     CRect m_rcBtnLanguage;
     CRect m_rcBtnAdvancedQA;   // "Advanced Info" button inside Quick Actions
     // (was wrongly sharing m_rcBtnAdvanced below)
+    CRect m_rcBtnDataHistoryQA; // "Data and History" button inside Quick Actions
 
-// ── Advanced Info hit rects ───────────────────────────────────
+    // ── Advanced Info hit rects ───────────────────────────────────
     CRect m_rcBtnAdvanced;
     CRect m_rcAdvBtn[7];
 

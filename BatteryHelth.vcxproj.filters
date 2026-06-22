@@ -87,6 +87,9 @@
     <ClInclude Include="ABIDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Dhdlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BatteryHelth.cpp">
@@ -168,6 +171,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ABIDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dhdlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

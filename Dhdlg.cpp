@@ -1,33 +1,31 @@
-﻿// ABIDlg.cpp
+﻿// DHDlg.cpp
 #include "pch.h"
-#include "ABIDlg.h"
-#include "MFCUIDlg.h"   // for CLR_* defines, BASE_W/BASE_H, and CMFCUIDlg::L()
-#include "BatteryHelthDlg.h" // for CBatteryHelthDlg::OnBnClickedBtn*() handlers
+#include "DHDlg.h"
+#include "MFCUIDlg.h"        // CLR_* defines
+#include "BatteryHelthDlg.h" // CBatteryHelthDlg::OnBnClickedBtn*()
 
-BEGIN_MESSAGE_MAP(CABIDlg, CDialogEx)
+BEGIN_MESSAGE_MAP(CDHDlg, CDialogEx)
     ON_WM_PAINT()
     ON_WM_ERASEBKGND()
     ON_WM_LBUTTONUP()
     ON_WM_SIZE()
 END_MESSAGE_MAP()
 
-CABIDlg::CABIDlg(CMFCUIDlg* pOwner, CWnd* pParentWnd)
+CDHDlg::CDHDlg(CMFCUIDlg* pOwner, CWnd* pParentWnd)
     : CDialogEx(IDD, pParentWnd), m_pOwner(pOwner)
 {
 }
 
-void CABIDlg::DoDataExchange(CDataExchange* pDX)
+void CDHDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialogEx::DoDataExchange(pDX);
 }
 
-BOOL CABIDlg::OnInitDialog()
+BOOL CDHDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
-    // Match size/position of the dialog we're replacing, so the
-    // transition looks like an in-place page change rather than a
-    // new window popping up somewhere else.
+    // Sit exactly on top of the owner so the transition looks seamless
     if (m_pOwner && ::IsWindow(m_pOwner->GetSafeHwnd()))
     {
         CRect rcOwner;
@@ -45,7 +43,7 @@ BOOL CABIDlg::OnInitDialog()
     return TRUE;
 }
 
-void CABIDlg::OnSize(UINT nType, int cx, int cy)
+void CDHDlg::OnSize(UINT nType, int cx, int cy)
 {
     CDialogEx::OnSize(nType, cx, cy);
     m_clientWidth = max(1, cx);
@@ -53,18 +51,18 @@ void CABIDlg::OnSize(UINT nType, int cx, int cy)
     Invalidate();
 }
 
-BOOL CABIDlg::OnEraseBkgnd(CDC* pDC)
+BOOL CDHDlg::OnEraseBkgnd(CDC* pDC)
 {
-    return TRUE;  // we paint the full background ourselves in OnPaint
+    return TRUE;  // full repaint in OnPaint
 }
 
-void CABIDlg::OnPaint()
+void CDHDlg::OnPaint()
 {
     CPaintDC dc(this);
     CRect rcClient;
     GetClientRect(&rcClient);
 
-    // Double-buffer to avoid flicker, same idea as CMFCUIDlg::OnPaint.
+    // Double-buffer
     CDC memDC;
     memDC.CreateCompatibleDC(&dc);
     CBitmap bmp;
@@ -75,21 +73,21 @@ void CABIDlg::OnPaint()
     DrawHeader(&memDC, rcClient);
     DrawRows(&memDC, rcClient);
 
-    dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(), &memDC, 0, 0, SRCCOPY);
+    dc.BitBlt(0, 0, rcClient.Width(), rcClient.Height(),
+        &memDC, 0, 0, SRCCOPY);
     memDC.SelectObject(pOldBmp);
 }
 
-void CABIDlg::OnLButtonUp(UINT nFlags, CPoint point)
+void CDHDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
+    // Back button
     if (m_rcBack.PtInRect(point))
     {
-        // Closing this dialog. The caller (CMFCUIDlg::OnLButtonUp,
-        // where DoModal() was invoked) is responsible for calling
-        // ShowWindow(SW_SHOW) on itself right after DoModal() returns.
         EndDialog(IDCANCEL);
         return;
     }
 
+    // Row buttons
     for (int i = 0; i < 7; i++)
     {
         if (m_rcRow[i].PtInRect(point))
@@ -102,11 +100,12 @@ void CABIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     CDialogEx::OnLButtonUp(nFlags, point);
 }
 
-void CABIDlg::OnRowClicked(int index)
+void CDHDlg::OnRowClicked(int index)
 {
     if (!m_pOwner || !m_pOwner->m_pBattDlg)
     {
-        MessageBox(_T("Battery dialog not linked."), _T("Error"), MB_OK | MB_ICONWARNING);
+        MessageBox(_T("Battery dialog not linked."), _T("Error"),
+            MB_OK | MB_ICONWARNING);
         return;
     }
 
@@ -114,65 +113,51 @@ void CABIDlg::OnRowClicked(int index)
 
     switch (index)
     {
-    case 0: // Cpu Load Test
-        m_pOwner->m_bDialogBusy = true;
-        pBatt->OnBnClickedBtnCpuload();
-        m_pOwner->m_bDialogBusy = false;
-        break;
-    case 1: // Discharge Test
-        pBatt->OnBnClickedBtnDischarge();
-        break;
-    case 2: // Active Life Trend
-        pBatt->OnBnClickedBtnActive();
-        break;
-    case 3: // Standby Life Trend
-        pBatt->OnBnClickedBtnStandby();
-        break;
-    case 4: // Running Application
-        pBatt->OnBnClickedBtnBgapp();
-        break;
-    case 5: // Detect Manipulation
-        pBatt->OnBnClickedBtnManipulatioin();
-        break;
-    case 6: // Check Power State
-        pBatt->OnBnClickedSoh();
-        break;
+    case 0: pBatt->OnBnClickedBtnHistory();   break; // Charge History
+    case 1: pBatt->OnBnClickedBtnUploadpdf(); break; // Export to CSV
+    case 2: pBatt->OnBnClickedBtnSleep();     break; // Sleep Logs
+    case 3: pBatt->OnBnClickedBtnUsage();     break; // Usage History
+    case 4: pBatt->OnBnClickedBtnCaphis();    break; // Capacity History
+    case 5: pBatt->OnBnClickedBtnBreport();   break; // Battery Report
+    case 6: pBatt->OnBnClickedResult();       break; // View Power State Logs
     }
 }
 
-CString CABIDlg::L(const CString& en, const CString& jp)
+CString CDHDlg::L(const CString& en, const CString& jp)
 {
     if (m_pOwner) return m_pOwner->L(en, jp);
     return en;
 }
 
 // ─────────────────────────────────────────────────────────────────
-void CABIDlg::DrawBackground(CDC* pDC, CRect rc)
+void CDHDlg::DrawBackground(CDC* pDC, CRect rc)
 {
     CBrush br(CLR_BG);
     pDC->FillRect(rc, &br);
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Header: "<" back arrow  +  "Advanced Info" title
+// Header: "<" back button  +  "Data and History" title
 // ─────────────────────────────────────────────────────────────────
-void CABIDlg::DrawHeader(CDC* pDC, CRect rc)
+void CDHDlg::DrawHeader(CDC* pDC, CRect rc)
 {
     int W = m_clientWidth;
     int mx = max(12, W * 16 / 500);
     int hdrH = max(40, m_clientHeight * 56 / 900);
 
+    // White header bar
     CRect rcHeader(0, 0, W, hdrH);
     CBrush br(CLR_CARD);
     pDC->FillRect(rcHeader, &br);
 
+    // Bottom border line
     CPen pen(PS_SOLID, 1, CLR_BORDER);
     CPen* pOld = pDC->SelectObject(&pen);
     pDC->MoveTo(0, hdrH - 1);
     pDC->LineTo(W, hdrH - 1);
     pDC->SelectObject(pOld);
 
-    // Back button (circle with "<")
+    // Back circle button (grey background, "<" text)
     int btnSz = max(24, hdrH * 56 / 100);
     int btnX = mx;
     int btnY = (hdrH - btnSz) / 2;
@@ -194,16 +179,16 @@ void CABIDlg::DrawHeader(CDC* pDC, CRect rc)
     // Title
     CRect rcTitle(m_rcBack.right + mx / 2, 0, W - mx, hdrH);
     DrawTextEx(pDC,
-        L(_T("Advance Info"), _T("詳細情報")),
+        L(_T("Data and History"), _T("データと履歴")),
         rcTitle, CLR_TITLE,
         max(10, hdrH * 32 / 100), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 7 full-width rows filling the rest of the dialog
+// 7 full-width rows filling the body
 // ─────────────────────────────────────────────────────────────────
-void CABIDlg::DrawRows(CDC* pDC, CRect rc)
+void CDHDlg::DrawRows(CDC* pDC, CRect rc)
 {
     int W = m_clientWidth;
     int H = m_clientHeight;
@@ -215,24 +200,21 @@ void CABIDlg::DrawRows(CDC* pDC, CRect rc)
     int bodyH = max(7, bodyBottom - bodyTop);
     int rowH = max(40, bodyH / 7);
 
-    struct BtnDef {
-        CString  label;
-        CString  icon;
-        COLORREF iconBg;
-    };
+    struct BtnDef { CString label; CString icon; COLORREF iconBg; };
     BtnDef defs[7] = {
-        { L(_T("Cpu Load Test"),       _T("CPU負荷テスト")),      _T("C"), RGB(30, 120, 220) },
-        { L(_T("Discharge Test"),      _T("放電テスト")),         _T("D"), RGB(220, 60, 60) },
-        { L(_T("Active Life Trend"),   _T("アクティブ寿命推移")), _T("A"), RGB(40, 180, 80) },
-        { L(_T("Standby Life Trend"),  _T("スタンバイ寿命推移")), _T("S"), RGB(160, 80, 220) },
-        { L(_T("Running Application"), _T("実行中アプリ")),       _T("R"), RGB(220, 140, 30) },
-        { L(_T("Detect Manipulation"), _T("改ざん検出")),         _T("M"), RGB(80, 160, 200) },
-        { L(_T("Check Power State"),   _T("電源状態確認")),       _T("P"), RGB(100, 100, 120) },
+        { L(_T("Charge History"),       _T("充電履歴")),         _T("C"), RGB(220, 140,  30) },
+        { L(_T("Export to CSV"),        _T("CSV出力")),          _T("E"), RGB(40, 180,  80) },
+        { L(_T("Sleep Logs"),           _T("スリープログ")),      _T("S"), RGB(30, 120, 220) },
+        { L(_T("Usage History"),        _T("使用履歴")),         _T("U"), RGB(160,  80, 220) },
+        { L(_T("Capacity History"),     _T("容量履歴")),         _T("H"), RGB(80, 160, 200) },
+        { L(_T("Battery Report"),       _T("バッテリーレポート")),_T("B"), RGB(220,  60,  60) },
+        { L(_T("View Power State Logs"),_T("電源状態ログ表示")), _T("V"), RGB(100, 100, 120) },
     };
 
-    int fontSize = max(8, (int)(9.0f * min((float)W / 468.0f, (float)rowH / 44.0f)));
+    int fontSize = max(8, (int)(9.0f * min((float)W / 468.0f,
+        (float)rowH / 44.0f)));
 
-    CBrush cardBr(CLR_CARD);
+    // Rounded card behind all rows
     CRect rcCard(mx, bodyTop, W - mx, bodyTop + rowH * 7);
     DrawRoundRect(pDC, rcCard, max(8, W * 10 / 468), CLR_CARD, CLR_BORDER);
 
@@ -241,12 +223,15 @@ void CABIDlg::DrawRows(CDC* pDC, CRect rc)
         int top = bodyTop + i * rowH;
         CRect rcRow(mx, top, W - mx, top + rowH);
         m_rcRow[i] = rcRow;
-        DrawRowButton(pDC, rcRow, defs[i].label, defs[i].icon, defs[i].iconBg, fontSize);
+        DrawRowButton(pDC, rcRow,
+            defs[i].label, defs[i].icon, defs[i].iconBg,
+            fontSize);
     }
 }
 
-void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
-    const CString& iconText, COLORREF iconBg, int fontSize)
+void CDHDlg::DrawRowButton(CDC* pDC, CRect rc,
+    const CString& label, const CString& iconText,
+    COLORREF iconBg, int fontSize)
 {
     if (rc.Width() < 20 || rc.Height() < 10) return;
 
@@ -255,7 +240,7 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
     int padX = max(6, RW * 14 / 468);
     int midY = rc.top + RH / 2;
 
-    // Icon circle
+    // Coloured icon circle
     int iconR = max(8, RH * 32 / 100);
     int iconCX = rc.left + padX + iconR;
     int iconCY = midY;
@@ -264,11 +249,13 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
         CPen   pen(PS_SOLID, 1, iconBg);
         CBrush* pOldB = pDC->SelectObject(&br);
         CPen* pOldP = pDC->SelectObject(&pen);
-        pDC->Ellipse(iconCX - iconR, iconCY - iconR, iconCX + iconR, iconCY + iconR);
+        pDC->Ellipse(iconCX - iconR, iconCY - iconR,
+            iconCX + iconR, iconCY + iconR);
         pDC->SelectObject(pOldB);
         pDC->SelectObject(pOldP);
 
-        CRect rcIcon(iconCX - iconR, iconCY - iconR, iconCX + iconR, iconCY + iconR);
+        CRect rcIcon(iconCX - iconR, iconCY - iconR,
+            iconCX + iconR, iconCY + iconR);
         DrawTextEx(pDC, iconText, rcIcon, RGB(255, 255, 255),
             max(6, iconR * 55 / 100), true,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -282,12 +269,13 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     // Label
-    int textX = iconCX + iconR + max(6, RW * 8 / 468);
-    CRect rcLabel(textX, rc.top, rc.right - arrowW - max(4, RW * 8 / 468), rc.bottom);
+    int   textX = iconCX + iconR + max(6, RW * 8 / 468);
+    CRect rcLabel(textX, rc.top,
+        rc.right - arrowW - max(4, RW * 8 / 468), rc.bottom);
     DrawTextEx(pDC, label, rcLabel, CLR_DARK_TEXT, fontSize, false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
-    // Separator
+    // Separator line
     CPen sep(PS_SOLID, 1, CLR_BORDER);
     CPen* pOldP = pDC->SelectObject(&sep);
     pDC->MoveTo(rc.left + padX, rc.bottom - 1);
@@ -296,7 +284,8 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
 }
 
 // ─────────────────────────────────────────────────────────────────
-void CABIDlg::DrawRoundRect(CDC* pDC, CRect rc, int radius, COLORREF bg, COLORREF border)
+void CDHDlg::DrawRoundRect(CDC* pDC, CRect rc, int radius,
+    COLORREF bg, COLORREF border)
 {
     CBrush br(bg);
     CPen   pen(PS_SOLID, 1, border);
@@ -307,11 +296,12 @@ void CABIDlg::DrawRoundRect(CDC* pDC, CRect rc, int radius, COLORREF bg, COLORRE
     pDC->SelectObject(pOldP);
 }
 
-void CABIDlg::DrawTextEx(CDC* pDC, const CString& text, CRect rc,
+void CDHDlg::DrawTextEx(CDC* pDC, const CString& text, CRect rc,
     COLORREF color, int fontSize, bool bold, UINT format)
 {
     LOGFONT lf = {};
-    lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfHeight = -MulDiv(fontSize,
+        GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
     lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
     lf.lfQuality = CLEARTYPE_QUALITY;
     _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));

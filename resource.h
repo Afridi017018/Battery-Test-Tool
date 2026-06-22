@@ -47,8 +47,9 @@
 #define IDB_PNG16                       226
 #define IDD_DIALOG1                     227
 #define IDD_MFCUI                       227
-#define IDD_AVI                         229
 #define IDD_ABI                         229
+#define IDD_DIALOG2                     231
+#define IDD_DH                          231
 #define IDC_BATT_STATUS                 1009
 #define IDC_STATIC_STATUS               1010
 #define IDC_STATIC_PERCENTAGE           1011
@@ -143,7 +144,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        231
+#define _APS_NEXT_RESOURCE_VALUE        233
 #define _APS_NEXT_COMMAND_VALUE         32775
 #define _APS_NEXT_CONTROL_VALUE         1097
 #define _APS_NEXT_SYMED_VALUE           101

@@ -203,6 +203,7 @@
     <ClInclude Include="CSOHDlg.h" />
     <ClInclude Include="CSOHResultDlg.h" />
     <ClInclude Include="CTrendDlg.h" />
+    <ClInclude Include="Dhdlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MFCUIDlg.h" />
     <ClInclude Include="pch.h" />
@@ -229,6 +230,7 @@
     <ClCompile Include="CSOHDlg.cpp" />
     <ClCompile Include="CSOHResultDlg.cpp" />
     <ClCompile Include="CTrendDlg.cpp" />
+    <ClCompile Include="Dhdlg.cpp" />
     <ClCompile Include="DrawSecAdvancedInfo.cpp" />
     <ClCompile Include="DrawSecBasicInfo.cpp" />
     <ClCompile Include="DrawSecChargeRate.cpp" />
