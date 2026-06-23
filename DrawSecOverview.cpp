@@ -413,7 +413,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         RGB(250, 251, 253), CLR_BORDER);
 
     // "Status" label
-    int sLblH = max(10, LH * 16 / 180);
+    int sLblH = max(16, LH * 22 / 180);
     CRect rcStatusLbl(
         rcLeft.left + LW * 8 / 100,
         rcLeft.top + LH * 5 / 100,
@@ -423,7 +423,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         L(_T("Status"),
             _T("状態")),
         rcStatusLbl,
-        CLR_MID_TEXT, OvFont(LW, LH, 8), false,
+        CLR_MID_TEXT, OvFont(LW, LH, 11), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     //// Gauge radius: 32% of smaller panel dimension, clamped
@@ -444,12 +444,20 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     int gaugeGap = max(20, LW / 10);
 
-    CPoint batteryCenter(
+   /* CPoint batteryCenter(
         rcLeft.left + LW / 5,
         gaugeCY);
 
     CPoint healthCenter(
         rcLeft.left + (LW * 4) / 5,
+        gaugeCY);*/
+
+    CPoint batteryCenter(
+        rcLeft.left + (LW * 30) / 100,
+        gaugeCY);
+
+    CPoint healthCenter(
+        rcLeft.left + (LW * 70) / 100,
         gaugeCY);
 
     CString pctStr = _T("0%");
@@ -463,24 +471,67 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
 
 
-    int rowH = max(10, LH * 14 / 100);
+    int rowH = max(16, LH * 18 / 100);
 
     int labelY = gaugeCY + gaugeR + max(2, LH * 2 / 100);
 
     CRect rcBattLbl(
-        batteryCenter.x - gaugeR,
-        labelY,
-        batteryCenter.x + gaugeR,
-        labelY + rowH);
+        batteryCenter.x - gaugeR - 20,
+        labelY - 2,
+        batteryCenter.x + gaugeR + 20,
+        labelY + rowH + 4);
+
+    CString battText;
+    CString stateText;
+
+    if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
+    {
+        battText = L"Battery";
+        stateText = charging
+            ? L"(Charging)"
+            : L"(Discharging)";
+    }
+    else
+    {
+        battText = L"バッテリー";
+        stateText = charging
+            ? L"（充電中）"
+            : L"（放電中）";
+    }
+
+    int fontSize = OvFont(LW, LH, 11);
+
+    int splitX = rcBattLbl.left + rcBattLbl.Width() * 35 / 100;
+
+    CRect rcBattery(
+        rcBattLbl.left,
+        rcBattLbl.top,
+        splitX,
+        rcBattLbl.bottom);
+
+    CRect rcState(
+        splitX,
+        rcBattLbl.top,
+        rcBattLbl.right,
+        rcBattLbl.bottom);
 
     DrawTextEx(
         pDC,
-        L(_T("Battery"), _T("バッテリー")),
-        rcBattLbl,
+        battText,
+        rcBattery,
         CLR_MID_TEXT,
-        OvFont(LW, LH, 7),
-        false,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        fontSize,
+        true,
+        DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+
+    DrawTextEx(
+        pDC,
+        stateText,
+        rcState,
+        charging ? CLR_GREEN : CLR_RED,
+        fontSize,
+        true,
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     CRect rcHealthLbl(
         healthCenter.x - gaugeR,
@@ -493,8 +544,8 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         L(_T("Health"), _T("健康")),
         rcHealthLbl,
         CLR_MID_TEXT,
-        OvFont(LW, LH, 7),
-        false,
+        OvFont(LW, LH, 11),
+        true,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     // Battery %
@@ -558,7 +609,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     int rpx = rcRight.left + RW * 8 / 100;   // right panel pad X
 
     // "Capacity" header
-    int capHdrH = max(10, RH * 16 / 180);
+    int capHdrH = max(16, RH * 24 / 180);
     CRect rcCapHdr(rpx,
         rcRight.top + RH * 5 / 100,
         rcRight.right - RW * 4 / 100,
@@ -567,11 +618,11 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         L(_T("Capacity"),
             _T("容量")),
         rcCapHdr,
-        CLR_MID_TEXT, OvFont(RW, RH, 8), false,
+        CLR_MID_TEXT, OvFont(RW, RH, 11), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Sub-divider
-    int capDivY = rcRight.top + RH * 26 / 180;
+    int capDivY = rcRight.top + RH * 34 / 180;
     {
         CPen cp(PS_SOLID, 1, CLR_BORDER);
         CPen* pOld = pDC->SelectObject(&cp);
@@ -581,81 +632,152 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     }
 
     // Row heights proportional to panel
-    int rowUnit = max(12, RH * 16 / 180);
+    int rowUnit = max(18, RH * 22 / 180);
 
-    int y = capDivY + max(4, RH * 6 / 180);
+    int y = capDivY + max(8, RH * 10 / 180);
+
+    //// Design Capacity
+    //DrawTextEx(pDC,
+    //    L(_T("Design Capacity:"),
+    //        _T("設計容量:")),
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit;
+
+    //DrawTextEx(pDC, designCapacity,
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_DARK_TEXT, OvFont(RW, RH, 11), true,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit + 4;
+
+    //// Full Charge Capacity
+    //DrawTextEx(pDC,
+    //    L(_T("Full Charge Capacity:"),
+    //        _T("満充電容量:")),
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit;
+
+    //DrawTextEx(pDC, fullCapacity,
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_DARK_TEXT, OvFont(RW, RH, 11), true,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit + 4;
+
+    //// Current Capacity
+    //DrawTextEx(pDC,
+    //    L(_T("Current Capacity:"),
+    //        _T("現在容量:")),
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit;
+
+    //DrawTextEx(pDC, currentCapacity,
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_DARK_TEXT, OvFont(RW, RH, 11), true,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit + 4;
+
+    //// Cycle Count
+    //DrawTextEx(pDC,
+    //    L(_T("Cycle Count:"),
+    //        _T("サイクル回数:")),
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    //y += rowUnit;
+
+    //DrawTextEx(pDC, cycles,
+    //    CRect(rpx, y,
+    //        rcRight.right - RW * 4 / 100, y + rowUnit),
+    //    CLR_DARK_TEXT, OvFont(RW, RH, 11), true,
+    //    DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+
+
+    // ── Capacity 2-Column Layout ─────────────────────────────
+
+    int leftX = rpx;
+    int rightX = rcRight.left + RW * 55 / 100;
+
+    int labelFont = OvFont(RW, RH, 10);
+    int valueFont = OvFont(RW, RH, 12);
+
+    int rowGap = max(30, RH * 30 / 180);
 
     // Design Capacity
     DrawTextEx(pDC,
-        L(_T("Design Capacity:"),
-            _T("設計容量:")),
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        L(_T("Design Capacity"), _T("設計容量")),
+        CRect(leftX, y - 2, rightX - 10, y + rowUnit + 4),
+        CLR_MID_TEXT, labelFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit;
-
-    DrawTextEx(pDC, designCapacity,
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+    DrawTextEx(pDC,
+        designCapacity,
+        CRect(rightX, y, rcRight.right - 10, y + rowUnit),
+        CLR_DARK_TEXT, valueFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit + 4;
+    y += rowGap;
 
     // Full Charge Capacity
     DrawTextEx(pDC,
-        L(_T("Full Charge Capacity:"),
-            _T("満充電容量:")),
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        L(_T("Full Charge"), _T("満充電容量")),
+        CRect(leftX, y, rightX - 10, y + rowUnit),
+        CLR_MID_TEXT, labelFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit;
-
-    DrawTextEx(pDC, fullCapacity,
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+    DrawTextEx(pDC,
+        fullCapacity,
+        CRect(rightX, y, rcRight.right - 10, y + rowUnit),
+        CLR_DARK_TEXT, valueFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit + 4;
+    y += rowGap;
 
     // Current Capacity
     DrawTextEx(pDC,
-        L(_T("Current Capacity:"),
-            _T("現在容量:")),
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        L(_T("Current Capacity"), _T("現在容量")),
+        CRect(leftX, y, rightX - 10, y + rowUnit),
+        CLR_MID_TEXT, labelFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit;
-
-    DrawTextEx(pDC, currentCapacity,
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+    DrawTextEx(pDC,
+        currentCapacity,
+        CRect(rightX, y, rcRight.right - 10, y + rowUnit),
+        CLR_DARK_TEXT, valueFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit + 4;
+    y += rowGap;
 
     // Cycle Count
     DrawTextEx(pDC,
-        L(_T("Cycle Count:"),
-            _T("サイクル回数:")),
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_MID_TEXT, OvFont(RW, RH, 7), false,
+        L(_T("Cycle Count"), _T("サイクル回数")),
+        CRect(leftX, y, rightX - 10, y + rowUnit),
+        CLR_MID_TEXT, labelFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    y += rowUnit;
-
-    DrawTextEx(pDC, cycles,
-        CRect(rpx, y,
-            rcRight.right - RW * 4 / 100, y + rowUnit),
-        CLR_DARK_TEXT, OvFont(RW, RH, 9), true,
+    DrawTextEx(pDC,
+        cycles,
+        CRect(rightX, y, rcRight.right - 10, y + rowUnit),
+        CLR_DARK_TEXT, valueFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
 }

@@ -2890,13 +2890,25 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // 6) Battery Health (%)
     // --------------------------
     {
+     
         // Prefer WMI design; if missing, use history design
         int designForHealth_mWh = (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) ? designCapWmi_mWh : designCapHist_mWh;
 
+        
+
         if (fullCap_mWh > 0 && designForHealth_mWh > 0) {
+
+            /*double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
+            healthStr.Format(L"%.2f %%", health);*/
+
             double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
 
+            // Clamp to 100%
+            if (health > 100.0)
+                health = 100.0;
+
             healthStr.Format(L"%.2f %%", health);
+
             UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
             m_reportData.health = healthStr;
         }
