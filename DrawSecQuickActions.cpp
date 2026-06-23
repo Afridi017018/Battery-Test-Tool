@@ -58,8 +58,12 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
     int mx = SW(16, W);
 
     // ── Card bounds ──────────────────────────────────────────────
-    int cardTop = SH(308, H);
-    int cardBottom = SH(398, H);
+    /*int cardTop = SH(308, H);
+    int cardBottom = SH(398, H);*/
+
+    int cardTop = SH(750, H);
+    int cardBottom = SH(840, H);   // same 90px height
+
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
 
     if (rcCard.Width() < 60 || rcCard.Height() < 30) return;

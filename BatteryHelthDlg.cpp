@@ -2901,13 +2901,24 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             /*double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
             healthStr.Format(L"%.2f %%", health);*/
 
+            //double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
+
+            //// Clamp to 100%
+            //if (health > 100.0)
+            //    health = 100.0;
+
+            //healthStr.Format(L"%.2f %%", health);
+
             double health = (static_cast<double>(fullCap_mWh) / designForHealth_mWh) * 100.0;
 
-            // Clamp to 100%
-            if (health > 100.0)
-                health = 100.0;
+            // Round to nearest whole number
+            int healthRounded = (int)round(health);
 
-            healthStr.Format(L"%.2f %%", health);
+            // Clamp to 100%
+            if (healthRounded > 100)
+                healthRounded = 100;
+
+            healthStr.Format(L"%d %%", healthRounded);
 
             UpdateLabel(this, IDC_BATT_HEALTH, healthStr);
             m_reportData.health = healthStr;
