@@ -95,9 +95,16 @@ private:
     CPoint ContentPoint(CPoint screenPt);
 
     // ── Quick Actions hit rects ───────────────────────────────────
+ /*   CRect m_rcBtnAutoTest;
+    CRect m_rcBtnViewLog;
+    CRect m_rcBtnLanguage;*/
+
+    // REPLACE WITH:
+    CRect m_rcBtnSeminarTest;   // ← ADD
     CRect m_rcBtnAutoTest;
     CRect m_rcBtnViewLog;
     CRect m_rcBtnLanguage;
+
     CRect m_rcBtnAdvancedQA;   // "Advanced Info" button inside Quick Actions
     // (was wrongly sharing m_rcBtnAdvanced below)
     CRect m_rcBtnDataHistoryQA; // "Data and History" button inside Quick Actions
@@ -157,4 +164,6 @@ public:
 
 
     CString L(const CString& en, const CString& jp);
+    afx_msg void OnBnClickedButton1();
+
 };

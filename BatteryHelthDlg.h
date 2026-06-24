@@ -435,6 +435,8 @@ public:
 	CAutoProgressDlg* m_pAutoDlg = nullptr;
 	// m_pNewUI is already nullptr in your header; ensure all raw pointers are initialized
 
+	afx_msg void OnBnClickedBtnAutoLong();
+	bool longTest;
 };
 
 

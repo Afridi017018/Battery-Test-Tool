@@ -133,6 +133,7 @@
 #define IDC_EDIT_REPORT                 1081
 #define IDC_EDIT_HISTORY                1086
 #define IDC_AUTO                        1087
+#define IDC_BTN_AUTO_LONG               1089
 #define IDC_AUTO_PROGRESS_BAR           1090
 #define IDC_AUTO_PROGRESS_LABEL         1091
 #define IDC_AUTO_PHASE_LABEL            1092

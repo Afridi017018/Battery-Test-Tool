@@ -25,6 +25,19 @@ BOOL CABIDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
+    if (m_pOwner && m_pOwner->m_pBattDlg)
+    {
+        SetWindowText(
+            m_pOwner->m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP
+            ? _T("詳細情報")
+            : _T("Advance Info"));
+    }
+    else
+    {
+        SetWindowText(_T("Advance Info"));
+    }
+
+
     // Match size/position of the dialog we're replacing, so the
     // transition looks like an in-place page change rather than a
     // new window popping up somewhere else.
@@ -81,14 +94,14 @@ void CABIDlg::OnPaint()
 
 void CABIDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
-    if (m_rcBack.PtInRect(point))
-    {
-        // Closing this dialog. The caller (CMFCUIDlg::OnLButtonUp,
-        // where DoModal() was invoked) is responsible for calling
-        // ShowWindow(SW_SHOW) on itself right after DoModal() returns.
-        EndDialog(IDCANCEL);
-        return;
-    }
+    //if (m_rcBack.PtInRect(point))
+    //{
+    //    // Closing this dialog. The caller (CMFCUIDlg::OnLButtonUp,
+    //    // where DoModal() was invoked) is responsible for calling
+    //    // ShowWindow(SW_SHOW) on itself right after DoModal() returns.
+    //    EndDialog(IDCANCEL);
+    //    return;
+    //}
 
     for (int i = 0; i < 7; i++)
     {
@@ -172,31 +185,32 @@ void CABIDlg::DrawHeader(CDC* pDC, CRect rc)
     pDC->LineTo(W, hdrH - 1);
     pDC->SelectObject(pOld);
 
-    // Back button (circle with "<")
-    int btnSz = max(24, hdrH * 56 / 100);
-    int btnX = mx;
-    int btnY = (hdrH - btnSz) / 2;
-    m_rcBack = CRect(btnX, btnY, btnX + btnSz, btnY + btnSz);
+    //// Back button (circle with "<")
+    //int btnSz = max(24, hdrH * 56 / 100);
+    //int btnX = mx;
+    //int btnY = (hdrH - btnSz) / 2;
+    //m_rcBack = CRect(btnX, btnY, btnX + btnSz, btnY + btnSz);
 
-    {
-        CBrush cbr(CLR_BG);
-        CPen   cpen(PS_SOLID, 1, CLR_BORDER);
-        CBrush* pOldB = pDC->SelectObject(&cbr);
-        CPen* pOldP = pDC->SelectObject(&cpen);
-        pDC->Ellipse(m_rcBack);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-    }
-    DrawTextEx(pDC, _T("<"), m_rcBack, CLR_DARK_TEXT,
-        max(8, btnSz * 50 / 100), true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    //{
+    //    CBrush cbr(CLR_BG);
+    //    CPen   cpen(PS_SOLID, 1, CLR_BORDER);
+    //    CBrush* pOldB = pDC->SelectObject(&cbr);
+    //    CPen* pOldP = pDC->SelectObject(&cpen);
+    //    pDC->Ellipse(m_rcBack);
+    //    pDC->SelectObject(pOldB);
+    //    pDC->SelectObject(pOldP);
+    //}
+    //DrawTextEx(pDC, _T("<"), m_rcBack, CLR_DARK_TEXT,
+    //    max(8, btnSz * 50 / 100), true,
+    //    DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
 
     // Title
-    CRect rcTitle(m_rcBack.right + mx / 2, 0, W - mx, hdrH);
+    CRect rcTitle(mx, 0, W - mx, hdrH);
     DrawTextEx(pDC,
         L(_T("Advance Info"), _T("詳細情報")),
         rcTitle, CLR_TITLE,
-        max(10, hdrH * 32 / 100), true,
+        max(8, hdrH * 24 / 100), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -213,7 +227,7 @@ void CABIDlg::DrawRows(CDC* pDC, CRect rc)
     int bodyTop = hdrH + max(8, H * 10 / 900);
     int bodyBottom = H - max(8, H * 10 / 900);
     int bodyH = max(7, bodyBottom - bodyTop);
-    int rowH = max(40, bodyH / 7);
+    int rowH = max(34, bodyH / 7);
 
     struct BtnDef {
         CString  label;
@@ -230,10 +244,12 @@ void CABIDlg::DrawRows(CDC* pDC, CRect rc)
         { L(_T("Check Power State"),   _T("電源状態確認")),       _T("P"), RGB(100, 100, 120) },
     };
 
-    int fontSize = max(8, (int)(9.0f * min((float)W / 468.0f, (float)rowH / 44.0f)));
+    int fontSize = max(6,
+        (int)(7.0f * min((float)W / 468.0f,
+            (float)rowH / 44.0f)));
 
     CBrush cardBr(CLR_CARD);
-    CRect rcCard(mx, bodyTop, W - mx, bodyTop + rowH * 7);
+    CRect rcCard(mx, bodyTop, W - mx, bodyBottom);
     DrawRoundRect(pDC, rcCard, max(8, W * 10 / 468), CLR_CARD, CLR_BORDER);
 
     for (int i = 0; i < 7; i++)
@@ -256,7 +272,7 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
     int midY = rc.top + RH / 2;
 
     // Icon circle
-    int iconR = max(8, RH * 32 / 100);
+    int iconR = max(7, RH * 24 / 100);
     int iconCX = rc.left + padX + iconR;
     int iconCY = midY;
     {
@@ -270,7 +286,7 @@ void CABIDlg::DrawRowButton(CDC* pDC, CRect rc, const CString& label,
 
         CRect rcIcon(iconCX - iconR, iconCY - iconR, iconCX + iconR, iconCY + iconR);
         DrawTextEx(pDC, iconText, rcIcon, RGB(255, 255, 255),
-            max(6, iconR * 55 / 100), true,
+            max(5, iconR * 45 / 100), true,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 

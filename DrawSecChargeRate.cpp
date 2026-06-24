@@ -158,8 +158,8 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
     /*const int cardTop = SH(410, H);
     const int cardBottom = SH(602, H);*/
 
-    const int cardTop = SH(546, H);
-    const int cardBottom = SH(738, H);   // same 192px height
+    const int cardTop = SH(522, H);
+    const int cardBottom = SH(714, H);   // same 192px height
 
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
     if (rcCard.Width() < 80 || rcCard.Height() < 60) return;

@@ -25,6 +25,18 @@ BOOL CDHDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
+    if (m_pOwner && m_pOwner->m_pBattDlg)
+    {
+        SetWindowText(
+            m_pOwner->m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP
+            ? _T("データと履歴")
+            : _T("Data and History"));
+    }
+    else
+    {
+        SetWindowText(_T("Data and History"));
+    }
+
     // Sit exactly on top of the owner so the transition looks seamless
     if (m_pOwner && ::IsWindow(m_pOwner->GetSafeHwnd()))
     {
@@ -80,12 +92,12 @@ void CDHDlg::OnPaint()
 
 void CDHDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
-    // Back button
-    if (m_rcBack.PtInRect(point))
-    {
-        EndDialog(IDCANCEL);
-        return;
-    }
+    //// Back button
+    //if (m_rcBack.PtInRect(point))
+    //{
+    //    EndDialog(IDCANCEL);
+    //    return;
+    //}
 
     // Row buttons
     for (int i = 0; i < 7; i++)
@@ -157,31 +169,31 @@ void CDHDlg::DrawHeader(CDC* pDC, CRect rc)
     pDC->LineTo(W, hdrH - 1);
     pDC->SelectObject(pOld);
 
-    // Back circle button (grey background, "<" text)
-    int btnSz = max(24, hdrH * 56 / 100);
-    int btnX = mx;
-    int btnY = (hdrH - btnSz) / 2;
-    m_rcBack = CRect(btnX, btnY, btnX + btnSz, btnY + btnSz);
+    //// Back circle button (grey background, "<" text)
+    //int btnSz = max(24, hdrH * 56 / 100);
+    //int btnX = mx;
+    //int btnY = (hdrH - btnSz) / 2;
+    //m_rcBack = CRect(btnX, btnY, btnX + btnSz, btnY + btnSz);
 
-    {
-        CBrush cbr(CLR_BG);
-        CPen   cpen(PS_SOLID, 1, CLR_BORDER);
-        CBrush* pOldB = pDC->SelectObject(&cbr);
-        CPen* pOldP = pDC->SelectObject(&cpen);
-        pDC->Ellipse(m_rcBack);
-        pDC->SelectObject(pOldB);
-        pDC->SelectObject(pOldP);
-    }
-    DrawTextEx(pDC, _T("<"), m_rcBack, CLR_DARK_TEXT,
-        max(8, btnSz * 50 / 100), true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    //{
+    //    CBrush cbr(CLR_BG);
+    //    CPen   cpen(PS_SOLID, 1, CLR_BORDER);
+    //    CBrush* pOldB = pDC->SelectObject(&cbr);
+    //    CPen* pOldP = pDC->SelectObject(&cpen);
+    //    pDC->Ellipse(m_rcBack);
+    //    pDC->SelectObject(pOldB);
+    //    pDC->SelectObject(pOldP);
+    //}
+    //DrawTextEx(pDC, _T("<"), m_rcBack, CLR_DARK_TEXT,
+    //    max(8, btnSz * 50 / 100), true,
+    //    DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     // Title
-    CRect rcTitle(m_rcBack.right + mx / 2, 0, W - mx, hdrH);
+    CRect rcTitle(mx, 0, W - mx, hdrH);
     DrawTextEx(pDC,
         L(_T("Data and History"), _T("データと履歴")),
         rcTitle, CLR_TITLE,
-        max(10, hdrH * 32 / 100), true,
+        max(8, hdrH * 24 / 100), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -211,11 +223,12 @@ void CDHDlg::DrawRows(CDC* pDC, CRect rc)
         { L(_T("View Power State Logs"),_T("電源状態ログ表示")), _T("V"), RGB(100, 100, 120) },
     };
 
-    int fontSize = max(8, (int)(9.0f * min((float)W / 468.0f,
-        (float)rowH / 44.0f)));
+    int fontSize = max(6,
+        (int)(7.0f * min((float)W / 468.0f,
+            (float)rowH / 44.0f)));
 
     // Rounded card behind all rows
-    CRect rcCard(mx, bodyTop, W - mx, bodyTop + rowH * 7);
+    CRect rcCard(mx, bodyTop, W - mx, bodyBottom);
     DrawRoundRect(pDC, rcCard, max(8, W * 10 / 468), CLR_CARD, CLR_BORDER);
 
     for (int i = 0; i < 7; i++)
@@ -241,7 +254,7 @@ void CDHDlg::DrawRowButton(CDC* pDC, CRect rc,
     int midY = rc.top + RH / 2;
 
     // Coloured icon circle
-    int iconR = max(8, RH * 32 / 100);
+    int iconR = max(7, RH * 24 / 100);
     int iconCX = rc.left + padX + iconR;
     int iconCY = midY;
     {
@@ -257,7 +270,7 @@ void CDHDlg::DrawRowButton(CDC* pDC, CRect rc,
         CRect rcIcon(iconCX - iconR, iconCY - iconR,
             iconCX + iconR, iconCY + iconR);
         DrawTextEx(pDC, iconText, rcIcon, RGB(255, 255, 255),
-            max(6, iconR * 55 / 100), true,
+            max(5, iconR * 45 / 100), true,
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 

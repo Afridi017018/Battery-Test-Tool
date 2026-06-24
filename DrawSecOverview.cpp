@@ -328,12 +328,12 @@ void CMFCUIDlg::DrawCircularGauge(
 // ─────────────────────────────────────────────────────────────────
 void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 {
-	
+
     CString status = _T("Unknown");
 
-	CString percentText = _T("Unknown");
+    CString percentText = _T("Unknown");
 
-    CString designCapacity = _T("Unknown"); 
+    CString designCapacity = _T("Unknown");
     CString fullCapacity = _T("Unknown");
     CString currentCapacity = _T("Unknown");
     CString cycles = _T("Unknown");
@@ -342,21 +342,21 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     health = m_pBattDlg->healthStr;
 
     status = m_pBattDlg->statusText;
-	percentText = m_pBattDlg->pct;
+    percentText = m_pBattDlg->pct;
 
     designCapacity = m_pBattDlg->designCapStr;
-	fullCapacity = m_pBattDlg->fullCapStr;
-	currentCapacity = m_pBattDlg->currCapOut;
-	cycles = m_pBattDlg->cycles;
-        
+    fullCapacity = m_pBattDlg->fullCapStr;
+    currentCapacity = m_pBattDlg->currCapOut;
+    cycles = m_pBattDlg->cycles;
+
 
     int W = m_clientWidth;
     int H = m_clientHeight;
     int mx = SW(16, W);
 
     // ── Card bounds ──────────────────────────────────────────────
-    int cardTop = SH(76, H);
-    int cardBottom = SH(296, H);
+    int cardTop = SH(52, H);
+    int cardBottom = SH(272, H);
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
 
     if (rcCard.Width() < 60 || rcCard.Height() < 40) return;
@@ -391,213 +391,119 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         pDC->SelectObject(pOld);
     }
 
-    // ── Inner panels layout ──────────────────────────────────────
+    // ── 3-Card layout: Battery | Health | Capacity ──────────────
     int innerTop = divY + CH * 4 / 220;
     int innerBottom = rcCard.bottom - CH * 8 / 220;
     int innerLeft = rcCard.left + CW * 8 / 468;
     int innerRight = rcCard.right - CW * 8 / 468;
-    int gap = max(3, CW * 6 / 468);
-    int midX = innerLeft + (innerRight - innerLeft) / 2 - gap / 2;
+    int gap = max(4, CW * 6 / 468);
+    int totalInner = innerRight - innerLeft;
+
+    // Each of the 3 cards gets equal width
+    int cardW3 = (totalInner - 2 * gap) / 3;
+
+    int card1L = innerLeft;
+    int card1R = card1L + cardW3;
+    int card2L = card1R + gap;
+    int card2R = card2L + cardW3;
+    int card3L = card2R + gap;
+    int card3R = innerRight;   // absorb any rounding remainder
 
     int panelH = innerBottom - innerTop;
     if (panelH < 20) return;
 
-    // ── Left Panel (Status + Gauge) ──────────────────────────────
-    CRect rcLeft(innerLeft, innerTop, midX, innerBottom);
-    int   LW = rcLeft.Width();
-    int   LH = rcLeft.Height();
-
-    if (LW < 20) return;
-
-    DrawRoundRect(pDC, rcLeft, max(4, min(LW, LH) / 10),
-        RGB(250, 251, 253), CLR_BORDER);
-
-    // "Status" label
-    int sLblH = max(16, LH * 22 / 180);
-    CRect rcStatusLbl(
-        rcLeft.left + LW * 8 / 100,
-        rcLeft.top + LH * 5 / 100,
-        rcLeft.right - LW * 4 / 100,
-        rcLeft.top + LH * 5 / 100 + sLblH);
-    DrawTextEx(pDC,
-        L(_T("Status"),
-            _T("状態")),
-        rcStatusLbl,
-        CLR_MID_TEXT, OvFont(LW, LH, 11), true,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    //// Gauge radius: 32% of smaller panel dimension, clamped
-    //int gaugeR = min(LW, LH) * 32 / 100;
-    //gaugeR = max(28, min(gaugeR, 70));
-
-    // Slightly bigger so values like 90.22% fit inside
-    int gaugeR = min(LW, LH) * 34 / 100;
-    gaugeR = max(38, min(gaugeR, 74));
-
-    // Gauge center: horizontally centred, vertically after label
-    int gaugeCY = rcLeft.top + LH * 18 / 100 + gaugeR;
-    // Clamp so gauge stays inside panel
-    gaugeCY = min(gaugeCY, rcLeft.bottom - gaugeR - LH * 20 / 100);
-    gaugeCY = max(gaugeCY, rcLeft.top + gaugeR + LH * 5 / 100);
-
-    /*CPoint gaugeCenter(rcLeft.left + LW / 2, gaugeCY);*/
-
-    int gaugeGap = max(20, LW / 10);
-
-   /* CPoint batteryCenter(
-        rcLeft.left + LW / 5,
-        gaugeCY);
-
-    CPoint healthCenter(
-        rcLeft.left + (LW * 4) / 5,
-        gaugeCY);*/
-
-    CPoint batteryCenter(
-        rcLeft.left + (LW * 30) / 100,
-        gaugeCY);
-
-    CPoint healthCenter(
-        rcLeft.left + (LW * 70) / 100,
-        gaugeCY);
-
     CString pctStr = _T("0%");
     bool charging = false;
-
     if (m_pBattDlg)
     {
         pctStr = m_pBattDlg->pct;
         charging = m_pBattDlg->IsCharging();
     }
 
+    // ── Helper lambda: draw a single gauge card ──────────────────
+    // title      : card header text
+    // gaugeVal   : string passed to DrawCircularGauge
+    // isHealth   : false = battery (blue), true = health (green/yellow/red)
+    // subText    : optional small text below gauge (e.g. charging state) — "" to skip
+    // subColor   : color for subText
+    auto DrawGaugeCard = [&](CRect rcPanel,
+        const CString& title,
+        const CString& gaugeVal,
+        bool           isChargingGauge,
+        bool           isHealthGauge,
+        const CString& subText,
+        COLORREF       subColor)
+        {
+            int PW = rcPanel.Width();
+            int PH = rcPanel.Height();
+            if (PW < 20 || PH < 20) return;
 
+            DrawRoundRect(pDC, rcPanel, max(4, min(PW, PH) / 10),
+                RGB(250, 251, 253), CLR_BORDER);
 
-    int rowH = max(16, LH * 18 / 100);
+            // Title
+            int titleLblH = max(14, PH * 22 / 180);
+            CRect rcTitleLbl(
+                rcPanel.left + PW * 8 / 100,
+                rcPanel.top + PH * 5 / 100,
+                rcPanel.right - PW * 4 / 100,
+                rcPanel.top + PH * 5 / 100 + titleLblH);
+            DrawTextEx(pDC, title, rcTitleLbl,
+                CLR_MID_TEXT, OvFont(PW, PH, 14), true,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
-    int labelY = gaugeCY + gaugeR + max(2, LH * 2 / 100);
+            // Gauge radius — same formula for both cards so circles are equal size
+            int gaugeR = min(PW, PH) * 34 / 100;
+            gaugeR = max(30, min(gaugeR, 74));
 
-    CRect rcBattLbl(
-        batteryCenter.x - gaugeR - 20,
-        labelY - 2,
-        batteryCenter.x + gaugeR + 20,
-        labelY + rowH + 4);
+            // Gauge center — horizontally centred in card, vertically after title
+            int gaugeCY = rcPanel.top + PH * 18 / 100 + gaugeR;
+            gaugeCY = min(gaugeCY, rcPanel.bottom - gaugeR - PH * 20 / 100);
+            gaugeCY = max(gaugeCY, rcPanel.top + gaugeR + PH * 5 / 100);
+            CPoint gaugeCenter(rcPanel.left + PW / 2, gaugeCY);
 
-    CString battText;
+            DrawCircularGauge(pDC, gaugeCenter, gaugeR, gaugeVal,
+                isChargingGauge, isHealthGauge);
+
+            // Sub-label below gauge (charging state / nothing)
+            int rowH = max(14, PH * 16 / 100);
+            int labelY = gaugeCY + gaugeR + max(2, PH * 2 / 100);
+
+            if (!subText.IsEmpty() && labelY + rowH <= rcPanel.bottom)
+            {
+                CRect rcSub(rcPanel.left, labelY, rcPanel.right, labelY + rowH);
+                DrawTextEx(pDC, subText, rcSub,
+                    subColor, OvFont(PW, PH, 11), true,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            }
+        };
+
+    // Build charging state string
     CString stateText;
-
     if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::EN)
-    {
-        battText = L"Battery";
-        stateText = charging
-            ? L"(Charging)"
-            : L"(Discharging)";
-    }
+        stateText = charging ? L"\u25BA Charging" : L"\u25BA Discharging";
     else
-    {
-        battText = L"バッテリー";
-        stateText = charging
-            ? L"（充電中）"
-            : L"（放電中）";
-    }
+        stateText = charging ? L"\u25BA 充電中" : L"\u25BA 放電中";
 
-    int fontSize = OvFont(LW, LH, 11);
-
-    int splitX = rcBattLbl.left + rcBattLbl.Width() * 35 / 100;
-
-    CRect rcBattery(
-        rcBattLbl.left,
-        rcBattLbl.top,
-        splitX,
-        rcBattLbl.bottom);
-
-    CRect rcState(
-        splitX,
-        rcBattLbl.top,
-        rcBattLbl.right,
-        rcBattLbl.bottom);
-
-    DrawTextEx(
-        pDC,
-        battText,
-        rcBattery,
-        CLR_MID_TEXT,
-        fontSize,
-        true,
-        DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
-
-    DrawTextEx(
-        pDC,
-        stateText,
-        rcState,
-        charging ? CLR_GREEN : CLR_RED,
-        fontSize,
-        true,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    CRect rcHealthLbl(
-        healthCenter.x - gaugeR,
-        labelY,
-        healthCenter.x + gaugeR,
-        labelY + rowH);
-
-    DrawTextEx(
-        pDC,
-        L(_T("Health"), _T("健康")),
-        rcHealthLbl,
-        CLR_MID_TEXT,
-        OvFont(LW, LH, 11),
-        true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    // Battery %
-    DrawCircularGauge(
-        pDC,
-        batteryCenter,
-        gaugeR,
+    // Card 1 — Battery
+    CRect rcBattCard(card1L, innerTop, card1R, innerBottom);
+    DrawGaugeCard(rcBattCard,
+        L(_T("Battery"), _T("バッテリー")),
         pctStr,
-        charging,
-        false);
+        charging, false,
+        stateText,
+        charging ? CLR_GREEN : CLR_RED);
 
-    // Health %
-    DrawCircularGauge(
-        pDC,
-        healthCenter,
-        gaugeR,
+    // Card 2 — Health
+    CRect rcHealthCard(card2L, innerTop, card2R, innerBottom);
+    DrawGaugeCard(rcHealthCard,
+        L(_T("Health"), _T("健康")),
         health,
-        false,
-        true);
+        false, true,
+        _T(""), RGB(0, 0, 0));
 
-    // "► Charging" below gauge
-    int belowY = labelY + rowH + max(2, LH * 2 / 100);
-
-    if (belowY + rowH <= rcLeft.bottom)
-    {
-        CRect rcChg(rcLeft.left, belowY,
-            rcLeft.right, belowY + rowH);
-        
-        CString chgText;
-        chgText.Format(_T("\u25BA %s"), status);
-
-        DrawTextEx(pDC, chgText, rcChg,
-            CLR_GREEN, OvFont(LW, LH, 8), true,
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    }
-
-    // "Power: 12.5 V"
-    int pwrY = belowY + rowH;
-    if (pwrY + rowH <= rcLeft.bottom)
-    {
-        CRect rcPwr(rcLeft.left, pwrY,
-            rcLeft.right, pwrY + rowH);
-        DrawTextEx(pDC,
-            L(_T("Power: 12.5 V"),
-                _T("電圧: 12.5 V")),
-            rcPwr,
-            CLR_MID_TEXT, OvFont(LW, LH, 8), false,
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    }
-
-    // ── Right Panel (Capacity) ───────────────────────────────────
-    CRect rcRight(midX + gap, innerTop, innerRight, innerBottom);
+    // ── Card 3 (Capacity) ────────────────────────────────────────
+    CRect rcRight(card3L, innerTop, card3R, innerBottom);
     int   RW = rcRight.Width();
     int   RH = rcRight.Height();
 
@@ -618,7 +524,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
         L(_T("Capacity"),
             _T("容量")),
         rcCapHdr,
-        CLR_MID_TEXT, OvFont(RW, RH, 11), true,
+        CLR_MID_TEXT, OvFont(RW, RH, 14), true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     // Sub-divider
@@ -632,7 +538,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     }
 
     // Row heights proportional to panel
-    int rowUnit = max(18, RH * 22 / 180);
+    int rowUnit = max(22, RH * 26 / 180);
 
     int y = capDivY + max(8, RH * 10 / 180);
 
@@ -717,8 +623,8 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
     int leftX = rpx;
     int rightX = rcRight.left + RW * 55 / 100;
 
-    int labelFont = OvFont(RW, RH, 10);
-    int valueFont = OvFont(RW, RH, 12);
+    int labelFont = OvFont(RW, RH, 13);
+    int valueFont = OvFont(RW, RH, 15);
 
     int rowGap = max(30, RH * 30 / 180);
 

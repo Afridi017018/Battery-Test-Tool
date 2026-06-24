@@ -61,8 +61,8 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
     /*int cardTop = SH(308, H);
     int cardBottom = SH(398, H);*/
 
-    int cardTop = SH(750, H);
-    int cardBottom = SH(840, H);   // same 90px height
+    int cardTop = SH(726, H);
+    int cardBottom = SH(816, H);   // same 90px height
 
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
 
@@ -80,8 +80,8 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
         rcCard.left + pad, rcCard.top + CH * 8 / 90,
         rcCard.right - pad, rcCard.top + CH * 8 / 90 + titleH);
     DrawTextEx(pDC,
-        L(_T("Quick Actions"),
-            _T("クイックアクション")),
+        L(_T("Battery Postmortem"),
+            _T("バッテリー診断解析")),
         rcTitle,
         CLR_TITLE,
         max(6, (int)(min(CW, CH) * 10 / 90)),
@@ -115,30 +115,67 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
      int gapW = max(4, CW * 8 / 468);
      int btnW = (totalBtnW - gapW) / 2;*/
 
+    //int totalBtnW = innerRight - innerLeft;
+    //int gapW = max(4, CW * 8 / 468);
+    //int btnW = (totalBtnW - gapW * 2) / 3;
+
+    //if (btnW < 10) return;
+
+    //int btnRadius = max(4, min(btnW, btnH) / 5);
+
+    //// ── Button 1: Auto Test (solid blue) ─────────────────────────
+    //m_rcBtnAutoTest = CRect(
+    //    innerLeft,
+    //    btnAreaTop,
+    //    innerLeft + btnW,
+    //    btnAreaBottom);
+
+    //DrawQAButton(pDC, m_rcBtnAutoTest,
+    //    L(_T("Auto Test"),
+    //        _T("自動テスト")),
+    //    RGB(255, 255, 255),
+    //    CLR_DARK_TEXT,
+    //    CLR_BORDER,
+    //    btnRadius);
+
+    // REPLACE WITH:
     int totalBtnW = innerRight - innerLeft;
     int gapW = max(4, CW * 8 / 468);
-    int btnW = (totalBtnW - gapW * 2) / 3;
+    int btnW = (totalBtnW - gapW * 3) / 4;   // 4 buttons now
 
     if (btnW < 10) return;
 
     int btnRadius = max(4, min(btnW, btnH) / 5);
 
-    // ── Button 1: Auto Test (solid blue) ─────────────────────────
-    m_rcBtnAutoTest = CRect(
+    // ── Button 1: Battery Test (Seminar) ─────────────────────────
+    m_rcBtnSeminarTest = CRect(
         innerLeft,
         btnAreaTop,
         innerLeft + btnW,
         btnAreaBottom);
 
-    DrawQAButton(pDC, m_rcBtnAutoTest,
-        L(_T("Auto Test"),
-            _T("自動テスト")),
+    DrawQAButton(pDC, m_rcBtnSeminarTest,
+        L(_T("Battery Test\n(Seminar)"),
+            _T("バッテリーテスト\n(セミナー)")),
         RGB(255, 255, 255),
         CLR_DARK_TEXT,
         CLR_BORDER,
         btnRadius);
 
+    // ── Button 2: Battery Test (was Auto Test) ───────────────────
+    m_rcBtnAutoTest = CRect(
+        innerLeft + (btnW + gapW),
+        btnAreaTop,
+        innerLeft + (btnW + gapW) + btnW,
+        btnAreaBottom);
 
+    DrawQAButton(pDC, m_rcBtnAutoTest,
+        L(_T("Battery Test"),
+            _T("バッテリーテスト")),
+        RGB(255, 255, 255),
+        CLR_DARK_TEXT,
+        CLR_BORDER,
+        btnRadius);
 
     //// ── Button 3: Language toggle (EN ⇔ JP) ──────────────────────
     //m_rcBtnLanguage = CRect(
@@ -214,9 +251,9 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     // Advanced Info  (opens the full-screen CABIDlg — see OnLButtonUp)
     m_rcBtnAdvancedQA = CRect(
-        innerLeft + btnW + gapW,
+        innerLeft + (btnW + gapW) * 2,
         btnAreaTop,
-        innerLeft + btnW * 2 + gapW,
+        innerLeft + (btnW + gapW) * 2 + btnW,
         btnAreaBottom);
 
     DrawQAButton(
@@ -232,9 +269,9 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
 
     // Data & History  (opens the full-screen CDHDlg — see OnLButtonUp)
     m_rcBtnDataHistoryQA = CRect(
-        innerLeft + (btnW + gapW) * 2,
+        innerLeft + (btnW + gapW) * 3,
         btnAreaTop,
-        innerLeft + (btnW + gapW) * 2 + btnW,
+        innerLeft + (btnW + gapW) * 3 + btnW,
         btnAreaBottom);
 
     DrawQAButton(

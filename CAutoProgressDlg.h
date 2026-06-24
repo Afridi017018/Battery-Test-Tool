@@ -2,6 +2,7 @@
 #include "afxdialogex.h"
 #include "resource.h"
 
+class CBatteryHelthDlg;
 class CAutoProgressDlg : public CDialogEx
 {
     DECLARE_DYNAMIC(CAutoProgressDlg)
@@ -12,7 +13,7 @@ public:
 
     enum { IDD = IDD_AUTO_PROGRESS_DLG };
 
-    void UpdateProgress(int totalPct, int phase, const CString& phaseMsg);
+    void UpdateProgress(int totalPct, int phase, const CString& phaseMsg, bool longTest);
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX);
@@ -27,6 +28,7 @@ protected:
 
     DECLARE_MESSAGE_MAP()
 
-private:
+public:
     CProgressCtrl m_progressBar;
+    CBatteryHelthDlg* m_pBattDlg = nullptr;
 };

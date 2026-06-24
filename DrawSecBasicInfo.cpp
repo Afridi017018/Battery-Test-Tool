@@ -152,8 +152,8 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     /*int cardTop = SH(614, H);
     int cardBottom = SH(840, H);*/
 
-    int cardTop = SH(308, H);
-    int cardBottom = SH(534, H);
+    int cardTop = SH(284, H);
+    int cardBottom = SH(510, H);
 
     CRect rcCard(mx, cardTop, W - mx, cardBottom);
     DrawRoundRect(pDC, rcCard, SW(10, W), CLR_CARD, CLR_BORDER);

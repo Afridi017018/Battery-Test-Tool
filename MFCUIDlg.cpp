@@ -14,7 +14,7 @@
 #endif
 
 #define BASE_W  800
-#define BASE_H  860
+#define BASE_H  830
 
 #define CLR_BG        RGB(235, 238, 245)
 #define CLR_CARD      RGB(255, 255, 255)
@@ -37,6 +37,7 @@ BEGIN_MESSAGE_MAP(CMFCUIDlg, CDialogEx)
     ON_WM_MOUSEWHEEL()
     ON_WM_SIZE()
     ON_WM_TIMER()
+    ON_BN_CLICKED(IDC_BUTTON1, &CMFCUIDlg::OnBnClickedButton1)
 END_MESSAGE_MAP()
 
 CMFCUIDlg::CMFCUIDlg(CWnd* pParent)
@@ -54,15 +55,28 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
 BOOL CMFCUIDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
+
+    HICON hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
+
+    SetIcon(hIcon, TRUE);   // Large icon
+    SetIcon(hIcon, FALSE);  // Small icon
+
     SetWindowText(
         (m_pBattDlg &&
             m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
         ? _T("バッテリーテストツール")
         : _T("Battery Test Tool"));
-    ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);
+
+    /*ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);*/
+
+    ModifyStyle(0, WS_THICKFRAME);
+
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 
     SetTimer(1, 1000, NULL);
+
+	Invalidate();
+    UpdateWindow();
 
     return TRUE;
 }
@@ -258,9 +272,16 @@ void CMFCUIDlg::OnLButtonUp(UINT nFlags, CPoint point)
     // Translate screen point → content point
     CPoint cp = ContentPoint(point);
 
-    if (m_rcBtnAutoTest.PtInRect(cp))
+   
+    if (m_rcBtnSeminarTest.PtInRect(cp))
     {
-        m_pBattDlg->OnBnClickedAuto();
+        if (m_pBattDlg)
+            m_pBattDlg->OnBnClickedAuto();
+    }
+    else if (m_rcBtnAutoTest.PtInRect(cp))
+    {
+        if (m_pBattDlg)
+            m_pBattDlg->OnBnClickedBtnAutoLong();
     }
     /* MessageBox(_T("Auto Test started!"), _T("Auto Test"),
          MB_OK | MB_ICONINFORMATION);*/
@@ -548,7 +569,7 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
         CLR_SUBTITLE, SF(8, W), false,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);*/
 
-    CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
+  /*  CRect rcSub(mx, divY + SH(4, H), rc.right - mx, divY + SH(22, H));
 
     CString strDeviceId;
     if (m_pBattDlg)
@@ -556,7 +577,7 @@ void CMFCUIDlg::DrawHeader(CDC* pDC, CRect rc)
 
     DrawTextEx(pDC, strDeviceId, rcSub,
         CLR_SUBTITLE, SF(8, W), false,
-        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);*/
 
 }
 
@@ -567,4 +588,21 @@ CString CMFCUIDlg::L(const CString& en, const CString& jp)
         m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
         ? jp
         : en;
+}
+void CMFCUIDlg::OnBnClickedButton1()
+{
+    if (!m_pBattDlg)
+        return;
+
+    if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+    {
+        m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::EN;
+    }
+    else
+    {
+        m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::JP;
+    }
+
+    Invalidate();       // Refresh UI
+    UpdateWindow();
 }

@@ -232,6 +232,7 @@ BEGIN_MESSAGE_MAP(CBatteryHelthDlg, CDialogEx)
     ON_BN_CLICKED(IDC_SOH, &CBatteryHelthDlg::OnBnClickedSoh)
     ON_BN_CLICKED(IDC_RESULT, &CBatteryHelthDlg::OnBnClickedResult)
     ON_BN_CLICKED(IDC_NEWUI, &CBatteryHelthDlg::OnBnClickedNewui)
+    ON_BN_CLICKED(IDC_BTN_AUTO_LONG, &CBatteryHelthDlg::OnBnClickedBtnAutoLong)
 END_MESSAGE_MAP()
 
 // CBatteryHelthDlg message handlers
@@ -1091,8 +1092,8 @@ BOOL CBatteryHelthDlg::OnInitDialog()
 {
     /*ShowWindow(SW_HIDE);*/
     CDialogEx::OnInitDialog();
-  /*  ShowWindow(SW_HIDE);*/
-    // Initialize COM
+    /*  ShowWindow(SW_HIDE);*/
+      // Initialize COM
     HRESULT hres = CoInitializeEx(0, COINIT_MULTITHREADED);
     if (FAILED(hres))
     {
@@ -2552,12 +2553,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-				deviceId = L"Failed to create IWbemLocator";
+                deviceId = L"Failed to create IWbemLocator";
                 UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
             }
             else {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-				deviceId = L"IWbemLocator の作成に失敗しました";
+                deviceId = L"IWbemLocator の作成に失敗しました";
                 UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
             }
         }
@@ -2568,12 +2569,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     if (FAILED(hr) || !pSvc) {
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"Could not connect to WMI";
+            deviceId = L"Could not connect to WMI";
             UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"WMI に接続できませんでした";
+            deviceId = L"WMI に接続できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
         }
 
@@ -2588,12 +2589,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"Could not set proxy blanket";
+            deviceId = L"Could not set proxy blanket";
             UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"プロキシ ブランケットを設定できませんでした";
+            deviceId = L"プロキシ ブランケットを設定できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
 
@@ -2613,12 +2614,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"WMI query failed";
+            deviceId = L"WMI query failed";
             UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"WMI クエリに失敗しました";
+            deviceId = L"WMI クエリに失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
         }
 
@@ -2634,12 +2635,12 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     if (uReturn == 0 || !pObj) {
         if (m_lang == Lang::EN) {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"No battery found";
+            deviceId = L"No battery found";
             UpdateLabel(this, IDC_BATT_DID, L"No battery found");
         }
         else {
             UpdateLabel(this, IDC_BATT_DID, L"");
-			deviceId = L"バッテリーが見つかりません";
+            deviceId = L"バッテリーが見つかりません";
             UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
         }
         pEnumerator->Release(); pSvc->Release(); pLoc->Release();
@@ -2890,11 +2891,11 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // 6) Battery Health (%)
     // --------------------------
     {
-     
+
         // Prefer WMI design; if missing, use history design
         int designForHealth_mWh = (designCapWmi_mWh > 0 && fullCap_mWh != designCapWmi_mWh) ? designCapWmi_mWh : designCapHist_mWh;
 
-        
+
 
         if (fullCap_mWh > 0 && designForHealth_mWh > 0) {
 
@@ -3046,7 +3047,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
                 VARIANT v{};
                 if (SUCCEEDED(pUUID->Get(L"UUID", 0, &v, 0, 0))) {
                     CString uuid = (v.vt != VT_NULL && v.vt != VT_EMPTY) ? v.bstrVal : L"Not available";
-					deviceId = L"ID - " + uuid;
+                    deviceId = L"ID - " + uuid;
                     UpdateLabel(this, IDC_BATT_DID, L"ID - " + uuid);
 
                     m_reportData.uuid = L"ID - " + uuid;
@@ -3058,14 +3059,14 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             else {
                 if (m_lang == Lang::EN) {
                     UpdateLabel(this, IDC_BATT_DID, L"");
-					deviceId = L"Not available";
+                    deviceId = L"Not available";
                     UpdateLabel(this, IDC_BATT_DID, L"Not available");
 
                     m_reportData.uuid = L"Not available";
                 }
                 else {
                     UpdateLabel(this, IDC_BATT_DID, L"");
-					deviceId = L"利用不可";
+                    deviceId = L"利用不可";
                     UpdateLabel(this, IDC_BATT_DID, L"利用不可");
 
                     m_reportData.uuid = L"利用不可";
@@ -3076,13 +3077,13 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
         else {
             if (m_lang == Lang::EN) {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-				deviceId = L"Not available";
+                deviceId = L"Not available";
                 UpdateLabel(this, IDC_BATT_DID, L"Not available");
                 m_reportData.uuid = L"Not available";
             }
             else {
                 UpdateLabel(this, IDC_BATT_DID, L"");
-				deviceId = L"利用不可";
+                deviceId = L"利用不可";
                 UpdateLabel(this, IDC_BATT_DID, L"利用不可");
 
                 m_reportData.uuid = L"利用不可";
@@ -3116,12 +3117,12 @@ void CBatteryHelthDlg::GetBatteryInfo()
         IID_IWbemLocator, (LPVOID*)&pLoc);
     if (FAILED(hr) || !pLoc) {
         if (m_lang == Lang::EN) {
-			deviceId = L"Failed to create IWbemLocator";
+            deviceId = L"Failed to create IWbemLocator";
             UpdateLabel(this, IDC_BATT_DID, L"Failed to create IWbemLocator");
 
         }
         else {
-			deviceId = L"IWbemLocator の作成に失敗しました";
+            deviceId = L"IWbemLocator の作成に失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"IWbemLocator の作成に失敗しました");
         }
         return;
@@ -3129,11 +3130,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
     hr = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), NULL, NULL, 0, NULL, 0, 0, &pSvc);
     if (FAILED(hr) || !pSvc) {
         if (m_lang == Lang::EN) {
-			deviceId = L"Could not connect to WMI";
+            deviceId = L"Could not connect to WMI";
             UpdateLabel(this, IDC_BATT_DID, L"Could not connect to WMI");
         }
         else {
-			deviceId = L"WMI に接続できませんでした";
+            deviceId = L"WMI に接続できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"WMI に接続できませんでした");
         }
         pLoc->Release();
@@ -3144,11 +3145,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
         NULL, EOAC_NONE);
     if (FAILED(hr)) {
         if (m_lang == Lang::EN) {
-			deviceId = L"Could not set proxy blanket";
+            deviceId = L"Could not set proxy blanket";
             UpdateLabel(this, IDC_BATT_DID, L"Could not set proxy blanket");
         }
         else {
-			deviceId = L"プロキシ ブランケットを設定できませんでした";
+            deviceId = L"プロキシ ブランケットを設定できませんでした";
             UpdateLabel(this, IDC_BATT_DID, L"プロキシ ブランケットを設定できませんでした");
         }
         pSvc->Release(); pLoc->Release();
@@ -3162,11 +3163,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
         NULL, &pEnumerator);
     if (FAILED(hr) || !pEnumerator) {
         if (m_lang == Lang::EN) {
-			deviceId = L"WMI query failed";
+            deviceId = L"WMI query failed";
             UpdateLabel(this, IDC_BATT_DID, L"WMI query failed");
         }
         else {
-			deviceId = L"WMI クエリに失敗しました";
+            deviceId = L"WMI クエリに失敗しました";
             UpdateLabel(this, IDC_BATT_DID, L"WMI クエリに失敗しました");
         }
 
@@ -3178,11 +3179,11 @@ void CBatteryHelthDlg::GetBatteryInfo()
     hr = pEnumerator->Next(WBEM_INFINITE, 1, &pObj, &uReturn);
     if (uReturn == 0 || !pObj) {
         if (m_lang == Lang::EN) {
-			deviceId = L"No battery found";
+            deviceId = L"No battery found";
             UpdateLabel(this, IDC_BATT_DID, L"No battery found");
         }
         else {
-			deviceId = L"バッテリーが見つかりません";
+            deviceId = L"バッテリーが見つかりません";
             UpdateLabel(this, IDC_BATT_DID, L"バッテリーが見つかりません");
         }
         pEnumerator->Release(); pSvc->Release(); pLoc->Release();
@@ -3945,6 +3946,8 @@ void CBatteryHelthDlg::StopDischargeTest()
 
 void CBatteryHelthDlg::OnBnClickedBtnDischarge()
 {
+    longTest = false;
+
     if (HasBattery() == false) {
         if (m_lang == Lang::EN) {
             AfxMessageBox(L"No battery detected.");
@@ -3966,7 +3969,6 @@ void CBatteryHelthDlg::OnBnClickedBtnDischarge()
         }
         return;
     }
-
 
 
     if (sps.ACLineStatus == 1) // Charging
@@ -4472,10 +4474,18 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             if (m_autoTestRunning)
             {
                 // Auto Test discharge phase = 1 minute
-                if (m_lang == Lang::EN)
-                    msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", progressPercent);
-                else
-                    msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", progressPercent);
+                if (longTest) {
+                    if (m_lang == Lang::EN)
+                        msg.Format(L"Please wait 5 minute to complete. (%.0f%%)", progressPercent);
+                    else
+                        msg.Format(L"完了まで 5 分お待ちください。（ %.0f%%）", progressPercent);
+               }
+                else {
+                    if (m_lang == Lang::EN)
+                        msg.Format(L"Please wait 1 minute to complete. (%.0f%%)", progressPercent);
+                    else
+                        msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", progressPercent);
+                }
             }
             else
             {
@@ -4493,10 +4503,20 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
                         (int)(37 + progressPercent * 63.0 / 100.0),
                         2, msg);*/
 
-                if (m_pAutoDlg)
+
+                if (longTest) {
+                    if (m_pAutoDlg)
                     m_pAutoDlg->UpdateProgress(
-                        (int)(50 + progressPercent * 50.0 / 100.0),
-                        2, msg);
+                        (int)(37 + progressPercent * 63.0 / 100.0),
+                        2, msg, longTest);
+                }
+
+                else {
+                    if (m_pAutoDlg)
+                        m_pAutoDlg->UpdateProgress(
+                            (int)(50 + progressPercent * 50.0 / 100.0),
+                            2, msg, longTest);
+                }
             }
             else
             {
@@ -4830,17 +4850,30 @@ void CBatteryHelthDlg::OnTimer(UINT_PTR nIDEvent)
             if (cpuPct > 100.0) cpuPct = 100.0;
 
             // Map CPU 0-100% into overall bar 0-37%
-            /*int overallPct = (int)(cpuPct * 37.0 / 100.0);*/
-            int overallPct = (int)(cpuPct * 50.0 / 100.0);
+            int overallPct;
+            if (longTest) {
+                overallPct = (int)(cpuPct * 37.0 / 100.0);
+            }
+            else {
+                overallPct = (int)(cpuPct * 50.0 / 100.0);
+            }
 
             CString msg;
-            if (m_lang == Lang::EN)
-                msg.Format(L"Please wait 1 minutes to complete. (%.0f%%)", cpuPct);
-            else
-                msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", cpuPct);
+            if (longTest) {
+                if (m_lang == Lang::EN)
+                    msg.Format(L"Please wait 3 minutes to complete. (%.0f%%)", cpuPct);
+                else
+                    msg.Format(L"完了まで 3 分お待ちください。（ %.0f%%）", cpuPct);
+            }
+            else {
+                if (m_lang == Lang::EN)
+                    msg.Format(L"Please wait 1 minutes to complete. (%.0f%%)", cpuPct);
+                else
+                    msg.Format(L"完了まで 1 分お待ちください。（ %.0f%%）", cpuPct);
+            }
 
             if (m_pAutoDlg)
-                m_pAutoDlg->UpdateProgress(overallPct, 1, msg);
+                m_pAutoDlg->UpdateProgress(overallPct, 1, msg, longTest);
         }
         // Phase 2: do nothing here — discharge timer owns the dialog.
     }
@@ -5014,7 +5047,7 @@ bool CBatteryHelthDlg::IsCharging()
 
 void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 {
-    
+    longTest = false;
     if (HasBattery() == false) {
 
         if (m_lang == Lang::EN) {
@@ -5231,7 +5264,7 @@ void CBatteryHelthDlg::OnBnClickedBtnCpuload()
 
 
         }).detach();
-  
+
 }
 
 
@@ -8051,7 +8084,9 @@ void CBatteryHelthDlg::OnBnClickedBtnBreport()
 
 
 void CBatteryHelthDlg::OnBnClickedAuto()
-{
+{ 
+    longTest = false;
+
     if (m_autoTestRunning)
     {
         AfxMessageBox(L"Auto test is already running.");
@@ -8127,7 +8162,7 @@ void CBatteryHelthDlg::OnBnClickedAuto()
     m_pAutoDlg->UpdateProgress(0, 1,
         m_lang == Lang::EN
         ? L"Please wait 1 minutes to complete. (0%)"
-        : L"完了まで 1 分お待ちください。（ 0%）");
+        : L"完了まで 1 分お待ちください。（ 0%）", longTest);
 
     // ── Start overall progress timer ──────────────────────────────────────────
     SetTimer(m_autoTimerID, 1000, NULL);
@@ -8192,7 +8227,150 @@ void CBatteryHelthDlg::OnBnClickedAuto()
         }).detach();
 }
 
+void CBatteryHelthDlg::OnBnClickedBtnAutoLong()
 
+{
+    longTest = true;
+
+    if (m_autoTestRunning)
+    {
+        AfxMessageBox(L"Auto test is already running.");
+        return;
+    }
+
+    if (HasBattery() == false)
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"No battery detected. Auto Test requires a battery."
+            : L"バッテリーが検出されません。");
+        return;
+    }
+
+    if (IsCharging())
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Please unplug the charger before starting the Auto Test."
+            : L"充電器を抜いてからオートテストを開始してください。");
+        return;
+    }
+
+    SYSTEM_POWER_STATUS sps;
+    if (!GetSystemPowerStatus(&sps) || sps.BatteryLifePercent == 255)
+    {
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Cannot read battery percentage."
+            : L"バッテリー残量を読み取ることができません。");
+        return;
+    }
+
+    // Battery saver check
+    {
+        HKEY  hKey;
+        DWORD value = 0, size = sizeof(DWORD);
+        if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\Power",
+            0, KEY_READ, &hKey) == ERROR_SUCCESS)
+        {
+            RegQueryValueEx(hKey, L"EnergySaverState",
+                NULL, NULL, (LPBYTE)&value, &size);
+            RegCloseKey(hKey);
+        }
+        if (value == 1)
+        {
+            CString msg = (m_lang == Lang::EN)
+                ? L"Turn off Battery Saver before starting.\n\nSettings -> System -> Power & Battery -> Energy saver -> Turn Off"
+                : L"バッテリーセーバーをオフにしてください。\n\n設定->システム->電源とバッテリー->バッテリーセーバー->オフ";
+            ::MessageBox(m_hWnd, msg, L"Battery Saver Warning", MB_OK | MB_ICONWARNING);
+            return;
+        }
+    }
+
+    // ── Setup ────────────────────────────────────────────────────────────────
+    m_autoTestRunning = true;
+    m_autoElapsed = 0;
+    m_autoTotalSeconds = (3 * 60) + (5 * 60);  // 480 s
+    m_autoPhase = L"CPU";
+    m_cpuLoadDurationSeconds = 3 * 60;
+    m_autoCancelled = false;
+
+    GetDlgItem(IDC_BTN_CPULOAD)->EnableWindow(FALSE);
+    GetDlgItem(IDC_BTN_DISCHARGE)->EnableWindow(FALSE);
+
+    // ── Create dedicated auto progress dialog ─────────────────────────────────
+    if (!m_pAutoDlg)
+    {
+        m_pAutoDlg = new CAutoProgressDlg(this);
+        m_pAutoDlg->Create(IDD_AUTO_PROGRESS_DLG, this);
+    }
+    m_pAutoDlg->CenterWindow();
+    m_pAutoDlg->ShowWindow(SW_SHOW);
+    m_pAutoDlg->UpdateProgress(0, 1,
+        m_lang == Lang::EN
+        ? L"Please wait 3 minutes to complete. (0%)"
+        : L"完了まで 3 分お待ちください。（ 0%）", longTest);
+
+    // ── Start overall progress timer ──────────────────────────────────────────
+    SetTimer(m_autoTimerID, 1000, NULL);
+
+    // ── Phase 1: CPU load thread ──────────────────────────────────────────────
+    m_initialBatteryCPUPercent = sps.BatteryLifePercent;
+    m_cpuLoadTestRunning = true;
+    m_stopCpuLoad.store(false);
+
+    std::thread([this]()
+        {
+            int numCores = std::thread::hardware_concurrency();
+            if (numCores == 0) numCores = 1;
+
+            std::vector<std::thread> threads;
+            std::atomic<long long>   totalFlops(0);
+            auto startTime = std::chrono::high_resolution_clock::now();
+
+            for (int i = 0; i < numCores; i++)
+            {
+                threads.emplace_back([this, &totalFlops, i]()
+                    {
+                        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+                        SetThreadAffinityMask(GetCurrentThread(), 1ULL << i);
+                        RunCPULoadRemaining(this, m_cpuLoadDurationSeconds,
+                            &totalFlops, &m_stopCpuLoad);
+                    });
+            }
+            for (auto& t : threads) t.join();
+
+            auto endTime = std::chrono::high_resolution_clock::now();
+            double durSec = std::chrono::duration<double>(endTime - startTime).count();
+            double gflops = totalFlops.load() / durSec / 1e9;
+
+            SYSTEM_POWER_STATUS spsEnd;
+            CString resultMsg;
+            if (GetSystemPowerStatus(&spsEnd) && spsEnd.BatteryLifePercent != 255)
+            {
+                int    drop = m_initialBatteryCPUPercent - spsEnd.BatteryLifePercent;
+                double rate = drop / (m_cpuLoadDurationSeconds / 60.0);
+                resultMsg.Format(
+                    L"Initial Charge: %d%%\nCurrent Charge: %d%%\nDrop: %d%%\nRate: %.2f%%/min\nGFLOPS: %.3f",
+                    m_initialBatteryCPUPercent, spsEnd.BatteryLifePercent,
+                    drop, (drop == 0 ? 0.0 : rate), gflops);
+
+                m_reportData.cpuInitial = m_initialBatteryCPUPercent;
+                m_reportData.cpuCurrent = spsEnd.BatteryLifePercent;
+                m_reportData.cpuDrop = drop;
+                m_reportData.cpuRate = (drop == 0 ? 0.0 : rate);
+                m_reportData.cpuGflops = gflops;
+            }
+            else
+            {
+                resultMsg = (m_lang == Lang::EN)
+                    ? L"Cannot read battery percentage."
+                    : L"バッテリー残量を読み取ることができません。";
+            }
+
+            m_cpuLoadTestRunning = false;
+            this->PostMessage(WM_APP + 2, 0, (LPARAM)new CString(resultMsg));
+
+        }).detach();
+}
 // ---------------------------------------------------------------------------
 //  OnAutoTestCPUDone  — unchanged logic
 // ---------------------------------------------------------------------------
@@ -8224,12 +8402,12 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
     m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedSeconds = 0;
     m_elapsedMinutes = 0;
-    m_dischargeDurationMinutes = 1;
+    m_dischargeDurationMinutes = 5;
     m_dischargeTestRunning = true;
 
     if (m_pAutoDlg)
         m_pAutoDlg->UpdateProgress(50, 2,
-            m_lang == Lang::EN ? L"Starting discharge..." : L"放電開始中...");
+            m_lang == Lang::EN ? L"Starting discharge..." : L"放電開始中...", longTest);
 
     SetTimer(m_dischargeTimerID, 1000, NULL);
     return 0;
@@ -8308,3 +8486,4 @@ void CBatteryHelthDlg::OnBnClickedNewui()
     CMFCUIDlg dlg(this);
     dlg.DoModal();
 }
+
