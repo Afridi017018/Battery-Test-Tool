@@ -29,8 +29,9 @@ static const COLORREF CLR_RANGE_HOV = RGB(235, 240, 255);
 static const COLORREF CLR_RANGE_BDR = RGB(210, 215, 225);
 
 // ── Constructor ───────────────────────────────────────────────────────────────
-CSOHDlg::CSOHDlg(CWnd* pParent)
+CSOHDlg::CSOHDlg(CWnd* pParent, bool engLang)
     : CDialogEx(IDD_SOH, pParent)
+    , m_engLang(engLang)
     , m_lastPercent(-1), m_lastDropTime(0)
     , m_isFullyCharged(false), m_isDischarging(false)
     , m_startDischargeTime(0), m_stressRunning(false)
@@ -180,7 +181,7 @@ void CSOHDlg::OnSize(UINT nType, int cx, int cy)
 BOOL CSOHDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
-    SetWindowTextW(_T("Battery SOH Test"));
+    SetWindowTextW(T(L"Battery SOH Test", L"バッテリーSOHテスト"));
 
     m_brWhite.CreateSolidBrush(CLR_BG);
 
@@ -249,7 +250,8 @@ BOOL CSOHDlg::OnInitDialog()
 
     RecalcLayout();
 
-    m_instruction = _T("Select a discharge range or time, then press Start");
+    m_instruction = T(L"Select a discharge range or time, then press Start",
+        L"放電範囲または時間を選択して「開始」を押してください");
     m_testStarted = true;          // temporarily allow % to show
     UpdateUI(m_currentPercent);
     m_testStarted = false;         // restore
@@ -284,7 +286,8 @@ void CSOHDlg::StartTest()
     }
 
     m_lastDropTime = GetTickCount64();
-    m_instruction = _T("Please charge battery to 100%");
+    m_instruction = T(L"Please charge battery to 100%",
+        L"バッテリーを100%まで充電してください");
     UpdateInstruction();
     Invalidate(FALSE);
     SetTimer(1, 1000, NULL);
@@ -350,9 +353,11 @@ void CSOHDlg::UpdateBatteryStatus()
         if (sps.ACLineStatus == 1)
         {
             if (usingRangeMode && percent <= m_targetStopPercent)
-                m_instruction = _T("Current charge is already at or below target!");
+                m_instruction = T(L"Current charge is already at or below target!",
+                    L"現在の充電量はすでに目標以下です！");
             else
-                m_instruction = _T("Unplug the charger to begin discharging");
+                m_instruction = T(L"Unplug the charger to begin discharging",
+                    L"充電器を抜いて放電を開始してください");
         }
     }
 
@@ -373,7 +378,8 @@ void CSOHDlg::UpdateBatteryStatus()
     {
         KillTimer(1); StopCpuStress();
         m_testComplete = true;   // ← add
-        m_instruction = _T("Test complete — data saved.");
+        m_instruction = T(L"Test complete — data saved.",
+            L"テスト完了 — データを保存しました。");
         UpdateInstruction(); UpdateUI(percent); Invalidate(FALSE);
         SetTimer(2, 1000, NULL); // ← add: watch for charger plug-in
         return;
@@ -407,7 +413,8 @@ void CSOHDlg::UpdateBatteryStatus()
             m_logFile.flush();
         }
         KillTimer(1); StopCpuStress();
-        m_instruction = _T("Test stopped: charger detected. Closing...");
+        m_instruction = T(L"Test stopped: charger detected. Closing...",
+            L"テスト停止：充電器を検出しました。終了中...");
         UpdateInstruction(); UpdateUI(percent);
         PostMessage(WM_CLOSE);
     }
@@ -443,7 +450,8 @@ void CSOHDlg::UpdateInstruction()
 
     if (!m_testStarted)
     {
-        m_instruction = _T("Select a discharge range or time, then press Start");
+        m_instruction = T(L"Select a discharge range or time, then press Start",
+            L"放電範囲または時間を選択して「開始」を押してください");
     }
     else if (!m_isDischarging)
     {
@@ -452,13 +460,16 @@ void CSOHDlg::UpdateInstruction()
         if (sps.ACLineStatus == 1)
         {
             if (usingRangeMode && m_currentPercent <= m_targetStopPercent)
-                m_instruction = _T("Current charge is already at or below target — pick a different range");
+                m_instruction = T(L"Current charge is already at or below target — pick a different range",
+                    L"現在の充電量はすでに目標以下です — 別の範囲を選択してください");
             else
-                m_instruction = _T("Unplug the charger to begin discharging");
+                m_instruction = T(L"Unplug the charger to begin discharging",
+                    L"充電器を抜いて放電を開始してください");
         }
         else
         {
-            m_instruction = _T("Unplug the charger to begin discharging");
+            m_instruction = T(L"Unplug the charger to begin discharging",
+                L"充電器を抜いて放電を開始してください");
         }
     }
     else
@@ -467,19 +478,24 @@ void CSOHDlg::UpdateInstruction()
         if (usingRangeMode)
         {
             CString s;
-            s.Format(_T("Discharging… recording data  |  target: %d%%"), m_targetStopPercent);
+            s.Format(T(L"Discharging… recording data  |  target: %d%%",
+                L"放電中… データ記録中  |  目標: %d%%"),
+                m_targetStopPercent);
             m_instruction = s;
         }
         else if (usingTimeMode)
         {
             ULONGLONG elapsedMin = (GetTickCount64() - m_startDischargeTime) / 60000;
             CString s;
-            s.Format(_T("Discharging… %llu / %d min elapsed"), elapsedMin, m_targetMinutes);
+            s.Format(T(L"Discharging… %llu / %d min elapsed",
+                L"放電中… %llu / %d 分経過"),
+                elapsedMin, m_targetMinutes);
             m_instruction = s;
         }
         else
         {
-            m_instruction = _T("Discharging… recording data");
+            m_instruction = T(L"Discharging… recording data",
+                L"放電中… データ記録中");
         }
     }
 
@@ -511,7 +527,8 @@ void CSOHDlg::UpdateUI(int percent)
         if (m_isDischarging && m_startDischargeTime)
         {
             ULONGLONG s = (GetTickCount64() - m_startDischargeTime) / 1000;
-            CString e; e.Format(_T("Elapsed  %02d:%02d:%02d"),
+            CString e; e.Format(T(L"Elapsed  %02d:%02d:%02d",
+                L"経過時間  %02d:%02d:%02d"),
                 (int)(s / 3600), (int)((s % 3600) / 60), (int)(s % 60));
             m_lblElapsed.SetWindowTextW(e);
         }
@@ -655,7 +672,7 @@ void CSOHDlg::DrawTimeSlider(CDC* dc)
         dc->SetBkMode(TRANSPARENT);
         dc->SetTextColor(CLR_ACCENT);
         CFont* of2 = dc->SelectObject(&m_fontBtn);
-        CString val; val.Format(_T("%d min"), m_targetMinutes);
+        CString val; val.Format(T(L"%d min", L"%d 分"), m_targetMinutes);
         CRect rcVal(thumbX - 40, rT.top, thumbX + 40, trackY - 4);
         dc->DrawText(val, &rcVal, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         dc->SelectObject(of2);
@@ -666,7 +683,7 @@ void CSOHDlg::DrawTimeSlider(CDC* dc)
         dc->SetTextColor(CLR_TEXT_LIGHT);
         CFont* of2 = dc->SelectObject(&m_fontRange);
         CRect rcHint(rT.left, rT.top, rT.right, trackY - 2);
-        dc->DrawText(_T("Drag to set duration"), &rcHint, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        dc->DrawText(T(L"Drag to set duration", L"ドラッグして時間を設定"), &rcHint, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         dc->SelectObject(of2);
     }
 }
@@ -696,7 +713,7 @@ void CSOHDlg::DrawStartButton(CDC* dc)
     /*dc->SetTextColor(RGB(255, 255, 255));*/
     dc->SetTextColor(canStart ? RGB(255, 255, 255) : CLR_TEXT_LIGHT);
     CFont* of = dc->SelectObject(&m_fontBtn);
-    dc->DrawText(_T("Start Test"), const_cast<CRect*>(&m_rcStartBtn),
+    dc->DrawText(T(L"Start Test", L"テスト開始"), const_cast<CRect*>(&m_rcStartBtn),
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     dc->SelectObject(of);
 }
@@ -748,7 +765,7 @@ void CSOHDlg::PaintBuffer(CDC* dc, int W, int H)
         dc->SetTextColor(CLR_TEXT_LIGHT);
         CFont* of = dc->SelectObject(&m_fontRange);
         CRect rcLbl(mx, labelTop, W - mx, labelBot);
-        dc->DrawText(_T("DISCHARGE RANGE"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        dc->DrawText(T(L"DISCHARGE RANGE", L"放電範囲"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         dc->SelectObject(of);
     }
 
@@ -765,7 +782,7 @@ void CSOHDlg::PaintBuffer(CDC* dc, int W, int H)
         dc->SetTextColor(CLR_TEXT_LIGHT);
         CFont* of = dc->SelectObject(&m_fontRange);
         CRect rcLbl(mx, labelTop, W - mx, labelBot);
-        dc->DrawText(_T("DISCHARGE TIME"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        dc->DrawText(T(L"DISCHARGE TIME", L"放電時間"), &rcLbl, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         dc->SelectObject(of);
     }
 

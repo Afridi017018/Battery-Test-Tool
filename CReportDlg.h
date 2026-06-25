@@ -4,6 +4,8 @@
 #include "BatteryHelth.h"
 #include "resource.h"
 
+
+class CBatteryHelthDlg;
 // Forward-declared here so the header doesn't need the full struct in .cpp
 struct BatteryScore;
 
@@ -99,4 +101,8 @@ private:
 
 public:
     BatteryReportData m_reportData;
+
+    
+    CBatteryHelthDlg* m_pBattDlg = nullptr;
+
 };

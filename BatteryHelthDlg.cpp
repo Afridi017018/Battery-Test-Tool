@@ -8402,7 +8402,12 @@ LRESULT CBatteryHelthDlg::OnAutoTestCPUDone(WPARAM, LPARAM lParam)
     m_initialBatteryPercent = sps.BatteryLifePercent;
     m_elapsedSeconds = 0;
     m_elapsedMinutes = 0;
-    m_dischargeDurationMinutes = 5;
+    
+    if(longTest)
+        m_dischargeDurationMinutes = 5;
+    else
+		m_dischargeDurationMinutes = 1;
+
     m_dischargeTestRunning = true;
 
     if (m_pAutoDlg)
@@ -8469,7 +8474,7 @@ void CBatteryHelthDlg::CancelAutoTest()
 void CBatteryHelthDlg::OnBnClickedSoh()
 {
     // TODO: Add your control notification handler code here
-    CSOHDlg dlg;
+    CSOHDlg dlg(this, m_lang == Lang::EN);
 
     dlg.DoModal();
 }

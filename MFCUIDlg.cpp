@@ -594,6 +594,9 @@ void CMFCUIDlg::OnBnClickedButton1()
     if (!m_pBattDlg)
         return;
 
+    // Count clicks
+    m_langButtonClickCount++;
+
     if (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
     {
         m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::EN;
@@ -603,6 +606,12 @@ void CMFCUIDlg::OnBnClickedButton1()
         m_pBattDlg->m_lang = CBatteryHelthDlg::Lang::JP;
     }
 
-    Invalidate();       // Refresh UI
+    // Hide after 2 clicks
+    if (m_langButtonClickCount >= 2)
+    {
+        GetDlgItem(IDC_BUTTON1)->ShowWindow(SW_HIDE);
+    }
+
+    Invalidate();
     UpdateWindow();
 }

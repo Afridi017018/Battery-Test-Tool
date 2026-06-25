@@ -335,7 +335,7 @@ public:
 public:
 	// === Toggle state ===
 	enum class Lang { EN, JP };
-	Lang m_lang = Lang::EN; // default: English
+	Lang m_lang = Lang::JP; // default: Japanese
 
 	// Helpers
 	void RedrawToggleButtons();

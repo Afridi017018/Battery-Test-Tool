@@ -7,11 +7,22 @@
 #include <utility>
 #include <cmath>
 #include <shellapi.h>
-#include <winspool.h>
+#include "BatteryHelthDlg.h"
 #pragma comment(lib, "shell32.lib")
-#pragma comment(lib, "winspool.lib")
 
 IMPLEMENT_DYNAMIC(CReportDlg, CDialogEx)
+
+// ── Language helper ──────────────────────────────────────────────────────────
+// Returns JP string when parent dialog is in JP mode, else EN.
+static bool IsJP(CBatteryHelthDlg* p)
+{
+    return p && p->m_lang == CBatteryHelthDlg::Lang::JP;
+}
+
+// Convenience macro: picks EN or JP string based on parent dialog language.
+#define LS(dlg, en, jp)  (IsJP(dlg) ? CString(jp) : CString(en))
+
+// ────────────────────────────────────────────────────────────────────────────
 
 CReportDlg::CReportDlg(const BatteryReportData& data, CWnd* pParent)
     : CDialogEx(IDD_REPORT_DIALOG, pParent),
@@ -68,7 +79,6 @@ static double HmsTextToHours(const CString& hms)
 static double ParseCapacityMwh(const CString& text)
 {
     std::wstring s = text.GetString();
-    // strip everything except digits and dot
     std::wstring digits;
     for (wchar_t c : s)
         if (iswdigit(c) || c == L'.') digits += c;
@@ -185,34 +195,7 @@ static bool GetBatteryLife(std::vector<CReportDlg::BatteryLifeRow>& out, const C
 }
 
 //////////////////////////////////////////////////////////////
-// 🔹 BATTERY CONDITION SCORING ALGORITHM
-//
-//  Score 0-100 built from 5 weighted factors:
-//
-//  F1  Health ratio          (fullCharge / design)     weight 35
-//  F2  Capacity trend        (degradation slope)        weight 20
-//  F3  Life ratio            (fullActive / designActive)weight 20
-//  F4  CPU drain rate        (% per min under load)     weight 13
-//  F5  Discharge drain rate  (% per min idle)           weight 12
-//
-//  Score -> Grade:
-//    85-100  Excellent
-//    70-84   Good
-//    50-69   Fair
-//    30-49   Poor
-//    0-29    Replace Now
-//////////////////////////////////////////////////////////////
-
-
-static double Clamp01(double v) { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }
-
-//////////////////////////////////////////////////////////////
 // 🔹 BATTERY CONDITION SCORING ALGORITHM  (v2 — 4 factors)
-//
-//  Only real measured / device-reported data is used.
-//  If a factor's data is unavailable the factor is excluded
-//  and the remaining factor weights are scaled up proportionally
-//  so the total is always out of 100 — never artificially padded.
 //
 //  Base weights (must sum to 100):
 //    F1  Battery Health Ratio      50
@@ -228,6 +211,8 @@ static double Clamp01(double v) { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }
 //    0-29    Replace Now
 //////////////////////////////////////////////////////////////
 
+static double Clamp01(double v) { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }
+
 static CReportDlg::ScoreResult ComputeBatteryScore(
     const BatteryReportData& rd,
     const std::vector<CReportDlg::BatteryCapacityRow>& capacity,
@@ -237,10 +222,6 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
     CString missing;
 
     // ── F1: Health ratio (base weight 50) ───────────────────────────────────
-    //  Sources tried in order:
-    //   1. fullChargeCapacity / designCapacity from m_reportData strings
-    //   2. Same fields from the most-recent capacity history row
-    //   3. The pre-computed "health" string field (e.g. "87" or "87%")
     {
         double designMwh = ParseCapacityMwh(rd.designCapacity);
         double fullMwh = ParseCapacityMwh(rd.fullChargeCapacity);
@@ -262,28 +243,23 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
         if (healthRatio >= 0.0)
         {
             s.healthPct = healthRatio * 100.0;
-            // 100% health → sub-score 100,  50% health → 0,  <50% clamped to 0
             double score = Clamp01((healthRatio - 0.50) / 0.50) * 100.0;
             s.f1Health = score;
         }
         else
         {
-            s.healthPct = -1.0;   // unknown — factor excluded
+            s.healthPct = -1.0;
             s.f1Health = -1.0;
-            if (!missing.IsEmpty()) missing += L", ";
-            missing += L"Health ratio";
+            if (!missing.IsEmpty()) missing += L"|";
+            missing += L"HEALTH";   // key — localised later
         }
     }
 
     // ── F4: CPU Load Drain Rate (base weight 20) ─────────────────────────────
-    //  rd.cpuRate > 0  means the auto-test ran and produced a value.
-    //  Healthy laptop/notebook: ~0.5–0.8 %/min under load.
-    //  Very bad (swollen/failing cell): ≥ 2.5 %/min.
     {
         s.cpuRatePerMin = rd.cpuRate;
         if (rd.cpuRate > 0.0)
         {
-            // Linear map: 0.5 %/min → 1.0,  2.5 %/min → 0.0
             double score = Clamp01(1.0 - (rd.cpuRate - 0.5) / 2.0) * 100.0;
             s.f4Cpu = score;
         }
@@ -291,19 +267,16 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
         {
             s.cpuRatePerMin = -1.0;
             s.f4Cpu = -1.0;
-            if (!missing.IsEmpty()) missing += L", ";
-            missing += L"CPU drain rate";
+            if (!missing.IsEmpty()) missing += L"|";
+            missing += L"CPU";      // key — localised later
         }
     }
 
     // ── F5: Idle Discharge Drain Rate (base weight 20) ───────────────────────
-    //  rd.disRate > 0  means the discharge phase ran.
-    //  Healthy idle: ~0.1–0.3 %/min.  Very bad: ≥ 1.5 %/min.
     {
         s.disRatePerMin = rd.disRate;
         if (rd.disRate > 0.0)
         {
-            // Linear map: 0.1 %/min → 1.0,  1.5 %/min → 0.0
             double score = Clamp01(1.0 - (rd.disRate - 0.1) / 1.4) * 100.0;
             s.f5Dis = score;
         }
@@ -311,20 +284,12 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
         {
             s.disRatePerMin = -1.0;
             s.f5Dis = -1.0;
-            if (!missing.IsEmpty()) missing += L", ";
-            missing += L"Discharge rate";
+            if (!missing.IsEmpty()) missing += L"|";
+            missing += L"DISCHARGE"; // key — localised later
         }
     }
 
     // ── F6: Charge Cycle Count (base weight 10) ──────────────────────────────
-    //  Standard Li-ion cycle life: ~500 (consumer) to ~1000 (premium).
-    //  Scoring curve (IEC 61960 / Apple-style guidelines):
-    //    0   – 300  cycles  → 100 pts  (barely used)
-    //    300 – 500  cycles  → 100→70   (good range)
-    //    500 – 800  cycles  → 70→40    (fair — noticeable wear)
-    //    800 – 1000 cycles  → 40→10    (poor)
-    //    > 1000     cycles  → 10→0     (replace)
-    //  rd.cycles is a CString (e.g. "247" or "N/A" or empty).
     {
         int cycles = -1;
         if (!rd.cycles.IsEmpty())
@@ -341,24 +306,21 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
         {
             double score;
             if (cycles <= 300)  score = 100.0;
-            else if (cycles <= 500)  score = 100.0 - (cycles - 300) / 200.0 * 30.0; // 100→70
-            else if (cycles <= 800)  score = 70.0 - (cycles - 500) / 300.0 * 30.0; // 70→40
-            else if (cycles <= 1000) score = 40.0 - (cycles - 800) / 200.0 * 30.0; // 40→10
+            else if (cycles <= 500)  score = 100.0 - (cycles - 300) / 200.0 * 30.0;
+            else if (cycles <= 800)  score = 70.0 - (cycles - 500) / 300.0 * 30.0;
+            else if (cycles <= 1000) score = 40.0 - (cycles - 800) / 200.0 * 30.0;
             else                     score = max(0.0, 10.0 - (cycles - 1000) / 100.0 * 5.0);
             s.f6Cycles = Clamp01(score / 100.0) * 100.0;
         }
         else
         {
-            s.f6Cycles = -1.0;   // device did not report cycle count
-            if (!missing.IsEmpty()) missing += L", ";
-            missing += L"Cycle count";
+            s.f6Cycles = -1.0;
+            if (!missing.IsEmpty()) missing += L"|";
+            missing += L"CYCLES";   // key — localised later
         }
     }
 
     // ── Weighted sum with dynamic weight redistribution ───────────────────────
-    //  For each factor that IS available, accumulate (sub-score × base-weight).
-    //  Then divide by the total base-weight of available factors only.
-    //  Result: always 0–100, never inflated by assumed values for missing data.
     struct Factor { double subScore; double baseWeight; };
     Factor factors[] = {
         { s.f1Health,  50.0 },
@@ -371,7 +333,7 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
     double totalWeight = 0.0;
     for (auto& f : factors)
     {
-        if (f.subScore >= 0.0)          // -1 means excluded
+        if (f.subScore >= 0.0)
         {
             weightedSum += f.subScore * f.baseWeight;
             totalWeight += f.baseWeight;
@@ -380,11 +342,11 @@ static CReportDlg::ScoreResult ComputeBatteryScore(
 
     s.total = (totalWeight > 0.0) ? (weightedSum / totalWeight) : 0.0;
 
-    // ── Missing-data note ─────────────────────────────────────────────────────
-    if (!missing.IsEmpty())
-        s.missingNote = L"Not measured / unavailable: " + missing;
+    // ── Missing-data note stored as raw pipe-delimited keys ──────────────────
+    // Localised into human-readable text in OnInitDialog after lang is known.
+    s.missingNote = missing;  // e.g. L"HEALTH|CPU|DISCHARGE|CYCLES"
 
-    // ── Grade & advice ────────────────────────────────────────────────────────
+    // ── Grade & advice (EN defaults; localised in OnInitDialog after lang is known) ──
     if (s.total >= 85.0)
     {
         s.grade = L"EXCELLENT";
@@ -437,8 +399,18 @@ BOOL CReportDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
 
+    m_pBattDlg = dynamic_cast<CBatteryHelthDlg*>(GetParent());
+
+    if (IsJP(m_pBattDlg))
+        SetWindowText(L"結果");
+    else
+        SetWindowText(L"Result");
+
     wchar_t tempPath[MAX_PATH];
     GetTempPath(MAX_PATH, tempPath);
+
+    SetIcon(nullptr, TRUE);
+    SetIcon(nullptr, FALSE);
 
     CString path;
     path.Format(L"%sbattery_report.html", tempPath);
@@ -446,16 +418,114 @@ BOOL CReportDlg::OnInitDialog()
 
     GetUsageHistory(m_rows, m_htmlCache);
     GetBatteryCapacity(m_capacity, m_htmlCache);
-    // m_life parsing kept for completeness but not used in scoring
     GetBatteryLife(m_life, m_htmlCache);
 
-    // Pre-compute score (F2/F3 removed; only Health, CPU drain, Dis drain, Cycles)
     m_score = ComputeBatteryScore(m_reportData, m_capacity, m_life);
 
-    // The dialog template still has WS_HSCROLL/WS_VSCROLL set from the old
-    // scrollable layout. We no longer drive those scrollbars (no SetScrollInfo
-    // calls remain), so explicitly hide them rather than leaving a dead,
-    // unusable scrollbar visible at the edge of the dialog.
+    // ── Localise advice ───────────────────────────────────────────────────────
+  /*  bool jp = IsJP(m_pBattDlg);
+    if (jp)
+    {
+        if (m_score.total >= 85.0)
+            m_score.advice = L"バッテリーは最良の状態です。何もする必要はありません。";
+        else if (m_score.total >= 70.0)
+            m_score.advice = L"バッテリーは良好です。サイクル数を定期的に確認してください。";
+        else if (m_score.total >= 50.0)
+            m_score.advice = L"劣化が見られます。深放電と高温を避けてください。";
+        else if (m_score.total >= 30.0)
+            m_score.advice = L"バッテリーが著しく劣化しています。近いうちに交換を検討してください。";
+        else
+            m_score.advice = L"バッテリーが危機的状態です。突然のシャットダウンを防ぐため、直ちに交換してください。";
+    }*/
+
+    // REPLACE WITH:
+    // ── Localise grade + advice ───────────────────────────────────────────────
+    bool jp = IsJP(m_pBattDlg);
+    if (jp)
+    {
+        if (m_score.total >= 85.0)
+        {
+            m_score.grade = L"優良";
+            m_score.advice = L"バッテリーは最良の状態です。何もする必要はありません。";
+        }
+        else if (m_score.total >= 70.0)
+        {
+            m_score.grade = L"良好";
+            m_score.advice = L"バッテリーは良好です。サイクル数を定期的に確認してください。";
+        }
+        else if (m_score.total >= 50.0)
+        {
+            m_score.grade = L"普通";
+            m_score.advice = L"劣化が見られます。深放電と高温を避けてください。";
+        }
+        else if (m_score.total >= 30.0)
+        {
+            m_score.grade = L"不良";
+            m_score.advice = L"バッテリーが著しく劣化しています。近いうちに交換を検討してください。";
+        }
+        else
+        {
+            m_score.grade = L"要交換";
+            m_score.advice = L"バッテリーが危機的状態です。突然のシャットダウンを防ぐため、直ちに交換してください。";
+        }
+    }
+    else
+    {
+        // EN grade strings (already set by ComputeBatteryScore, kept explicit for clarity)
+        if (m_score.total >= 85.0) m_score.grade = L"EXCELLENT";
+        else if (m_score.total >= 70.0) m_score.grade = L"GOOD";
+        else if (m_score.total >= 50.0) m_score.grade = L"FAIR";
+        else if (m_score.total >= 30.0) m_score.grade = L"POOR";
+        else                            m_score.grade = L"REPLACE NOW";
+    }
+
+    // ── Localise missingNote (pipe-delimited keys → human text) ──────────────
+    if (!m_score.missingNote.IsEmpty())
+    {
+        // Translate each key
+        auto TranslateKey = [&](const CString& key) -> CString {
+            if (key == L"HEALTH")
+                return jp ? L"健全性比率" : L"Health ratio";
+            if (key == L"CPU")
+                return jp ? L"CPU消耗率" : L"CPU drain rate";
+            if (key == L"DISCHARGE")
+                return jp ? L"放電消耗率" : L"Discharge rate";
+            if (key == L"CYCLES")
+                return jp ? L"サイクル数" : L"Cycle count";
+            return key; // fallback: show raw key
+            };
+
+        CString keys = m_score.missingNote;
+        CString localised;
+        int pos = 0;
+        CString token;
+        while (pos < keys.GetLength())
+        {
+            int pipe = keys.Find(L'|', pos);
+            if (pipe < 0)
+            {
+                token = keys.Mid(pos);
+                pos = keys.GetLength();
+            }
+            else
+            {
+                token = keys.Mid(pos, pipe - pos);
+                pos = pipe + 1;
+            }
+            token.Trim();
+            if (!token.IsEmpty())
+            {
+                if (!localised.IsEmpty()) localised += jp ? L"、" : L", ";
+                localised += TranslateKey(token);
+            }
+        }
+
+        CString prefix = jp
+            ? L"未計測 / データなし: "
+            : L"Not measured / unavailable: ";
+        m_score.missingNote = prefix + localised;
+    }
+
     ShowScrollBar(SB_BOTH, FALSE);
 
     return TRUE;
@@ -464,10 +534,6 @@ BOOL CReportDlg::OnInitDialog()
 void CReportDlg::OnSize(UINT nType, int cx, int cy)
 {
     CDialogEx::OnSize(nType, cx, cy);
-
-    // The whole dashboard is laid out and scaled live from the client rect
-    // inside OnPaint, so resizing the dialog just needs a repaint — there is
-    // no separate scroll range to recompute any more.
     Invalidate();
 }
 
@@ -490,18 +556,10 @@ void CReportDlg::OnPaint()
     const int CX = clientRect.Width();
     const int CY = clientRect.Height();
 
-    // ── Responsive scale ──────────────────────────────────────────────────────
-    // The dashboard was authored against this design canvas. Every margin,
-    // font, bar and card below is expressed through S(), which scales that
-    // baseline value to whatever size the dialog actually is — so the whole
-    // report grows or shrinks to fit the client area with no scrollbars.
     const double DESIGN_W = 760.0;
-    const double DESIGN_H = 640.0;   // actual content height: title + badge +
-    // score bar + advice + 4 factor rows +
-    // optional missing-data note + 2 rows
-    // of key-metric cards
+    const double DESIGN_H = 640.0;
     double scale = min(CX / DESIGN_W, CY / DESIGN_H);
-    scale = max(0.55, min(scale, 1.6));   // keep things legible at extremes
+    scale = max(0.55, min(scale, 1.6));
 
     auto S = [scale](int v) -> int { return (int)std::lround(v * scale); };
 
@@ -539,11 +597,13 @@ void CReportDlg::OnPaint()
     // ── Title ────────────────────────────────────────────────────────────────
     SelectObject(hdc, hFontTitle);
     SetTextColor(hdc, RGB(30, 80, 160));
-    TextOut(hdc, LEFT, y, L"Battery Condition Report", 24);
+    {
+        CString title = LS(m_pBattDlg, L"Battery Condition Report", L"バッテリー状態レポート");
+        TextOut(hdc, LEFT, y, title, title.GetLength());
+    }
     y += S(40);
 
     // ── Grade badge ──────────────────────────────────────────────────────────
-    // Draw a filled rounded rectangle badge centred at top
     {
         int bW = S(320), bH = S(70);
         int bX = (CX - bW) / 2;
@@ -567,16 +627,14 @@ void CReportDlg::OnPaint()
         y += bH + S(14);
     }
 
-    // ── Overall score arc / progress bar ─────────────────────────────────────
-    // Draw a horizontal score bar (0-100) with gradient segments
+    // ── Overall score bar ─────────────────────────────────────────────────────
     {
         int barX = LEFT;
-        const int SCORE_LABEL_W = S(130);  // reserved width for "NN / 100" right of bar
+        const int SCORE_LABEL_W = S(130);
         int barW = CX - LEFT * 2 - SCORE_LABEL_W - S(10);
         int barH = S(22);
         int barY = y;
 
-        // Background track
         HBRUSH hTrack = CreateSolidBrush(RGB(210, 215, 225));
         HPEN hNoPen = CreatePen(PS_NULL, 0, 0);
         HPEN pOldPn = (HPEN)SelectObject(hdc, hNoPen);
@@ -585,9 +643,8 @@ void CReportDlg::OnPaint()
         SelectObject(hdc, pOldBr);
         DeleteObject(hTrack);
 
-        // Filled portion
         int fillW = (int)(barW * sc.total / 100.0);
-        if (fillW > barH) // only draw if wide enough for rounded rect
+        if (fillW > barH)
         {
             HBRUSH hFill = CreateSolidBrush(sc.gradeColor);
             SelectObject(hdc, hFill);
@@ -598,7 +655,6 @@ void CReportDlg::OnPaint()
         SelectObject(hdc, pOldPn);
         DeleteObject(hNoPen);
 
-        // Score label on right — medium-bold font (S(24)) sits between body and the old oversized score font
         HFONT hFontScoreMed = CreateFont(S(24), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
             CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
@@ -636,36 +692,33 @@ void CReportDlg::OnPaint()
     // ── Factor breakdown header ───────────────────────────────────────────────
     SelectObject(hdc, hFontSub);
     SetTextColor(hdc, RGB(30, 80, 160));
-    TextOut(hdc, LEFT, y, L"Score Breakdown", 15);
+    {
+        CString sbLabel = LS(m_pBattDlg, L"Score Breakdown", L"スコア内訳");
+        TextOut(hdc, LEFT, y, sbLabel, sbLabel.GetLength());
+    }
     y += S(30);
 
     // ── Helper: draw one factor bar ──────────────────────────────────────────
-    // score == -1.0 → factor unavailable; draw a greyed "N/A" bar instead.
-    auto DrawFactor = [&](const wchar_t* label, double score,
-        const wchar_t* rawLabel, const CString& rawValStr,
+    auto DrawFactor = [&](const CString& label, double score,
+        const CString& rawLabel, const CString& rawValStr,
         int baseWeight)
         {
             const int LabelW = S(210);
             const int BarX = LEFT + LabelW;
-            // Reserve: S(42) for score%, S(10) gap, S(110) for raw-value, S(LEFT) right margin
             const int RIGHT_RESERVE = S(42) + S(10) + S(110);
             const int BarW = CX - BarX - LEFT - RIGHT_RESERVE;
             const int BarH = S(16);
-            const int RowH = S(18);     // label/weight row line height
-            const int WtZoneW = S(50);     // reserved width for the "(NN%)" badge
+            const int RowH = S(18);
+            const int WtZoneW = S(50);
 
             bool unavailable = (score < 0.0);
 
-            // Factor label — clipped to its own column (ellipsis if too long)
-            // so it can never run into the weight badge or the bar.
             SelectObject(hdc, hFontBody);
             SetTextColor(hdc, unavailable ? RGB(160, 160, 170) : RGB(50, 50, 60));
             RECT rLabel = { LEFT, y, BarX - WtZoneW - S(8), y + RowH };
             DrawText(hdc, label, -1, &rLabel,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
 
-            // Weight badge — right-aligned flush against the bar's left edge,
-            // so "(20%)" always lines up cleanly regardless of label length.
             CString wt;
             wt.Format(L"(%d%%)", baseWeight);
             SelectObject(hdc, hFontSmall);
@@ -673,7 +726,6 @@ void CReportDlg::OnPaint()
             RECT rWt = { BarX - WtZoneW, y, BarX - S(8), y + RowH };
             DrawText(hdc, wt, -1, &rWt, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
-            // Track (always drawn)
             HPEN hNoPen = CreatePen(PS_NULL, 0, 0);
             HPEN pOldPn = (HPEN)SelectObject(hdc, hNoPen);
             HBRUSH hTrack = CreateSolidBrush(unavailable ? RGB(230, 230, 235) : RGB(215, 218, 228));
@@ -684,7 +736,6 @@ void CReportDlg::OnPaint()
 
             if (!unavailable)
             {
-                // Filled bar — colour: green(>70) amber(40-70) red(<40)
                 COLORREF fillCol = score >= 70.0 ? RGB(0, 160, 80)
                     : score >= 40.0 ? RGB(220, 150, 0)
                     : RGB(200, 40, 40);
@@ -700,7 +751,6 @@ void CReportDlg::OnPaint()
                 SelectObject(hdc, pOldPn);
                 DeleteObject(hNoPen);
 
-                // Score % — drawn in the S(42) slot immediately right of the bar
                 SelectObject(hdc, hFontSmall);
                 SetTextColor(hdc, fillCol);
                 CString pct;
@@ -710,13 +760,11 @@ void CReportDlg::OnPaint()
                 DrawText(hdc, pct, -1, &rPct,
                     DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-                // Raw value in brackets — clipped to right margin so it never overflows
                 if (!rawValStr.IsEmpty())
                 {
                     SetTextColor(hdc, RGB(100, 100, 110));
                     CString rv;
-                    rv.Format(L"[%s: %s]", rawLabel, rawValStr.GetString());
-                    // Place the raw label right after the score%, bounded by CX-LEFT
+                    rv.Format(L"[%s: %s]", rawLabel.GetString(), rawValStr.GetString());
                     int rawX = BarX + BarW + S(42) + S(10);
                     RECT rRaw = { rawX, y + S(3), CX - LEFT, y + S(3) + BarH };
                     SelectObject(hdc, hFontSmall);
@@ -729,11 +777,11 @@ void CReportDlg::OnPaint()
                 SelectObject(hdc, pOldPn);
                 DeleteObject(hNoPen);
 
-                // "Not available" text inside the greyed bar
                 SelectObject(hdc, hFontSmall);
                 SetTextColor(hdc, RGB(160, 160, 170));
+                CString naStr = LS(m_pBattDlg, L"Not measured / unavailable", L"未計測 / データなし");
                 RECT rNA = { BarX + S(6), y + S(2), BarX + BarW, y + S(2) + BarH };
-                DrawText(hdc, L"Not measured / unavailable", -1, &rNA, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+                DrawText(hdc, naStr, -1, &rNA, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
             }
 
             y += S(30);
@@ -743,25 +791,41 @@ void CReportDlg::OnPaint()
     {
         CString rv;
         if (sc.healthPct >= 0) rv.Format(L"%.1f%%", sc.healthPct);
-        DrawFactor(L"Battery Health Ratio", sc.f1Health, L"health", rv, 50);
+        DrawFactor(
+            LS(m_pBattDlg, L"Battery Health Ratio", L"バッテリー健全性比率"),
+            sc.f1Health,
+            LS(m_pBattDlg, L"health", L"健全性"),
+            rv, 50);
     }
     // F4 – CPU Load Drain Rate (base weight 20%)
     {
         CString rv;
         if (sc.cpuRatePerMin >= 0) rv.Format(L"%.2f%%/min", sc.cpuRatePerMin);
-        DrawFactor(L"CPU Load Drain Rate", sc.f4Cpu, L"rate", rv, 20);
+        DrawFactor(
+            LS(m_pBattDlg, L"CPU Load Drain Rate", L"CPU負荷時消耗率"),
+            sc.f4Cpu,
+            LS(m_pBattDlg, L"rate", L"消耗率"),
+            rv, 20);
     }
     // F5 – Idle Discharge Drain Rate (base weight 20%)
     {
         CString rv;
         if (sc.disRatePerMin >= 0) rv.Format(L"%.2f%%/min", sc.disRatePerMin);
-        DrawFactor(L"Idle Discharge Drain Rate", sc.f5Dis, L"rate", rv, 20);
+        DrawFactor(
+            LS(m_pBattDlg, L"Idle Discharge Drain Rate", L"アイドル放電消耗率"),
+            sc.f5Dis,
+            LS(m_pBattDlg, L"rate", L"消耗率"),
+            rv, 20);
     }
     // F6 – Charge Cycle Count (base weight 10%)
     {
         CString rv;
         if (sc.cycleCount >= 0) rv.Format(L"%d cycles", sc.cycleCount);
-        DrawFactor(L"Charge Cycle Count", sc.f6Cycles, L"cycles", rv, 10);
+        DrawFactor(
+            LS(m_pBattDlg, L"Charge Cycle Count", L"充電サイクル数"),
+            sc.f6Cycles,
+            LS(m_pBattDlg, L"cycles", L"回"),
+            rv, 10);
     }
 
     // ── Missing-data notice ───────────────────────────────────────────────────
@@ -769,7 +833,10 @@ void CReportDlg::OnPaint()
     {
         SelectObject(hdc, hFontSmall);
         SetTextColor(hdc, RGB(150, 100, 0));
-        CString note = L"\u26a0  " + sc.missingNote + L"  \u2014  score computed from available factors only.";
+        CString noteSuffix = LS(m_pBattDlg,
+            L"  \u2014  score computed from available factors only.",
+            L"  \u2014  利用可能な項目のみでスコアを算出しています。");
+        CString note = L"\u26a0  " + sc.missingNote + noteSuffix;
         RECT rNote = { LEFT, y, CX - LEFT, y + S(36) };
         DrawText(hdc, note, -1, &rNote, DT_LEFT | DT_WORDBREAK);
         y += S(34);
@@ -791,13 +858,15 @@ void CReportDlg::OnPaint()
     // ── Key stats summary row ─────────────────────────────────────────────────
     SelectObject(hdc, hFontSub);
     SetTextColor(hdc, RGB(30, 80, 160));
-    TextOut(hdc, LEFT, y, L"Key Metrics", 11);
+    {
+        CString kmLabel = LS(m_pBattDlg, L"Key Metrics", L"主要指標");
+        TextOut(hdc, LEFT, y, kmLabel, kmLabel.GetLength());
+    }
     y += S(28);
 
     auto DrawStatCard = [&](int cx, int cy, int cw, int ch,
-        const wchar_t* title, const CString& value, COLORREF valCol)
+        const CString& title, const CString& value, COLORREF valCol)
         {
-            // Card background
             HBRUSH hCard = CreateSolidBrush(RGB(255, 255, 255));
             HPEN   hPen = CreatePen(PS_SOLID, 1, RGB(210, 215, 225));
             HBRUSH pOldBr = (HBRUSH)SelectObject(hdc, hCard);
@@ -808,13 +877,11 @@ void CReportDlg::OnPaint()
             DeleteObject(hCard);
             DeleteObject(hPen);
 
-            // Title
             SelectObject(hdc, hFontSmall);
             SetTextColor(hdc, RGB(100, 100, 115));
             RECT rt = { cx + S(6), cy + S(6), cx + cw - S(4), cy + ch / 2 };
             DrawText(hdc, title, -1, &rt, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-            // Value
             SelectObject(hdc, hFontSub);
             SetTextColor(hdc, valCol);
             RECT rv = { cx + S(4), cy + ch / 2, cx + cw - S(4), cy + ch - S(4) };
@@ -822,7 +889,6 @@ void CReportDlg::OnPaint()
         };
 
     {
-        // 6 cards, 3 per row. (Temperature and Time Remaining were removed.)
         int cardH = S(62);
         int gap = S(10);
         int nCards = 3;
@@ -837,19 +903,22 @@ void CReportDlg::OnPaint()
             COLORREF col = sc.healthPct >= 80 ? RGB(0, 160, 80)
                 : sc.healthPct >= 60 ? RGB(220, 150, 0)
                 : RGB(200, 40, 40);
-            DrawStatCard(cx, y, cardW, cardH, L"Battery Health", v, col);
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Battery Health", L"バッテリー健全性"), v, col);
             cx += cardW + gap;
         }
         // Card 2: Cycles
         {
-            DrawStatCard(cx, y, cardW, cardH, L"Charge Cycles",
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Charge Cycles", L"充電サイクル数"),
                 m_reportData.cycles.IsEmpty() ? L"N/A" : m_reportData.cycles,
                 RGB(50, 100, 180));
             cx += cardW + gap;
         }
         // Card 3: Current %
         {
-            DrawStatCard(cx, y, cardW, cardH, L"Current Charge",
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Current Charge", L"現在の充電量"),
                 m_reportData.percentage.IsEmpty() ? L"N/A" : m_reportData.percentage,
                 RGB(50, 130, 200));
         }
@@ -860,21 +929,24 @@ void CReportDlg::OnPaint()
         cx = LEFT;
         // Card 4: Voltage
         {
-            DrawStatCard(cx, y, cardW, cardH, L"Voltage",
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Voltage", L"電圧"),
                 m_reportData.voltage.IsEmpty() ? L"N/A" : m_reportData.voltage,
                 RGB(80, 80, 160));
             cx += cardW + gap;
         }
         // Card 5: Full Charge Cap
         {
-            DrawStatCard(cx, y, cardW, cardH, L"Full Charge Cap",
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Full Charge Cap", L"満充電容量"),
                 m_reportData.fullChargeCapacity.IsEmpty() ? L"N/A" : m_reportData.fullChargeCapacity,
                 RGB(0, 130, 80));
             cx += cardW + gap;
         }
         // Card 6: Design Capacity
         {
-            DrawStatCard(cx, y, cardW, cardH, L"Design Capacity",
+            DrawStatCard(cx, y, cardW, cardH,
+                LS(m_pBattDlg, L"Design Capacity", L"設計容量"),
                 m_reportData.designCapacity.IsEmpty() ? L"N/A" : m_reportData.designCapacity,
                 RGB(100, 100, 120));
         }
@@ -909,7 +981,10 @@ void CReportDlg::OnPaint()
         HFONT pOldFnt = (HFONT)SelectObject(hdc, hBtnFont);
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, RGB(255, 255, 255));
-        DrawText(hdc, L"Export Report", -1, &rBtn, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        {
+            CString exportLabel = LS(m_pBattDlg, L"Export Report", L"レポート出力");
+            DrawText(hdc, exportLabel, -1, &rBtn, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        }
         SelectObject(hdc, pOldFnt);
         DeleteObject(hBtnFont);
     }
@@ -931,20 +1006,17 @@ void CReportDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
     if (m_exportBtnRect.PtInRect(point))
     {
-        int choice = AfxMessageBox(
+        CString exportPrompt = LS(m_pBattDlg,
             L"Choose export format:\n\nYes  \u2192 HTML\nNo   \u2192 PDF",
-            MB_YESNOCANCEL | MB_ICONQUESTION);
+            L"出力形式を選択してください：\n\nはい \u2192 HTML\nいいえ \u2192 PDF");
+        int choice = AfxMessageBox(exportPrompt, MB_YESNOCANCEL | MB_ICONQUESTION);
 
         if (choice == IDYES)  ExportHtmlReport();
         else if (choice == IDNO)
         {
             CString pdfPath;
-            if (ExportPrintToPdf(pdfPath))
-            {
-                CString msg;
-                msg.Format(L"PDF saved:\n%s", pdfPath.GetString());
-                AfxMessageBox(msg, MB_ICONINFORMATION);
-            }
+            ExportPrintToPdf(pdfPath);
+            // Success message is shown inside ExportPrintToPdf
         }
     }
     CDialogEx::OnLButtonUp(nFlags, point);
@@ -958,11 +1030,13 @@ CString CReportDlg::BuildHtmlReport() const
 {
     const CReportDlg::ScoreResult& sc = m_score;
 
+    bool jp = IsJP(m_pBattDlg);
+
     CString html;
     html =
-        L"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
+        L"<!DOCTYPE html>\n<html lang='" + CString(jp ? L"ja" : L"en") + L"'>\n<head>\n"
         L"<meta charset='UTF-8'/>\n"
-        L"<title>Battery Condition Report</title>\n"
+        L"<title>" + CString(jp ? L"バッテリー状態レポート" : L"Battery Condition Report") + L"</title>\n"
         L"<style>\n"
         L"body{font-family:Segoe UI,Arial,sans-serif;font-size:13px;margin:30px;color:#222;background:#f5f7fa;}\n"
         L"h1{color:#1e50a0;}\n"
@@ -979,7 +1053,7 @@ CString CReportDlg::BuildHtmlReport() const
         L".card-title{font-size:11px;color:#888;}\n"
         L".card-value{font-size:18px;font-weight:bold;}\n"
         L"</style>\n</head>\n<body>\n"
-        L"<h1>Battery Condition Report</h1>\n";
+        L"<h1>" + CString(jp ? L"バッテリー状態レポート" : L"Battery Condition Report") + L"</h1>\n";
 
     // Grade badge
     CString color;
@@ -990,62 +1064,90 @@ CString CReportDlg::BuildHtmlReport() const
     // Score bar
     CString scoreHtml;
     scoreHtml.Format(
-        L"<p><strong>Overall Score: %.0f / 100</strong></p>\n"
+        L"<p><strong>" + CString(jp ? L"総合スコア" : L"Overall Score") + L": %.0f / 100</strong></p>\n"
         L"<div class='bar-track'><div class='bar-fill' style='width:%.0f%%;background:%s;'></div></div>\n"
         L"<p>%s</p>\n",
         sc.total, sc.total, color.GetString(), sc.advice.GetString());
     html += scoreHtml;
 
     // Factor table
-    html += L"<h2>Score Breakdown</h2>\n<table>\n"
+    if (jp)
+        html += L"<h2>スコア内訳</h2>\n<table>\n"
+        L"<tr><th>項目</th><th>基本ウェイト</th><th>サブスコア</th><th>実測値</th></tr>\n";
+    else
+        html += L"<h2>Score Breakdown</h2>\n<table>\n"
         L"<tr><th>Factor</th><th>Base Weight</th><th>Sub-Score</th><th>Raw Value</th></tr>\n";
 
-    // Helper: one table row; score < 0 means unavailable
-    auto FactorRow = [](const wchar_t* name, int wt, double score, const CString& raw) -> CString
+    // Helper: one table row
+    auto FactorRow = [&](const wchar_t* name, int wt, double score, const CString& raw) -> CString
         {
             CString r;
             if (score >= 0.0)
                 r.Format(L"<tr><td>%s</td><td>%d%%</td><td>%.0f%%</td><td>%s</td></tr>\n",
                     name, wt, score, raw.GetString());
             else
+            {
+                CString naCell = jp
+                    ? L"<em>未計測 / データなし</em>"
+                    : L"<em>Not measured / unavailable</em>";
                 r.Format(L"<tr style='color:#aaa'><td>%s</td><td>%d%%</td>"
-                    L"<td><em>N/A</em></td><td><em>Not measured / unavailable</em></td></tr>\n",
-                    name, wt);
+                    L"<td><em>N/A</em></td><td>%s</td></tr>\n",
+                    name, wt, naCell.GetString());
+            }
             return r;
         };
 
     CString rv;
     if (sc.healthPct >= 0) rv.Format(L"%.1f%%", sc.healthPct); else rv = L"";
-    html += FactorRow(L"Battery Health Ratio", 50, sc.f1Health, rv);
+    html += FactorRow(
+        jp ? L"バッテリー健全性比率" : L"Battery Health Ratio", 50, sc.f1Health, rv);
+
     if (sc.cpuRatePerMin >= 0) rv.Format(L"%.2f%%/min", sc.cpuRatePerMin); else rv = L"";
-    html += FactorRow(L"CPU Load Drain Rate", 20, sc.f4Cpu, rv);
+    html += FactorRow(
+        jp ? L"CPU負荷時消耗率" : L"CPU Load Drain Rate", 20, sc.f4Cpu, rv);
+
     if (sc.disRatePerMin >= 0) rv.Format(L"%.2f%%/min", sc.disRatePerMin); else rv = L"";
-    html += FactorRow(L"Idle Discharge Drain Rate", 20, sc.f5Dis, rv);
-    if (sc.cycleCount >= 0) rv.Format(L"%d cycles", sc.cycleCount); else rv = L"";
-    html += FactorRow(L"Charge Cycle Count", 10, sc.f6Cycles, rv);
+    html += FactorRow(
+        jp ? L"アイドル放電消耗率" : L"Idle Discharge Drain Rate", 20, sc.f5Dis, rv);
+
+    if (sc.cycleCount >= 0) rv.Format(jp ? L"%d 回" : L"%d cycles", sc.cycleCount); else rv = L"";
+    html += FactorRow(
+        jp ? L"充電サイクル数" : L"Charge Cycle Count", 10, sc.f6Cycles, rv);
+
     html += L"</table>\n";
 
     if (!sc.missingNote.IsEmpty())
     {
         html += L"<p style='color:#a06000;font-size:12px'>&#x26A0; ";
         html += sc.missingNote;
-        html += L" &mdash; score computed from available factors only.</p>\n";
+        html += jp
+            ? L" &mdash; 利用可能な項目のみでスコアを算出しています。</p>\n"
+            : L" &mdash; score computed from available factors only.</p>\n";
     }
 
     // Key metrics cards
-    html += L"<h2>Key Metrics</h2>\n<div class='cards'>\n";
+    html += jp
+        ? L"<h2>主要指標</h2>\n<div class='cards'>\n"
+        : L"<h2>Key Metrics</h2>\n<div class='cards'>\n";
+
     auto Card = [](const wchar_t* title, const CString& val) -> CString {
         CString c;
         c.Format(L"<div class='card'><div class='card-title'>%s</div>"
             L"<div class='card-value'>%s</div></div>\n", title, val.GetString());
         return c;
         };
-    html += Card(L"Battery Health", sc.healthPct >= 0 ? ([&] { CString t; t.Format(L"%.1f%%", sc.healthPct); return t; }()) : m_reportData.health);
-    html += Card(L"Charge Cycles", m_reportData.cycles);
-    html += Card(L"Current Charge", m_reportData.percentage);
-    html += Card(L"Voltage", m_reportData.voltage);
-    html += Card(L"Full Charge Cap", m_reportData.fullChargeCapacity);
-    html += Card(L"Design Capacity", m_reportData.designCapacity);
+
+    html += Card(
+        jp ? L"バッテリー健全性" : L"Battery Health",
+        sc.healthPct >= 0
+        ? ([&] { CString t; t.Format(L"%.1f%%", sc.healthPct); return t; }())
+        : m_reportData.health);
+
+    html += Card(jp ? L"充電サイクル数" : L"Charge Cycles", m_reportData.cycles);
+    html += Card(jp ? L"現在の充電量" : L"Current Charge", m_reportData.percentage);
+    html += Card(jp ? L"電圧" : L"Voltage", m_reportData.voltage);
+    html += Card(jp ? L"満充電容量" : L"Full Charge Cap", m_reportData.fullChargeCapacity);
+    html += Card(jp ? L"設計容量" : L"Design Capacity", m_reportData.designCapacity);
     html += L"</div>\n";
 
     html += L"</body>\n</html>\n";
@@ -1076,10 +1178,12 @@ void CReportDlg::ExportHtmlReport(const CString& destPath) const
     CStdioFile f;
     if (!f.Open(path, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
     {
-        AfxMessageBox(L"Failed to open file for writing.", MB_ICONERROR);
+        CString errMsg = LS(m_pBattDlg,
+            L"Failed to open file for writing.",
+            L"ファイルを開けませんでした。");
+        AfxMessageBox(errMsg, MB_ICONERROR);
         return;
     }
-    // Write UTF-8 BOM + content
     const BYTE bom[] = { 0xEF, 0xBB, 0xBF };
     f.Write(bom, 3);
 
@@ -1093,37 +1197,13 @@ void CReportDlg::ExportHtmlReport(const CString& destPath) const
     ShellExecute(nullptr, L"open", path.GetString(), nullptr, nullptr, SW_SHOWNORMAL);
 }
 
-// ── FindPrinterByKeywords helper (unchanged from original) ─────────────────
-static CString FindPrinterByKeywords(std::initializer_list<const wchar_t*> keywords)
-{
-    DWORD needed = 0, count = 0;
-    EnumPrintersW(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-        nullptr, 2, nullptr, 0, &needed, &count);
-    if (needed == 0) return L"";
-
-    std::vector<BYTE> buf(needed);
-    if (!EnumPrintersW(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-        nullptr, 2, buf.data(), needed, &needed, &count))
-        return L"";
-
-    auto* info = reinterpret_cast<PRINTER_INFO_2W*>(buf.data());
-    for (DWORD i = 0; i < count; ++i)
-    {
-        CString name = info[i].pPrinterName;
-        name.MakeLower();
-        bool match = true;
-        for (auto* kw : keywords)
-        {
-            CString k = kw; k.MakeLower();
-            if (name.Find(k) < 0) { match = false; break; }
-        }
-        if (match) return info[i].pPrinterName;
-    }
-    return L"";
-}
-
 bool CReportDlg::ExportPrintToPdf(CString& outPdfPath) const
 {
+    // Strategy: write the same HTML the browser export uses to a temp file,
+    // then open it with ShellExecute "print" verb so Windows prints it to
+    // "Microsoft Print to PDF" (or whatever PDF printer the user picks in the
+    // system print dialog).  This guarantees identical content & styling.
+
     wchar_t szFile[MAX_PATH] = L"battery_condition_report.pdf";
     wchar_t filter[] = L"PDF Files (*.pdf)\0*.pdf\0All Files (*.*)\0*.*\0\0";
 
@@ -1138,138 +1218,82 @@ bool CReportDlg::ExportPrintToPdf(CString& outPdfPath) const
     if (!GetSaveFileName(&ofn)) return false;
     outPdfPath = szFile;
 
-    CString printerName = FindPrinterByKeywords({ L"Microsoft", L"PDF" });
-    if (printerName.IsEmpty()) printerName = FindPrinterByKeywords({ L"PDF" });
-    if (printerName.IsEmpty())
+    // Write HTML to a temp file
+    wchar_t tempPath[MAX_PATH];
+    GetTempPath(MAX_PATH, tempPath);
+    CString tempHtml;
+    tempHtml.Format(L"%sbattery_report_print.html", tempPath);
+
+    CString html = BuildHtmlReport();
+
+    // Inject a print-on-load script so the browser prints automatically
+    // and a CSS @page rule for better paper layout
+    CString printCss =
+        L"<style>@media print{"
+        L"body{margin:15mm;background:#fff;}"
+        L".badge{-webkit-print-color-adjust:exact;print-color-adjust:exact;}"
+        L".bar-fill{-webkit-print-color-adjust:exact;print-color-adjust:exact;}"
+        L"}</style>\n"
+        L"<script>window.onload=function(){window.print();};</script>\n";
+
+    // Insert before </head>
+    html.Replace(L"</head>", printCss + L"</head>");
+
+    // Write UTF-8 with BOM
+    CStdioFile f;
+    if (!f.Open(tempHtml, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
     {
-        AfxMessageBox(L"'Microsoft Print to PDF' was not found on this PC.", MB_ICONWARNING);
+        CString errMsg = LS(m_pBattDlg,
+            L"Failed to write temporary HTML file.",
+            L"一時HTMLファイルの書き込みに失敗しました。");
+        AfxMessageBox(errMsg, MB_ICONERROR);
+        return false;
+    }
+    const BYTE bom[] = { 0xEF, 0xBB, 0xBF };
+    f.Write(bom, 3);
+    CStringA utf8;
+    int wlen = WideCharToMultiByte(CP_UTF8, 0, html.GetString(), -1,
+        nullptr, 0, nullptr, nullptr);
+    WideCharToMultiByte(CP_UTF8, 0, html.GetString(), -1,
+        utf8.GetBuffer(wlen), wlen, nullptr, nullptr);
+    utf8.ReleaseBuffer(wlen - 1);
+    f.Write(utf8.GetString(), utf8.GetLength());
+    f.Close();
+
+    // Open in browser — the print dialog will appear automatically
+    // The user selects "Microsoft Print to PDF" and sets outPdfPath as the destination
+    HINSTANCE hr = ShellExecute(nullptr, L"open",
+        tempHtml.GetString(), nullptr, nullptr, SW_SHOWNORMAL);
+
+    if ((INT_PTR)hr <= 32)
+    {
+        CString errMsg = LS(m_pBattDlg,
+            L"Failed to open browser for printing.",
+            L"印刷用ブラウザを開けませんでした。");
+        AfxMessageBox(errMsg, MB_ICONERROR);
         return false;
     }
 
-    HANDLE hPrinter = nullptr;
-    OpenPrinterW(const_cast<LPWSTR>(printerName.GetString()), &hPrinter, nullptr);
-    std::vector<BYTE> dmBuf;
-    DEVMODEW* pDM = nullptr;
-    if (hPrinter)
-    {
-        LONG dmSz = DocumentPropertiesW(GetSafeHwnd(), hPrinter,
-            const_cast<LPWSTR>(printerName.GetString()), nullptr, nullptr, 0);
-        if (dmSz > 0)
-        {
-            dmBuf.resize(dmSz);
-            pDM = reinterpret_cast<DEVMODEW*>(dmBuf.data());
-            if (DocumentPropertiesW(GetSafeHwnd(), hPrinter,
-                const_cast<LPWSTR>(printerName.GetString()),
-                pDM, nullptr, DM_OUT_BUFFER) < 0) pDM = nullptr;
-        }
-        ClosePrinter(hPrinter);
-    }
+    // Show guidance — the browser will open and auto-trigger the print dialog
+    CString msg = LS(m_pBattDlg,
+        L"Your browser will open with the report.\n\n"
+        L"In the print dialog:\n"
+        L"  1. Set the destination to \"Microsoft Print to PDF\"\n"
+        L"  2. Click Print and save to your chosen location.",
+        L"レポートをブラウザで開きます。\n\n"
+        L"印刷ダイアログにて：\n"
+        L"  1. 出力先を「Microsoft Print to PDF」に設定\n"
+        L"  2. 印刷をクリックして保存先を指定してください。");
+    AfxMessageBox(msg, MB_ICONINFORMATION);
 
-    HDC hDC = CreateDCW(nullptr, printerName.GetString(), nullptr, pDM);
-    if (!hDC) { AfxMessageBox(L"Could not create DC for PDF printer.", MB_ICONERROR); return false; }
-
-    DOCINFOW di = {};
-    di.cbSize = sizeof(di);
-    di.lpszDocName = L"Battery Condition Report";
-    di.lpszOutput = outPdfPath.GetString();
-    if (StartDocW(hDC, &di) <= 0)
-    {
-        DeleteDC(hDC);
-        AfxMessageBox(L"StartDoc failed.", MB_ICONERROR);
-        return false;
-    }
-
-    StartPage(hDC);
-    int pageW = GetDeviceCaps(hDC, HORZRES);
-    int pageH = GetDeviceCaps(hDC, VERTRES);
-    int dpiX = GetDeviceCaps(hDC, LOGPIXELSX);
-    int dpiY = GetDeviceCaps(hDC, LOGPIXELSY);
-    int mX = (dpiX * 3) / 4;
-    int mY = (dpiY * 3) / 4;
-    RenderReportToDC(hDC, pageW, pageH, mX, mY, (float)dpiX / 96.f, (float)dpiY / 96.f);
-    EndPage(hDC);
-    EndDoc(hDC);
-    DeleteDC(hDC);
+    // outPdfPath is the user's chosen path from the Save dialog above;
+    // actual writing is done by the PDF printer in the browser.
     return true;
 }
 
-void CReportDlg::RenderReportToDC(HDC hDC, int pageW, int pageH,
-    int marginX, int marginY, float scaleX, float scaleY) const
+void CReportDlg::RenderReportToDC(HDC /*hDC*/, int /*pageW*/, int /*pageH*/,
+    int /*marginX*/, int /*marginY*/, float /*scaleX*/, float /*scaleY*/) const
 {
-    // For PDF: render the HTML via ShellExecute print or just draw text summary.
-    // Here we do a simple text dump of the condition score to the DC.
-    const CReportDlg::ScoreResult& sc = m_score;
-
-    auto ScaledFont = [&](int ptSize, bool bold) -> HFONT {
-        return CreateFont(-(int)(ptSize * scaleY), 0, 0, 0,
-            bold ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
-        };
-
-    HFONT hTitle = ScaledFont(22, true);
-    HFONT hH2 = ScaledFont(14, true);
-    HFONT hBody = ScaledFont(11, false);
-
-    int x = marginX, y = marginY;
-    int lineH = (int)(20 * scaleY);
-
-    SetBkMode(hDC, TRANSPARENT);
-
-    // Title
-    SelectObject(hDC, hTitle);
-    SetTextColor(hDC, RGB(30, 80, 160));
-    TextOut(hDC, x, y, L"Battery Condition Report", 24);
-    y += lineH * 2;
-
-    // Grade
-    SelectObject(hDC, hH2);
-    SetTextColor(hDC, sc.gradeColor);
-    CString gradeStr;
-    gradeStr.Format(L"Grade: %s   (Score: %.0f / 100)", sc.grade.GetString(), sc.total);
-    TextOut(hDC, x, y, gradeStr, gradeStr.GetLength());
-    y += lineH * 2;
-
-    // Advice
-    SelectObject(hDC, hBody);
-    SetTextColor(hDC, RGB(60, 60, 60));
-    TextOut(hDC, x, y, sc.advice, sc.advice.GetLength());
-    y += lineH * 2;
-
-    // Factors
-    SelectObject(hDC, hH2);
-    SetTextColor(hDC, RGB(30, 80, 160));
-    TextOut(hDC, x, y, L"Score Breakdown:", 16);
-    y += lineH;
-
-    SelectObject(hDC, hBody);
-    SetTextColor(hDC, RGB(40, 40, 40));
-
-    struct { const wchar_t* name; double score; } factors[] = {
-        { L"Battery Health Ratio      (50%)", sc.f1Health  },
-        { L"CPU Load Drain Rate        (20%)", sc.f4Cpu    },
-        { L"Idle Discharge Drain Rate  (20%)", sc.f5Dis    },
-        { L"Charge Cycle Count         (10%)", sc.f6Cycles },
-    };
-    for (auto& f : factors)
-    {
-        CString row;
-        if (f.score >= 0.0)
-            row.Format(L"  %-44s  %.0f%%", f.name, f.score);
-        else
-            row.Format(L"  %-44s  N/A (not measured)", f.name);
-        TextOut(hDC, x, y, row, row.GetLength());
-        y += lineH;
-    }
-    if (!sc.missingNote.IsEmpty())
-    {
-        y += lineH / 2;
-        SetTextColor(hDC, RGB(160, 100, 0));
-        CString note = L"  Note: " + sc.missingNote + L" - score from available factors only.";
-        TextOut(hDC, x, y, note, note.GetLength());
-    }
-
-    DeleteObject(hTitle);
-    DeleteObject(hH2);
-    DeleteObject(hBody);
+    // No longer used — PDF export now goes through the browser (see ExportPrintToPdf).
+    // Kept to satisfy the declaration in the header.
 }

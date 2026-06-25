@@ -166,4 +166,6 @@ public:
     CString L(const CString& en, const CString& jp);
     afx_msg void OnBnClickedButton1();
 
+   int m_langButtonClickCount = 0;
+
 };

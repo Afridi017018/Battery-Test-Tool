@@ -12,7 +12,7 @@ class CSOHDlg : public CDialogEx
 {
     DECLARE_DYNAMIC(CSOHDlg)
 public:
-    CSOHDlg(CWnd* pParent = nullptr);
+    CSOHDlg(CWnd* pParent = nullptr, bool engLang = true);
     virtual ~CSOHDlg();
     enum { IDD = IDD_SOH };
 
@@ -99,6 +99,12 @@ private:
 
     void PaintBuffer(CDC* pDC, int W, int H);   // double-buffer helper
 
+    bool m_engLang;   // true = English, false = Japanese
 
+    // Language helper
+    CString T(const wchar_t* en, const wchar_t* jp) const
+    {
+        return m_engLang ? CString(en) : CString(jp);
+    }
 
 };
