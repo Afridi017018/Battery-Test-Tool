@@ -2862,6 +2862,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             designCapHistPretty.Format(L"%d mWh", portableDesignCap);
             UpdateLabel(this, IDC_BATT_DCAPACITY, designCapHistPretty);
             m_reportData.designCapacity = designCapHistPretty;
+            designCapStr = designCapHistPretty;
             designCapValue = portableDesignCap;
         }
         else
@@ -2870,6 +2871,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             // Fallback: nothing useful from PortableBattery, show WMI value
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"Unknown");
             m_reportData.fullChargeCapacity = "Unknown";
+			designCapStr = "Unknown";
         }
     }
 
@@ -2878,11 +2880,13 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"");
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"Unknown");
             m_reportData.fullChargeCapacity = "Unknown";
+			designCapStr = "Unknown";
         }
         else {
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"");
             UpdateLabel(this, IDC_BATT_DCAPACITY, L"不明");
             m_reportData.fullChargeCapacity = "不明";
+			designCapStr = "不明";
         }
     }
 
@@ -3090,6 +3094,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
             }
         }
     }
+
 
 
     // cleanup

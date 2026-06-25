@@ -52,14 +52,68 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
     CDialogEx::DoDataExchange(pDX);
 }
 
+//BOOL CMFCUIDlg::OnInitDialog()
+//{
+//
+//    CDialogEx::OnInitDialog();
+//
+//
+//    HICON hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
+//
+//    SetIcon(hIcon, TRUE);   // Large icon
+//    SetIcon(hIcon, FALSE);  // Small icon
+//
+//    SetWindowText(
+//        (m_pBattDlg &&
+//            m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+//        ? _T("バッテリーテストツール")
+//        : _T("Battery Test Tool"));
+//
+//    /*ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);*/
+//
+//    ModifyStyle(0, WS_THICKFRAME);
+//
+//    SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
+//
+//    SetTimer(1, 1000, NULL);
+//
+//	Invalidate();
+//    UpdateWindow();
+//
+//    return TRUE;
+//}
+
+
 BOOL CMFCUIDlg::OnInitDialog()
 {
+    if (m_pBattDlg && !m_pBattDlg->HasBattery())
+    {
+       /* AfxMessageBox(
+            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+            ? L"バッテリーが検出されません。"
+            : L"No battery detected.");*/
+
+        MessageBox(
+            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+            ? L"バッテリーが検出されません。"
+            : L"No battery detected.",
+            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+            ? L"エラー"
+            : L"Error",
+            MB_OK | MB_ICONERROR);
+
+        EndDialog(IDCANCEL);      // Close this dialog
+        AfxGetMainWnd()->PostMessage(WM_CLOSE); // Close the application
+
+        return FALSE;
+    }
+
     CDialogEx::OnInitDialog();
 
     HICON hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
 
-    SetIcon(hIcon, TRUE);   // Large icon
-    SetIcon(hIcon, FALSE);  // Small icon
+    SetIcon(hIcon, TRUE);
+    SetIcon(hIcon, FALSE);
 
     SetWindowText(
         (m_pBattDlg &&
@@ -67,20 +121,17 @@ BOOL CMFCUIDlg::OnInitDialog()
         ? _T("バッテリーテストツール")
         : _T("Battery Test Tool"));
 
-    /*ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);*/
-
     ModifyStyle(0, WS_THICKFRAME);
 
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 
     SetTimer(1, 1000, NULL);
 
-	Invalidate();
+    Invalidate();
     UpdateWindow();
 
     return TRUE;
 }
-
 
 void CMFCUIDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -611,6 +662,9 @@ void CMFCUIDlg::OnBnClickedButton1()
     {
         GetDlgItem(IDC_BUTTON1)->ShowWindow(SW_HIDE);
     }
+
+    m_pBattDlg->GetStaticBatteryInfo();
+
 
     Invalidate();
     UpdateWindow();
