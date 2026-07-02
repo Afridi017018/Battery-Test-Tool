@@ -335,7 +335,7 @@ public:
 public:
 	// === Toggle state ===
 	enum class Lang { EN, JP };
-	Lang m_lang = Lang::JP; // default: Japanese
+	Lang m_lang = Lang::EN; // default: Japanese
 
 	// Helpers
 	void RedrawToggleButtons();
@@ -437,6 +437,8 @@ public:
 
 	afx_msg void OnBnClickedBtnAutoLong();
 	bool longTest;
+
+	int     fullCap_mWh = 0;
 };
 
 

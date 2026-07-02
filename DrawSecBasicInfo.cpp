@@ -20,6 +20,53 @@ static int TileFont(int tileW, int tileH, int baseSize)
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Draw text that shrinks its font size until it fits the rect width,
+// instead of truncating with "..."
+// ─────────────────────────────────────────────────────────────────
+static void DrawAutoFitText(CDC* pDC, const CString& text, CRect rc,
+    COLORREF color, int baseFontSize, bool bold, int minFontSize = 6)
+{
+    if (text.IsEmpty()) return;
+
+    int fontSize = baseFontSize;
+    CSize textSize(0, 0);
+
+    // Shrink the font until the text width fits inside the rect
+    while (fontSize > minFontSize)
+    {
+        LOGFONT lf = {};
+        lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+        lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+        lf.lfQuality = CLEARTYPE_QUALITY;
+        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+        CFont f; f.CreateFontIndirect(&lf);
+        CFont* pOld = pDC->SelectObject(&f);
+
+        textSize = pDC->GetTextExtent(text);
+
+        pDC->SelectObject(pOld);
+
+        if (textSize.cx <= rc.Width())
+            break;
+
+        --fontSize;
+    }
+
+    LOGFONT lf = {};
+    lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+    lf.lfQuality = CLEARTYPE_QUALITY;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    CFont f; f.CreateFontIndirect(&lf);
+    CFont* pOld = pDC->SelectObject(&f);
+    pDC->SetTextColor(color);
+    pDC->SetBkMode(TRANSPARENT);
+    // No DT_END_ELLIPSIS — font is already sized to fit
+    pDC->DrawText(text, &rc, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    pDC->SelectObject(pOld);
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Draw one info tile completely self-contained & responsive
 // ─────────────────────────────────────────────────────────────────
 static void DrawInfoTile(
@@ -88,25 +135,13 @@ static void DrawInfoTile(
         textStartX += iconW + max(2, TW / 20);
     }
 
-    // Label text
+    // Label text — auto-shrinks font to fit, no ellipsis
     {
         CRect rcLbl(textStartX, lblTop,
             rcTile.right - max(2, TW / 20), lblBot);
 
-        LOGFONT lf = {};
-        lf.lfHeight = -MulDiv(lblFS,
-            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-        lf.lfWeight = FW_NORMAL;
-        lf.lfQuality = CLEARTYPE_QUALITY;
-        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-        CFont f; f.CreateFontIndirect(&lf);
-        CFont* pOld = pDC->SelectObject(&f);
-        pDC->SetTextColor(RGB(90, 100, 120));
-        pDC->SetBkMode(TRANSPARENT);
-        // DT_END_ELLIPSIS prevents overflow
-        pDC->DrawText(label, &rcLbl,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        pDC->SelectObject(pOld);
+        DrawAutoFitText(pDC, label, rcLbl,
+            RGB(90, 100, 120), lblFS, false, 6);
     }
 
     // ── Thin inner divider ────────────────────────────────────────
@@ -119,23 +154,13 @@ static void DrawInfoTile(
     }
 
     // ── Value ─────────────────────────────────────────────────────
+    // auto-shrinks font to fit, no ellipsis
     {
         CRect rcVal(rcTile.left + padX, valTop,
             rcTile.right - max(2, TW / 20), valBot);
 
-        LOGFONT lf = {};
-        lf.lfHeight = -MulDiv(valFS,
-            GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
-        lf.lfWeight = FW_BOLD;
-        lf.lfQuality = CLEARTYPE_QUALITY;
-        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
-        CFont f; f.CreateFontIndirect(&lf);
-        CFont* pOld = pDC->SelectObject(&f);
-        pDC->SetTextColor(valueColor);
-        pDC->SetBkMode(TRANSPARENT);
-        pDC->DrawText(value, &rcVal,
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        pDC->SelectObject(pOld);
+        DrawAutoFitText(pDC, value, rcVal,
+            valueColor, valFS, true, 6);
     }
 }
 
@@ -196,7 +221,7 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
     int tileW = (totalW - gap * (cols - 1)) / cols;
     int tileH = (innerBottom - innerTop - vGap) / rows;
 
-   
+
 
     CRect rcT1(
         innerLeft,
@@ -237,13 +262,14 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
         CLR_DARK_TEXT,
         false, _T(""), 0);*/
 
-    // read real data safely
+        // read real data safely
     CString battName = _T("Unknown");
     CString timeLeft = _T("--:--");
     CString health = _T("Unknown");
     CString battId = _T("Unknown");
-	CString voltage = _T("Unknown");
-	CString temperature = _T("Unknown");
+    CString voltage = _T("Unknown");
+    CString temperature = _T("Unknown");
+    bool charging = false;
 
     if (m_pBattDlg)   // always check pointer first!
     {
@@ -252,7 +278,7 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
         /*healthStr = m_pBattDlg->m_cpuLoadResult;*/
         battName = m_pBattDlg->battName;
         // charging state example
-        bool charging = m_pBattDlg->IsCharging();
+        charging = m_pBattDlg->IsCharging();
         timeLeft = m_pBattDlg->remain;
 
         voltage = m_pBattDlg->out;
@@ -279,7 +305,9 @@ void CMFCUIDlg::DrawBasicBatteryInfo(CDC* pDC, CRect rc)
         false, _T(""), 0);
 
     DrawInfoTile(pDC, rcT4,
-        L(_T("Time Remaining"), _T("残り時間")),
+        charging
+        ? L(_T("Time Until Full Charge"), _T("満充電までの時間"))
+        : L(_T("Time Remaining"), _T("残り時間")),
         timeLeft,
         CLR_DARK_TEXT,
         false, _T(""), 0);

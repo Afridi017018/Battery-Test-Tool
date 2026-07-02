@@ -2543,6 +2543,7 @@ int GetDesignCapacityFromPortableBattery(IWbemServices* pServices)
 
 void CBatteryHelthDlg::GetStaticBatteryInfo()
 {
+
     // --- Connect to WMI (ROOT\CIMV2 : Win32_Battery) ---
     IWbemLocator* pLoc = nullptr;
     IWbemServices* pSvc = nullptr;
@@ -2655,7 +2656,7 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
     // 2) Full Charge Capacity (current WMI)
     // ---------------------------------------
     fullCapStr = QueryWmiValue(L"ROOT\\WMI", L"BatteryFullChargedCapacity", L"FullChargedCapacity");
-    int     fullCap_mWh = 0;
+    
 
     if (fullCapStr != L"Not available") {
         fullCap_mWh = _wtoi(fullCapStr);
@@ -2889,6 +2890,19 @@ void CBatteryHelthDlg::GetStaticBatteryInfo()
 			designCapStr = "不明";
         }
     }
+
+   
+   /* UpdateLabel(this, IDC_BATT_CAPACITY, fullCapStr);*/
+    // NEW: Full Charge Capacity cannot exceed Design Capacity
+   // NEW: Full Charge Capacity cannot exceed Design Capacity
+   if (designCapValue > 0 && fullCap_mWh > designCapValue) {
+       fullCap_mWh = designCapValue;
+
+       // Reflect the clamped value back into the display string
+       fullCapStr.Format(L"%d mWh", fullCap_mWh);
+       UpdateLabel(this, IDC_BATT_CAPACITY, fullCapStr);
+       m_reportData.fullChargeCapacity = fullCapStr;
+   }
 
 
     // --------------------------
@@ -3321,7 +3335,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
         static int        s_lastMode = 2;
         static double     s_lockedEtaHours = -1.0;
         static ULONGLONG  s_readyAtMs = 0;
-
+        static ULONGLONG  s_nextUpdateMs = 0;   // NEW: drives the 2s refresh
 
         double  etaHours = -1.0;
         const bool onAC = (sps.ACLineStatus == 1);
@@ -3413,28 +3427,78 @@ void CBatteryHelthDlg::GetBatteryInfo()
             curMode = 0;
         }
 
-        // === 5s gate + percent-locked display ===
+        //// === 5s gate + percent-locked display ===
+        //ULONGLONG nowMs = GetTickCount64();
+        //bool      lockable = ((curMode == 0 || curMode == 1) && pctNow >= 0);
+        //bool      modeChanged = (curMode != s_lastMode);
+
+        //if (lockable) {
+        //    if (modeChanged || s_lastMode == 2 || s_readyAtMs == 0) {
+        //        s_readyAtMs = nowMs + 5000;
+        //        s_lockedEtaHours = -1.0;
+        //        s_lastPct = -1;
+        //    }
+        //    if (nowMs < s_readyAtMs) {
+        //        remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+        //        m_reportData.remainingTime = remain;
+        //        s_lastMode = curMode;
+        //    }
+        //    else {
+        //        if (s_lastPct < 0 || modeChanged || pctNow != s_lastPct) {
+        //            s_lockedEtaHours = etaHours;
+        //            s_lastPct = pctNow;
+        //            s_lastMode = curMode;
+        //        }
+        //        double displayHours = (s_lockedEtaHours >= 0.0) ? s_lockedEtaHours : etaHours;
+        //        if (displayHours > 0.0) {
+        //            remain = fmtHM(displayHours);
+        //            m_reportData.remainingTime = remain;
+        //        }
+        //        else {
+        //            remain = (m_lang == Lang::EN) ? L"Unknown" : L"不明";
+        //            m_reportData.remainingTime = remain;
+        //        }
+        //    }
+        //}
+        //else {
+        //    s_lastMode = 2;
+        //    s_readyAtMs = 0;
+        //    s_lockedEtaHours = -1.0;
+        //    s_lastPct = pctNow;
+        //    if (remain.IsEmpty()) {
+        //        remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
+        //        m_reportData.remainingTime = remain;
+        //    }
+        //}
+
+        // === 2s refresh + display-locked ETA (no longer gated on percent change) ===
         ULONGLONG nowMs = GetTickCount64();
         bool      lockable = ((curMode == 0 || curMode == 1) && pctNow >= 0);
         bool      modeChanged = (curMode != s_lastMode);
 
         if (lockable) {
             if (modeChanged || s_lastMode == 2 || s_readyAtMs == 0) {
-                s_readyAtMs = nowMs + 5000;
+                // brief initial settle time when mode changes (AC plugged/unplugged etc.)
+                s_readyAtMs = nowMs + 1000;      // was 5000
                 s_lockedEtaHours = -1.0;
                 s_lastPct = -1;
+                s_nextUpdateMs = 0;
             }
+
             if (nowMs < s_readyAtMs) {
                 remain = (m_lang == Lang::EN) ? L"Calculating..." : L"計算中...";
                 m_reportData.remainingTime = remain;
                 s_lastMode = curMode;
             }
             else {
-                if (s_lastPct < 0 || modeChanged || pctNow != s_lastPct) {
+                // Recompute every 2 seconds, not just when the percent changes
+                if (s_nextUpdateMs == 0 || nowMs >= s_nextUpdateMs) {
                     s_lockedEtaHours = etaHours;
                     s_lastPct = pctNow;
                     s_lastMode = curMode;
+                    s_nextUpdateMs = nowMs + 1000;   // schedule next refresh
                 }
+
                 double displayHours = (s_lockedEtaHours >= 0.0) ? s_lockedEtaHours : etaHours;
                 if (displayHours > 0.0) {
                     remain = fmtHM(displayHours);
@@ -3449,6 +3513,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
         else {
             s_lastMode = 2;
             s_readyAtMs = 0;
+            s_nextUpdateMs = 0;
             s_lockedEtaHours = -1.0;
             s_lastPct = pctNow;
             if (remain.IsEmpty()) {
@@ -3463,7 +3528,7 @@ void CBatteryHelthDlg::GetBatteryInfo()
 
         // ----- Current (Remaining) Capacity -----
 
-        if (remaining_mWh > 0) {
+        /*if (remaining_mWh > 0) {
             currCapOut.Format(L"%d mWh", remaining_mWh);
         }
         else {
@@ -3475,7 +3540,33 @@ void CBatteryHelthDlg::GetBatteryInfo()
             }
         }
         UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapOut);
+        m_reportData.currentCapacity = currCapOut;*/
+
+
+
+        // ----- Current (Remaining) Capacity -----
+        // Clamp: remaining capacity can never exceed full charge capacity
+        int remainingClamped_mWh = remaining_mWh;
+        if (fullCap_mWh > 0 && remainingClamped_mWh > fullCap_mWh) {
+            remainingClamped_mWh = fullCap_mWh;
+			/*afx_msg("Clamped remaining capacity from %d mWh to %d mWh (full charge capacity)", remaining_mWh, full_mWh);*/
+        }
+
+        if (remainingClamped_mWh > 0) {
+            currCapOut.Format(L"%d mWh", remainingClamped_mWh);
+        }
+        else {
+            if (m_lang == Lang::EN) {
+                currCapOut = L"Unknown";
+            }
+            else {
+                currCapOut = L"不明";
+            }
+        }
+        UpdateLabel(this, IDC_BATT_CURRCAPACITY, currCapOut);
         m_reportData.currentCapacity = currCapOut;
+
+
     }
     else {
         if (m_lang == Lang::EN) {
@@ -8094,23 +8185,25 @@ void CBatteryHelthDlg::OnBnClickedAuto()
 
     if (m_autoTestRunning)
     {
-        AfxMessageBox(L"Auto test is already running.");
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Battery test is already running."
+            : L"バッテリーテストはすでに実行中です。");
         return;
     }
 
     if (HasBattery() == false)
     {
         AfxMessageBox(m_lang == Lang::EN
-            ? L"No battery detected. Auto Test requires a battery."
-            : L"バッテリーが検出されません。");
+            ? L"No battery detected. Battery Test requires a battery."
+            : L"バッテリーが検出されません。バッテリーテストにはバッテリーが必要です。");
         return;
     }
 
     if (IsCharging())
     {
         AfxMessageBox(m_lang == Lang::EN
-            ? L"Please unplug the charger before starting the Auto Test."
-            : L"充電器を抜いてからオートテストを開始してください。");
+            ? L"Please unplug the charger before starting the Battery Test."
+            : L"バッテリーテストを開始する前に、充電器のプラグを抜いてください。");
         return;
     }
 
@@ -8239,23 +8332,25 @@ void CBatteryHelthDlg::OnBnClickedBtnAutoLong()
 
     if (m_autoTestRunning)
     {
-        AfxMessageBox(L"Auto test is already running.");
+        AfxMessageBox(m_lang == Lang::EN
+            ? L"Battery test is already running."
+            : L"バッテリーテストはすでに実行中です。");
         return;
     }
 
     if (HasBattery() == false)
     {
         AfxMessageBox(m_lang == Lang::EN
-            ? L"No battery detected. Auto Test requires a battery."
-            : L"バッテリーが検出されません。");
+            ? L"No battery detected. Battey Test requires a battery."
+            : L"バッテリーが検出されません。バッテリーテストにはバッテリーが必要です。");
         return;
     }
 
     if (IsCharging())
     {
         AfxMessageBox(m_lang == Lang::EN
-            ? L"Please unplug the charger before starting the Auto Test."
-            : L"充電器を抜いてからオートテストを開始してください。");
+            ? L"Please unplug the charger before starting the Battery Test."
+            : L"バッテリーテストを開始する前に、充電器のプラグを抜いてください。");
         return;
     }
 

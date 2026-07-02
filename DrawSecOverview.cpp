@@ -645,7 +645,7 @@ void CMFCUIDlg::DrawBatteryOverview(CDC* pDC, CRect rc)
 
     // Full Charge Capacity
     DrawTextEx(pDC,
-        L(_T("Full Charge"), _T("満充電容量")),
+        L(_T("Full Charge Capacity"), _T("満充電容量")),
         CRect(leftX, y, rightX - 10, y + rowUnit),
         CLR_MID_TEXT, labelFont, true,
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);

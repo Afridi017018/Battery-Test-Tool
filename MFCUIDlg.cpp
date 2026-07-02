@@ -13,7 +13,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define BASE_W  800
+#define BASE_W  750
 #define BASE_H  830
 
 #define CLR_BG        RGB(235, 238, 245)
@@ -52,16 +52,39 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
     CDialogEx::DoDataExchange(pDX);
 }
 
+
+
+
 //BOOL CMFCUIDlg::OnInitDialog()
 //{
+//    if (m_pBattDlg && !m_pBattDlg->HasBattery())
+//    {
+//       /* AfxMessageBox(
+//            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+//            ? L"バッテリーが検出されません。"
+//            : L"No battery detected.");*/
+//
+//        MessageBox(
+//            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+//            ? L"バッテリーが検出されません。"
+//            : L"No battery detected.",
+//            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+//            ? L"エラー"
+//            : L"Error",
+//            MB_OK | MB_ICONERROR);
+//
+//        EndDialog(IDCANCEL);      // Close this dialog
+//        AfxGetMainWnd()->PostMessage(WM_CLOSE); // Close the application
+//
+//        return FALSE;
+//    }
 //
 //    CDialogEx::OnInitDialog();
 //
-//
 //    HICON hIcon = AfxGetApp()->LoadIcon(IDR_ICON);
 //
-//    SetIcon(hIcon, TRUE);   // Large icon
-//    SetIcon(hIcon, FALSE);  // Small icon
+//    SetIcon(hIcon, TRUE);
+//    SetIcon(hIcon, FALSE);
 //
 //    SetWindowText(
 //        (m_pBattDlg &&
@@ -69,29 +92,26 @@ void CMFCUIDlg::DoDataExchange(CDataExchange* pDX)
 //        ? _T("バッテリーテストツール")
 //        : _T("Battery Test Tool"));
 //
-//    /*ModifyStyle(0, WS_THICKFRAME | WS_MAXIMIZEBOX);*/
-//
 //    ModifyStyle(0, WS_THICKFRAME);
 //
 //    SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 //
 //    SetTimer(1, 1000, NULL);
 //
-//	Invalidate();
+//    Invalidate();
 //    UpdateWindow();
 //
 //    return TRUE;
 //}
 
-
 BOOL CMFCUIDlg::OnInitDialog()
 {
     if (m_pBattDlg && !m_pBattDlg->HasBattery())
     {
-       /* AfxMessageBox(
-            (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
-            ? L"バッテリーが検出されません。"
-            : L"No battery detected.");*/
+        /* AfxMessageBox(
+             (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
+             ? L"バッテリーが検出されません。"
+             : L"No battery detected.");*/
 
         MessageBox(
             (m_pBattDlg->m_lang == CBatteryHelthDlg::Lang::JP)
@@ -121,7 +141,7 @@ BOOL CMFCUIDlg::OnInitDialog()
         ? _T("バッテリーテストツール")
         : _T("Battery Test Tool"));
 
-    ModifyStyle(0, WS_THICKFRAME);
+    // ModifyStyle(0, WS_THICKFRAME);   // REMOVED — disables user resizing
 
     SetWindowPos(nullptr, 100, 50, BASE_W, BASE_H, SWP_NOZORDER);
 

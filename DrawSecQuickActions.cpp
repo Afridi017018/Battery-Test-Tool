@@ -17,6 +17,59 @@ static int BtnFont(int btnW, int btnH, int baseSize)
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Draw button text that shrinks its font size until it fits the
+// button rect (width AND height), instead of truncating with "..."
+// Handles multi-line text (e.g. "Battery Test\n(Seminar)") by
+// measuring with DT_CALCRECT using the same wrap/format rules that
+// will be used for the final draw.
+// ─────────────────────────────────────────────────────────────────
+static void DrawAutoFitButtonText(CDC* pDC, const CString& text, CRect rc,
+    COLORREF color, int baseFontSize, bool bold,
+    UINT drawFmt, int minFontSize = 6)
+{
+    if (text.IsEmpty()) return;
+
+    // Small inner padding so text never touches the button border
+    CRect rcPad(rc);
+    rcPad.DeflateRect(2, 1);
+
+    int fontSize = baseFontSize;
+
+    for (; fontSize > minFontSize; --fontSize)
+    {
+        LOGFONT lf = {};
+        lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+        lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+        lf.lfQuality = CLEARTYPE_QUALITY;
+        _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+        CFont f; f.CreateFontIndirect(&lf);
+        CFont* pOld = pDC->SelectObject(&f);
+
+        // Measure the bounding box this text would need at this size
+        CRect rcCalc(0, 0, rcPad.Width(), 0);
+        pDC->DrawText(text, &rcCalc, drawFmt | DT_CALCRECT);
+
+        pDC->SelectObject(pOld);
+
+        if (rcCalc.Width() <= rcPad.Width() && rcCalc.Height() <= rcPad.Height())
+            break;
+    }
+
+    LOGFONT lf = {};
+    lf.lfHeight = -MulDiv(fontSize, GetDeviceCaps(pDC->m_hDC, LOGPIXELSY), 72);
+    lf.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+    lf.lfQuality = CLEARTYPE_QUALITY;
+    _tcscpy_s(lf.lfFaceName, _T("Segoe UI"));
+    CFont f; f.CreateFontIndirect(&lf);
+    CFont* pOld = pDC->SelectObject(&f);
+    pDC->SetTextColor(color);
+    pDC->SetBkMode(TRANSPARENT);
+    // No DT_END_ELLIPSIS — font is already sized to fit
+    pDC->DrawText(text, &rcPad, drawFmt);
+    pDC->SelectObject(pOld);
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Draw a single styled button
 // ─────────────────────────────────────────────────────────────────
 void CMFCUIDlg::DrawQAButton(
@@ -41,10 +94,15 @@ void CMFCUIDlg::DrawQAButton(
         pDC->SelectObject(pOldP);
     }
 
-    // Text centred
+    // Text centred — auto-shrinks font to fit, single line, no ellipsis
+    // Collapse any embedded "\n" so labels always render on one line
+    // (font just gets smaller instead of wrapping) with no extra space.
+    CString oneLine(text);
+    oneLine.Replace(_T("\n"), _T(""));
+
     int fs = BtnFont(rcBtn.Width(), rcBtn.Height(), 9);
-    DrawTextEx(pDC, text, rcBtn, textColor, fs, true,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    DrawAutoFitButtonText(pDC, oneLine, rcBtn, textColor, fs, true,
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE, 6);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -115,30 +173,30 @@ void CMFCUIDlg::DrawQuickActions(CDC* pDC, CRect rc)
      int gapW = max(4, CW * 8 / 468);
      int btnW = (totalBtnW - gapW) / 2;*/
 
-    //int totalBtnW = innerRight - innerLeft;
-    //int gapW = max(4, CW * 8 / 468);
-    //int btnW = (totalBtnW - gapW * 2) / 3;
+     //int totalBtnW = innerRight - innerLeft;
+     //int gapW = max(4, CW * 8 / 468);
+     //int btnW = (totalBtnW - gapW * 2) / 3;
 
-    //if (btnW < 10) return;
+     //if (btnW < 10) return;
 
-    //int btnRadius = max(4, min(btnW, btnH) / 5);
+     //int btnRadius = max(4, min(btnW, btnH) / 5);
 
-    //// ── Button 1: Auto Test (solid blue) ─────────────────────────
-    //m_rcBtnAutoTest = CRect(
-    //    innerLeft,
-    //    btnAreaTop,
-    //    innerLeft + btnW,
-    //    btnAreaBottom);
+     //// ── Button 1: Auto Test (solid blue) ─────────────────────────
+     //m_rcBtnAutoTest = CRect(
+     //    innerLeft,
+     //    btnAreaTop,
+     //    innerLeft + btnW,
+     //    btnAreaBottom);
 
-    //DrawQAButton(pDC, m_rcBtnAutoTest,
-    //    L(_T("Auto Test"),
-    //        _T("自動テスト")),
-    //    RGB(255, 255, 255),
-    //    CLR_DARK_TEXT,
-    //    CLR_BORDER,
-    //    btnRadius);
+     //DrawQAButton(pDC, m_rcBtnAutoTest,
+     //    L(_T("Auto Test"),
+     //        _T("自動テスト")),
+     //    RGB(255, 255, 255),
+     //    CLR_DARK_TEXT,
+     //    CLR_BORDER,
+     //    btnRadius);
 
-    // REPLACE WITH:
+     // REPLACE WITH:
     int totalBtnW = innerRight - innerLeft;
     int gapW = max(4, CW * 8 / 468);
     int btnW = (totalBtnW - gapW * 3) / 4;   // 4 buttons now

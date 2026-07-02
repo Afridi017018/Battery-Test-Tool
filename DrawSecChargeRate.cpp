@@ -286,7 +286,7 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
 
     const int yAxisW = __max(36, CW * 50 / 468);   // wider for "+xx.x" labels
     const int xPadR = __max(8, CW * 12 / 468);
-    const int xPadBot = __max(18, CH * 30 / 192);
+    const int xPadBot = __max(30, CH * 46 / 192);   // was: __max(18, CH * 30 / 192);
 
     const int chartTop = rateTop + rateRowH + CH * 5 / 192;
     const int chartBot = rcCard.bottom - xPadBot;
@@ -494,7 +494,7 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
     // ─────────────────────────────────────────────────────────────────────────
     {
         const int nTicks = 5;
-        const int xLblH = __max(10, xPadBot - 4);
+        const int xLblH = __max(10, (xPadBot - 4) / 2);   // was: __max(10, xPadBot - 4);
         const int halfLW = __max(18, chartW / (nTicks * 2));
         const int xFS = CardFont(CW, CH, 6);
 
@@ -523,9 +523,9 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
                 DT_CENTER | DT_TOP | DT_SINGLELINE);
         }
 
-        // "Time (s)" caption centred below all ticks
-        CRect rcXUnit(chartLeft, chartBot + 4,
-            chartRight, chartBot + 4 + xLblH);
+        // "Time (s)" caption centred below the tick-label row (separate band, no overlap)
+        CRect rcXUnit(chartLeft, chartBot + 4 + xLblH,
+            chartRight, chartBot + 4 + xLblH + xLblH);
         CardText(pDC,
             L(_T("Time (s)"),
                 _T("時間 (秒)")),
@@ -534,68 +534,6 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
             DT_CENTER | DT_TOP | DT_SINGLELINE);
     }
 
-//    // ─────────────────────────────────────────────────────────────────────────────
-////  LIVE VALUE BADGE + INLINE LEGEND  (top-right corner of chart, one line)
-//// ─────────────────────────────────────────────────────────────────────────────
-//    {
-//        auto latestOf = [&](const std::vector<float>& s) -> float
-//            {
-//                if (!m_filled && m_cursor == 0) return kMissing;
-//                return s[(m_cursor + N - 1) % N];
-//            };
-//
-//        CString  badge;
-//        COLORREF badgeClr;
-//        float    latestC = latestOf(m_samplesChargeW);
-//        float    latestD = latestOf(m_samplesDischargeW);
-//
-//        if (m_last.currentRate_mW > 0 && !std::isnan(latestC))
-//        {
-//            badge.Format(_T("+%.2f W"), latestC);
-//            badgeClr = CLR_GREEN;
-//        }
-//        else if (m_last.currentRate_mW < 0 && !std::isnan(latestD))
-//        {
-//            badge.Format(_T("\u2212%.2f W"), latestD);
-//            badgeClr = CLR_RED;
-//        }
-//        else
-//        {
-//            badge = L(_T("0.00 W  Idle"), _T("0.00 W  アイドル"));
-//            badgeClr = CLR_MID_TEXT;
-//        }
-//
-//        const int badgeFS = CardFont(CW, CH, 8);
-//        const int legendFS = CardFont(CW, CH, 7);
-//        const int rowH = __max(12, CH * 16 / 192);
-//        const int dotR = __max(3, rowH / 3);
-//
-//        // ── right-side: watt value ────────────────────────────────────────────────
-//        int bdgW = __max(70, CW * 110 / 468);
-//        CRect rcBadge(chartRight - bdgW - 2, chartTop + 3,
-//            chartRight - 2, chartTop + 3 + rowH);
-//        CardText(pDC, badge, rcBadge, badgeClr,
-//            badgeFS, true, DT_RIGHT | DT_TOP | DT_SINGLELINE);
-//
-//        // ── left-of-badge: "● Discharge (−W)"  then  "● Charge (+W)" ─────────────
-//        //  Draw right-to-left so we know where each label ends.
-//
-//        // Discharge label + dot  ("● Discharge (−W)")
-//        CString discLbl = L(_T("  \u25CF Discharge (\u2212W)"), _T("  \u25CF 放電 (\u2212W)"));
-//        int discLblW = __max(80, CW * 115 / 468);
-//        CRect rcDiscLbl(rcBadge.left - discLblW - 4, chartTop + 3,
-//            rcBadge.left - 4, chartTop + 3 + rowH);
-//        CardText(pDC, discLbl, rcDiscLbl, CLR_RED,
-//            legendFS, false, DT_RIGHT | DT_TOP | DT_SINGLELINE);
-//
-//        // Charge label + dot  ("● Charge (+W)")
-//        CString chargeLbl = L(_T("  \u25CF Charge (+W)"), _T("  \u25CF 充電 (+W)"));
-//        int chargeLblW = __max(70, CW * 100 / 468);
-//        CRect rcChargeLbl(rcDiscLbl.left - chargeLblW - 4, chartTop + 3,
-//            rcDiscLbl.left - 4, chartTop + 3 + rowH);
-//        CardText(pDC, chargeLbl, rcChargeLbl, CLR_GREEN,
-//            legendFS, false, DT_RIGHT | DT_TOP | DT_SINGLELINE);
-//    }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  PEAK ANNOTATIONS  — dot + dashed drop-line + value label
@@ -684,69 +622,5 @@ void CMFCUIDlg::DrawChargeRate(CDC* pDC, CRect /*rc*/)
     AnnotatePeak(m_samplesChargeW, chargeValid, true, CLR_GREEN);
     AnnotatePeak(m_samplesDischargeW, dischargeValid, false, CLR_RED);
 
-    //// ─────────────────────────────────────────────────────────────────────────
-    ////  LEGEND  — two colour swatches stacked at bottom-left of chart
-    //// ─────────────────────────────────────────────────────────────────────────
-    //{
-    //    const int legFS = CardFont(CW, CH, 7);
-    //    const int legH = __max(10, CH * 13 / 192);
-    //    const int swSz = legH;
-    //    const int gap = __max(4, CW * 6 / 468);
-
-    //    // Charge swatch + label
-    //    /*int legY = chartBot - legH * 2 - gap - 3;*/
-    //    // Charge swatch + label
-    //    int legY = chartTop + 8;
-    //    int legX = rcCard.left + 4;
-
-    //    {
-    //        CBrush  swBr(CLR_GREEN);
-    //        CPen    swPen(PS_SOLID, 1, CLR_GREEN);
-    //        CBrush* pOldB = pDC->SelectObject(&swBr);
-    //        CPen* pOldP = pDC->SelectObject(&swPen);
-    //        pDC->Rectangle(legX, legY,
-    //            legX + swSz, legY + swSz);
-    //        pDC->SelectObject(pOldB);
-    //        pDC->SelectObject(pOldP);
-
-    //        CRect rcLeg(
-    //            legX + swSz + 3,
-    //            legY,
-    //            chartLeft - 4,
-    //            legY + legH);
-    //        CardText(pDC,
-    //            L(_T("Charge (+W)"),
-    //                _T("充電 (+W)")),
-    //            rcLeg, CLR_GREEN, legFS, true,
-    //            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    //    }
-
-    //    //// Discharge swatch + label
-    //    //legY = chartBot - legH - 3;
-
-    //    // Discharge swatch + label
-    //    legY = chartTop + 8 + legH + gap;
-
-    //    {
-    //        CBrush  swBr(CLR_RED);
-    //        CPen    swPen(PS_SOLID, 1, CLR_RED);
-    //        CBrush* pOldB = pDC->SelectObject(&swBr);
-    //        CPen* pOldP = pDC->SelectObject(&swPen);
-    //        pDC->Rectangle(legX, legY,
-    //            legX + swSz, legY + swSz);
-    //        pDC->SelectObject(pOldB);
-    //        pDC->SelectObject(pOldP);
-
-    //        CRect rcLeg(
-    //            legX + swSz + 3,
-    //            legY,
-    //            chartLeft - 4,
-    //            legY + legH);
-    //        CardText(pDC,
-    //            L(_T("Discharge (\u2212W)"),
-    //                _T("放電 (\u2212W)")),
-    //            rcLeg, CLR_RED, legFS, true,
-    //            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    //    }
-    //}
+   
 }
